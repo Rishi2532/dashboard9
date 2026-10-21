@@ -639,6 +639,12 @@ const EnhancedLpcdDashboard = () => {
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
       }
+      if (schemeFilter && schemeFilter !== "all") {
+        params.append("filterType", schemeFilter);
+      }
+      if (villageFilter && villageFilter !== "all") {
+        params.append("villageFilter", villageFilter);
+      }
 
       const url = `/api/water-scheme-data/historical?${params.toString()}`;
       console.log("🔢 Counting historical LPCD records with URL:", url);
@@ -658,7 +664,10 @@ const EnhancedLpcdDashboard = () => {
         start: historicalStartDate,
         end: historicalEndDate,
         region: selectedRegion,
-      });
+        agencyType: selectedAgencyType,
+        filterType: schemeFilter,
+        villageFilter: villageFilter,
+      } as any);
 
       toast({
         title: "Records Found",
@@ -1469,7 +1478,9 @@ const EnhancedLpcdDashboard = () => {
         lastQueriedDates.start !== historicalStartDate ||
         lastQueriedDates.end !== historicalEndDate ||
         lastQueriedDates.region !== selectedRegion ||
-        (lastQueriedDates as any).agencyType !== selectedAgencyType;
+        (lastQueriedDates as any).agencyType !== selectedAgencyType ||
+        (lastQueriedDates as any).filterType !== schemeFilter ||
+        (lastQueriedDates as any).villageFilter !== villageFilter;
 
       if (datesChanged) {
         // Count records first
@@ -1486,6 +1497,12 @@ const EnhancedLpcdDashboard = () => {
           }
           if (selectedAgencyType !== "ALL") {
             params.append("agencyType", selectedAgencyType);
+          }
+          if (schemeFilter && schemeFilter !== "all") {
+            params.append("filterType", schemeFilter);
+          }
+          if (villageFilter && villageFilter !== "all") {
+            params.append("villageFilter", villageFilter);
           }
 
           const url = `/api/water-scheme-data/historical?${params.toString()}`;
@@ -1510,6 +1527,8 @@ const EnhancedLpcdDashboard = () => {
             end: historicalEndDate,
             region: selectedRegion,
             agencyType: selectedAgencyType,
+            filterType: schemeFilter,
+            villageFilter: villageFilter,
           } as any);
 
           if (count === 0) {
@@ -1567,6 +1586,12 @@ const EnhancedLpcdDashboard = () => {
       }
       if ((lastQueriedDates as any).agencyType && (lastQueriedDates as any).agencyType !== "ALL") {
         params.append("agencyType", (lastQueriedDates as any).agencyType);
+      }
+      if ((lastQueriedDates as any).filterType && (lastQueriedDates as any).filterType !== "all") {
+        params.append("filterType", (lastQueriedDates as any).filterType);
+      }
+      if ((lastQueriedDates as any).villageFilter && (lastQueriedDates as any).villageFilter !== "all") {
+        params.append("villageFilter", (lastQueriedDates as any).villageFilter);
       }
 
       const queryString = params.toString();

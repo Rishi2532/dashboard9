@@ -185,7 +185,7 @@ router.get("/", async (req, res) => {
 // Get historical chlorine data by date range with deduplication
 router.get("/historical", async (req, res) => {
   try {
-    const { startDate, endDate, region, scheme_id, village_name, esr_name } = req.query;
+    const { startDate, endDate, region, scheme_id, village_name, esr_name, agencyType, filterType, fullyCompleted, villageFilter } = req.query;
 
     const effectiveStartDate = (startDate as string) || "2000-01-01";
     const effectiveEndDate = (endDate as string) || "2100-12-31";
@@ -196,8 +196,34 @@ router.get("/historical", async (req, res) => {
       region,
       scheme_id,
       village_name,
-      esr_name
+      esr_name,
+      filterType,
+      agencyType,
+      villageFilter
     });
+
+    const db = await getDB();
+    const scope = getEngineerSchemeScope(req);
+    const filteredIds = await getFilteredSchemeIds(
+      db,
+      filterType,
+      fullyCompleted,
+      agencyType as string,
+      scope,
+      villageFilter as string
+    );
+
+    if (filteredIds && (filteredIds.includes('NO_MATCHES') || filteredIds.length === 0)) {
+      return res.json({
+        success: true,
+        count: 0,
+        data: [],
+        query: {
+          dateRange: `${startDate} to ${endDate}`,
+          filters: { region, scheme_id, village_name, esr_name, filterType }
+        }
+      });
+    }
 
     // Use the new chlorine_history table-based method
     const historicalData = await storage.getChlorineHistoricalDataByDateRange(
@@ -205,7 +231,8 @@ router.get("/historical", async (req, res) => {
       effectiveEndDate,
       region as string,
       scheme_id as string,
-      village_name as string
+      village_name as string,
+      filteredIds
     );
 
     // Filter by ESR name if specified
@@ -1285,7 +1312,7 @@ router.get("/details/:statisticType", async (req, res) => {
 // Export chlorine historical data to Excel (MUST be before /export/:statisticType)
 router.get("/export/historical", async (req, res) => {
   try {
-    const { startDate, endDate, region, scheme_id, village_name, esr_name } = req.query;
+    const { startDate, endDate, region, scheme_id, village_name, esr_name, agencyType, filterType, fullyCompleted, villageFilter } = req.query;
 
     if (!startDate || !endDate) {
       return res.status(400).json({
@@ -1299,8 +1326,28 @@ router.get("/export/historical", async (req, res) => {
       region,
       scheme_id,
       village_name,
-      esr_name
+      esr_name,
+      filterType,
+      agencyType,
+      villageFilter
     });
+
+    const db = await getDB();
+    const scope = getEngineerSchemeScope(req);
+    const filteredIds = await getFilteredSchemeIds(
+      db,
+      filterType,
+      fullyCompleted,
+      agencyType as string,
+      scope,
+      villageFilter as string
+    );
+
+    if (filteredIds && (filteredIds.includes('NO_MATCHES') || filteredIds.length === 0)) {
+      return res.status(404).json({
+        error: "No historical data found for the specified filters"
+      });
+    }
 
     // Get historical data using the existing method
     const historicalData = await storage.getChlorineHistoricalDataByDateRange(
@@ -1308,7 +1355,8 @@ router.get("/export/historical", async (req, res) => {
       endDate as string,
       region as string,
       scheme_id as string,
-      village_name as string
+      village_name as string,
+      filteredIds
     );
 
     // Filter by ESR name if specified
@@ -1324,7 +1372,6 @@ router.get("/export/historical", async (req, res) => {
     const esrMap = new Map();
 
     // Fetch base ESRs to ensure all are included, even if blank
-    const db = await getDB();
     const baseEsrsQuery = sql`
       SELECT scheme_id, scheme_name, village_name, esr_name, region, circle, division, sub_division, block
       FROM chlorine_data
@@ -1333,6 +1380,7 @@ router.get("/export/historical", async (req, res) => {
       ${scheme_id ? sql` AND scheme_id = ${scheme_id}` : sql``}
       ${village_name ? sql` AND village_name = ${village_name}` : sql``}
       ${esr_name ? sql` AND esr_name = ${esr_name}` : sql``}
+      ${filteredIds && filteredIds.length > 0 ? sql` AND scheme_id IN (${sql.raw(filteredIds.map((id: string) => `'${id}'`).join(','))})` : sql``}
     `;
 
     const baseEsrsResult = await db.execute(baseEsrsQuery);

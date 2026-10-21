@@ -637,6 +637,8 @@ const ChlorineDashboard: React.FC = () => {
       historicalEndDate,
       selectedRegion,
       selectedAgencyType,
+      schemeFilter,
+      villageFilter,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -648,6 +650,12 @@ const ChlorineDashboard: React.FC = () => {
       }
       if (selectedAgencyType !== 'ALL') {
         params.append("agencyType", selectedAgencyType);
+      }
+      if (schemeFilter && schemeFilter !== "all") {
+        params.append("filterType", schemeFilter);
+      }
+      if (villageFilter && villageFilter !== "all") {
+        params.append("villageFilter", villageFilter);
       }
 
       const queryString = params.toString();
@@ -1770,6 +1778,15 @@ const ChlorineDashboard: React.FC = () => {
 
       if (selectedRegion && selectedRegion !== "all") {
         params.append("region", selectedRegion);
+      }
+      if (selectedAgencyType !== 'ALL') {
+        params.append("agencyType", selectedAgencyType);
+      }
+      if (schemeFilter && schemeFilter !== "all") {
+        params.append("filterType", schemeFilter);
+      }
+      if (villageFilter && villageFilter !== "all") {
+        params.append("villageFilter", villageFilter);
       }
 
       const queryString = params.toString();

@@ -9,8 +9,7 @@ import ExcelJS from 'exceljs';
 import { parse } from 'csv-parse';
 import pg from 'pg';
 import { fileURLToPath } from 'url';
-import { storage as storageInstance } from '../storage';
-import { getEngineerSchemeScope } from './filter-utils';
+import { getEngineerSchemeScope, getFilteredSchemeIds } from './filter-utils';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -2254,7 +2253,7 @@ function sortDatesChronologically(dates: string[]): string[] {
 // Get historical LPCD data with date range filtering
 router.get('/historical', async (req, res) => {
   try {
-    const { startDate, endDate, region, countOnly, agencyType } = req.query;
+    const { startDate, endDate, region, countOnly, agencyType, filterType, fullyCompleted, villageFilter } = req.query;
 
     if (!startDate || !endDate) {
       return res.status(400).json({
@@ -2262,12 +2261,34 @@ router.get('/historical', async (req, res) => {
       });
     }
 
+    const dbInstance = await db.getDB();
+    const scope = getEngineerSchemeScope(req);
+    const filteredSchemeIds = await getFilteredSchemeIds(
+      dbInstance,
+      filterType,
+      fullyCompleted,
+      agencyType as string,
+      scope,
+      villageFilter as string
+    );
+
+    if (filteredSchemeIds && (filteredSchemeIds.includes('NO_MATCHES') || filteredSchemeIds.length === 0)) {
+      if (countOnly === 'true') {
+        return res.json({ count: 0 });
+      }
+      return res.json([]);
+    }
+
+    const schemeIdClause = filteredSchemeIds && filteredSchemeIds.length > 0
+      ? `AND h.scheme_id IN (${filteredSchemeIds.map((id: string) => `'${id}'`).join(',')})`
+      : '';
+
     const { Pool } = pg;
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     const client = await pool.connect();
 
     try {
-      console.log(`📊 Historical LPCD query via CTE: ${startDate} to ${endDate}`);
+      console.log(`📊 Historical LPCD query via CTE: ${startDate} to ${endDate}, filterType=${filterType}`);
 
       // Base query with CTE to resolve actual dates
       const baseCte = `
@@ -2313,6 +2334,7 @@ router.get('/historical', async (req, res) => {
           FROM resolved_history h
           WHERE h.actual_date >= $1::date
             AND h.actual_date <= $2::date
+            ${schemeIdClause}
         `;
 
         const countParams: any[] = [startDate, endDate];
@@ -2338,6 +2360,7 @@ router.get('/historical', async (req, res) => {
         FROM resolved_history h
         WHERE h.actual_date >= $1::date
           AND h.actual_date <= $2::date
+          ${schemeIdClause}
       `;
 
       const queryParams: any[] = [startDate, endDate];
@@ -2378,6 +2401,9 @@ router.get('/download/village-lpcd-history', async (req, res) => {
       minLpcd,
       maxLpcd,
       agencyType,
+      filterType,
+      fullyCompleted,
+      villageFilter,
       format = 'xlsx'
     } = req.query;
 
@@ -2387,7 +2413,31 @@ router.get('/download/village-lpcd-history', async (req, res) => {
       });
     }
 
-    console.log(`📥 Village LPCD historical export request: startDate=${startDate}, endDate=${endDate}, region=${region}`);
+    const dbInstance = await db.getDB();
+    const scope = getEngineerSchemeScope(req);
+    const filteredSchemeIds = await getFilteredSchemeIds(
+      dbInstance,
+      filterType,
+      fullyCompleted,
+      agencyType as string,
+      scope,
+      villageFilter as string
+    );
+
+    if (filteredSchemeIds && (filteredSchemeIds.includes('NO_MATCHES') || filteredSchemeIds.length === 0)) {
+      const workbook = new ExcelJS.Workbook();
+      workbook.addWorksheet('Village LPCD History');
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="Village_LPCD_History_${startDate}_to_${endDate}.xlsx"`);
+      await workbook.xlsx.write(res);
+      return res.end();
+    }
+
+    const schemeIdClause = filteredSchemeIds && filteredSchemeIds.length > 0
+      ? `AND h.scheme_id IN (${filteredSchemeIds.map((id: string) => `'${id}'`).join(',')})`
+      : '';
+
+    console.log(`📥 Village LPCD historical export request: startDate=${startDate}, endDate=${endDate}, region=${region}, filterType=${filterType}`);
 
     const { Pool } = pg;
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -2448,6 +2498,7 @@ router.get('/download/village-lpcd-history', async (req, res) => {
         FROM resolved_history h
         WHERE actual_date >= $1::date
           AND actual_date <= $2::date
+          ${schemeIdClause}
       `;
 
 

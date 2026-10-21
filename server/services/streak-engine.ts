@@ -22,20 +22,61 @@ const MONTH_MAP: Record<string, number> = {
   jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
 };
 
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+export function generateRecentDateStrings(referenceDateStr?: string, daysLookback: number = 35): string[] {
+  let baseDate = new Date();
+  if (referenceDateStr) {
+    const parts = referenceDateStr.split('-');
+    if (parts.length >= 2) {
+      const day = parseInt(parts[0], 10);
+      const monIdx = MONTHS_SHORT.findIndex(m => m.toLowerCase() === parts[1].toLowerCase().slice(0, 3));
+      if (!isNaN(day) && monIdx !== -1) {
+        baseDate = new Date(Date.UTC(2026, monIdx, day));
+      }
+    }
+  }
+
+  const dateStrings = new Set<string>();
+  for (let i = 0; i < daysLookback; i++) {
+    const d = new Date(baseDate.getTime() - i * 86400000);
+    const day = d.getUTCDate();
+    const mon = MONTHS_SHORT[d.getUTCMonth()];
+    const padDay = String(day).padStart(2, '0');
+    dateStrings.add(`${padDay}-${mon}`);
+    dateStrings.add(`${day}-${mon}`);
+    dateStrings.add(`${padDay}-${mon}-25`);
+    dateStrings.add(`${day}-${mon}-2025`);
+    dateStrings.add(`${padDay}-${mon}-2026`);
+    dateStrings.add(`${day}-${mon}-2026`);
+  }
+  return Array.from(dateStrings);
+}
+
 export function parseHistoryDate(dateStr: string): Date | null {
   if (!dateStr) return null;
   const str = String(dateStr).trim();
   const parts = str.split('-');
-  if (parts.length === 2) {
+  if (parts.length >= 2) {
     const day = parseInt(parts[0], 10);
     const mon = MONTH_MAP[parts[1].toLowerCase().slice(0, 3)];
-    if (!isNaN(day) && mon !== undefined) {
-      // Standardize to UTC for continuous day difference calculations (default year 2026)
-      return new Date(Date.UTC(2026, mon, day));
+    if (!isNaN(day) && mon !== undefined && day >= 1 && day <= 31) {
+      let year = 2026;
+      if (parts.length >= 3) {
+        let yr = parseInt(parts[2], 10);
+        if (!isNaN(yr)) {
+          if (yr < 100) yr += 2000;
+          year = yr;
+        }
+      }
+      return new Date(Date.UTC(year, mon, day));
     }
   }
-  const d = new Date(str);
-  return isNaN(d.getTime()) ? null : d;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const [y, m, d] = str.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d));
+  }
+  return null;
 }
 
 /**
@@ -47,32 +88,37 @@ export function parseHistoryDate(dateStr: string): Date | null {
  *
  * If data is continuous on cloud (e.g. from 2-Oct to 17-Oct = 16 days), streak reaches 15+ days (Level 4 & 5).
  */
-let cachedAlertsData: {
+let cachedAlertsMap = new Map<string, {
   timestamp: number;
   data: {
     allAlerts: AlertWithHistoryStreak[];
     alertsByScheme: Map<string, AlertWithHistoryStreak[]>;
     alertsByKey: Map<string, AlertWithHistoryStreak>;
   };
-} | null = null;
+}>();
 
 const STREAK_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes cache
 
 export function invalidateStreakCache() {
-  cachedAlertsData = null;
+  cachedAlertsMap.clear();
 }
 
 export async function calculateAllAlertStreaksFromHistory(
   db: any,
-  forceRefresh: boolean = false
+  forceRefresh: boolean = false,
+  asOfDateStr: string = '18-Oct'
 ): Promise<{
   allAlerts: AlertWithHistoryStreak[];
   alertsByScheme: Map<string, AlertWithHistoryStreak[]>;
   alertsByKey: Map<string, AlertWithHistoryStreak>;
 }> {
-  if (!forceRefresh && cachedAlertsData && Date.now() - cachedAlertsData.timestamp < STREAK_CACHE_TTL_MS) {
-    return cachedAlertsData.data;
+  const cacheKey = asOfDateStr || '18-Oct';
+  const cached = cachedAlertsMap.get(cacheKey);
+  if (!forceRefresh && cached && Date.now() - cached.timestamp < STREAK_CACHE_TTL_MS) {
+    return cached.data;
   }
+
+  const targetDate = parseHistoryDate(asOfDateStr);
 
   const allAlerts: AlertWithHistoryStreak[] = [];
   const alertsByScheme = new Map<string, AlertWithHistoryStreak[]>();
@@ -92,18 +138,133 @@ export async function calculateAllAlertStreaksFromHistory(
     alertsByKey.set(key, alert);
   };
 
-  // -------------------------------------------------------------
-  // 1. LPCD Streaks (from water_scheme_data_history)
-  // -------------------------------------------------------------
-  const lpcdRows = await db.execute(sql`
-    SELECT 
-      h.scheme_id, h.scheme_name, h.region, h.village_name, h.data_date, h.lpcd_value
-    FROM water_scheme_data_history h
-    JOIN scheme_status ss ON ss.scheme_id = h.scheme_id AND ss.water_supply = 'Yes'
-    WHERE h.data_date IS NOT NULL
-    ORDER BY h.scheme_id, LOWER(TRIM(COALESCE(h.village_name, ''))), h.uploaded_at DESC, h.id DESC
-  `);
+  // 1. Fetch operational schemes and reference date
+  const [opSchemesRes, latestDateRes] = await Promise.all([
+    db.execute(sql`SELECT scheme_id FROM scheme_status WHERE water_supply = 'Yes'`),
+    db.execute(sql`
+      SELECT COALESCE(
+        (SELECT chlorine_date_day_7 FROM chlorine_data WHERE chlorine_date_day_7 IS NOT NULL LIMIT 1),
+        (SELECT pressure_date_day_7 FROM pressure_data WHERE pressure_date_day_7 IS NOT NULL LIMIT 1),
+        (SELECT lpcd_date_day7 FROM water_scheme_data WHERE lpcd_date_day7 IS NOT NULL LIMIT 1),
+        '18-Oct'
+      ) as latest_date
+    `)
+  ]);
 
+  const opIds: string[] = (opSchemesRes.rows || []).map((r: any) => String(r.scheme_id)).filter(Boolean);
+  if (opIds.length === 0) {
+    const emptyResult = { allAlerts, alertsByScheme, alertsByKey };
+    cachedAlertsMap.set(cacheKey, { timestamp: Date.now(), data: emptyResult });
+    return emptyResult;
+  }
+  const sqlOpIds = sql.join(opIds.map(id => sql`${id}`), sql`, `);
+
+  const rawLatest = asOfDateStr || latestDateRes.rows?.[0]?.latest_date || '18-Oct';
+  const recentDates = generateRecentDateStrings(String(rawLatest), 35);
+  const sqlDateList = sql.join(recentDates.map(d => sql`${d}`), sql`, `);
+
+  // 2. Execute LPCD, Chlorine, Pressure, and Offline queries in parallel
+  const [lpcdRows, clRows, prRows, offRes] = await Promise.all([
+    // -------------------------------------------------------------
+    // 1. LPCD Streaks (from water_scheme_data_history scoped to op schemes & recent dates)
+    // -------------------------------------------------------------
+    db.execute(sql`
+      SELECT DISTINCT ON (h.scheme_id, LOWER(TRIM(COALESCE(h.village_name, ''))), h.data_date)
+        h.scheme_id, h.scheme_name, h.region, h.village_name, h.data_date, h.lpcd_value
+      FROM water_scheme_data_history h
+      WHERE h.scheme_id IN (${sqlOpIds})
+        AND h.data_date IN (${sqlDateList})
+      ORDER BY h.scheme_id, LOWER(TRIM(COALESCE(h.village_name, ''))), h.data_date, h.uploaded_at DESC, h.id DESC
+    `),
+
+    // -------------------------------------------------------------
+    // 2. Chlorine Streaks (deduplicated per date before join)
+    // -------------------------------------------------------------
+    db.execute(sql`
+      WITH dedup_cl AS (
+        SELECT DISTINCT ON (c.scheme_id, LOWER(TRIM(COALESCE(c.village_name, ''))), LOWER(TRIM(COALESCE(c.esr_name, ''))), c.chlorine_date)
+          c.scheme_id, c.scheme_name, c.region, c.village_name, c.esr_name, c.chlorine_date, c.chlorine_value,
+          c.uploaded_at, c.id
+        FROM chlorine_history c
+        WHERE c.scheme_id IN (${sqlOpIds})
+          AND c.chlorine_date IN (${sqlDateList})
+        ORDER BY c.scheme_id, LOWER(TRIM(COALESCE(c.village_name, ''))), LOWER(TRIM(COALESCE(c.esr_name, ''))), c.chlorine_date, c.uploaded_at DESC, c.id DESC
+      ),
+      dedup_wc AS (
+        SELECT DISTINCT ON (wc.scheme_id, LOWER(TRIM(COALESCE(wc.village_name, ''))), LOWER(TRIM(COALESCE(wc.esr_name, ''))), wc.data_date)
+          wc.scheme_id, wc.village_name, wc.esr_name, wc.data_date, wc.water_value
+        FROM water_consumption_history wc
+        WHERE wc.scheme_id IN (${sqlOpIds})
+          AND wc.data_date IN (${sqlDateList})
+        ORDER BY wc.scheme_id, LOWER(TRIM(COALESCE(wc.village_name, ''))), LOWER(TRIM(COALESCE(wc.esr_name, ''))), wc.data_date, wc.uploaded_at DESC, wc.id DESC
+      )
+      SELECT 
+        c.scheme_id, c.scheme_name, c.region, c.village_name, c.esr_name, c.chlorine_date, c.chlorine_value,
+        wc.water_value
+      FROM dedup_cl c
+      LEFT JOIN dedup_wc wc ON (
+        c.scheme_id = wc.scheme_id AND
+        LOWER(TRIM(COALESCE(c.village_name, ''))) = LOWER(TRIM(COALESCE(wc.village_name, ''))) AND
+        LOWER(TRIM(COALESCE(c.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, ''))) AND
+        c.chlorine_date = wc.data_date
+      )
+      ORDER BY c.scheme_id, LOWER(TRIM(COALESCE(c.village_name, ''))), LOWER(TRIM(COALESCE(c.esr_name, ''))), c.uploaded_at DESC, c.id DESC
+    `),
+
+    // -------------------------------------------------------------
+    // 3. Pressure Streaks (deduplicated per date before join)
+    // -------------------------------------------------------------
+    db.execute(sql`
+      WITH dedup_pr AS (
+        SELECT DISTINCT ON (p.scheme_id, LOWER(TRIM(COALESCE(p.village_name, ''))), LOWER(TRIM(COALESCE(p.esr_name, ''))), p.pressure_date)
+          p.scheme_id, p.scheme_name, p.region, p.village_name, p.esr_name, p.pressure_date, p.pressure_value,
+          p.uploaded_at, p.id
+        FROM pressure_history p
+        WHERE p.scheme_id IN (${sqlOpIds})
+          AND p.pressure_date IN (${sqlDateList})
+        ORDER BY p.scheme_id, LOWER(TRIM(COALESCE(p.village_name, ''))), LOWER(TRIM(COALESCE(p.esr_name, ''))), p.pressure_date, p.uploaded_at DESC, p.id DESC
+      ),
+      dedup_wc AS (
+        SELECT DISTINCT ON (wc.scheme_id, LOWER(TRIM(COALESCE(wc.village_name, ''))), LOWER(TRIM(COALESCE(wc.esr_name, ''))), wc.data_date)
+          wc.scheme_id, wc.village_name, wc.esr_name, wc.data_date, wc.water_value
+        FROM water_consumption_history wc
+        WHERE wc.scheme_id IN (${sqlOpIds})
+          AND wc.data_date IN (${sqlDateList})
+        ORDER BY wc.scheme_id, LOWER(TRIM(COALESCE(wc.village_name, ''))), LOWER(TRIM(COALESCE(wc.esr_name, ''))), wc.data_date, wc.uploaded_at DESC, wc.id DESC
+      )
+      SELECT 
+        p.scheme_id, p.scheme_name, p.region, p.village_name, p.esr_name, p.pressure_date, p.pressure_value,
+        wc.water_value
+      FROM dedup_pr p
+      LEFT JOIN dedup_wc wc ON (
+        p.scheme_id = wc.scheme_id AND
+        LOWER(TRIM(COALESCE(p.village_name, ''))) = LOWER(TRIM(COALESCE(wc.village_name, ''))) AND
+        LOWER(TRIM(COALESCE(p.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, ''))) AND
+        p.pressure_date = wc.data_date
+      )
+      ORDER BY p.scheme_id, LOWER(TRIM(COALESCE(p.village_name, ''))), LOWER(TRIM(COALESCE(p.esr_name, ''))), p.uploaded_at DESC, p.id DESC
+    `),
+
+    // -------------------------------------------------------------
+    // 4. Offline Streaks (from communication_status vs yesterday)
+    // -------------------------------------------------------------
+    db.execute(sql`
+      SELECT DISTINCT ON (c.scheme_id, LOWER(TRIM(COALESCE(c.village_name, ''))), LOWER(TRIM(COALESCE(c.esr_name, ''))))
+        c.scheme_id, c.scheme_name, c.region, c.village_name, c.esr_name,
+        c.chlorine_connected, c.pressure_connected, c.flow_meter_connected,
+        c.chlorine_status, c.pressure_status, c.flow_meter_status,
+        c.last_seen, c.pressure_last_seen,
+        ((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - 1) as yesterday_ist
+      FROM communication_status c
+      WHERE c.scheme_id IN (${sqlOpIds})
+        AND ((TRIM(c.chlorine_connected) = 'Connected' AND c.chlorine_status = 'Offline')
+         OR (TRIM(c.pressure_connected) = 'Connected' AND c.pressure_status = 'Offline')
+         OR (TRIM(c.flow_meter_connected) = 'Connected' AND c.flow_meter_status = 'Offline'))
+      ORDER BY c.scheme_id, LOWER(TRIM(COALESCE(c.village_name, ''))), LOWER(TRIM(COALESCE(c.esr_name, '')))
+    `)
+  ]);
+
+  // Process LPCD rows
   const villageLpcdMap = new Map<string, {
     scheme_id: string;
     scheme_name: string;
@@ -113,9 +274,11 @@ export async function calculateAllAlertStreaksFromHistory(
   }>();
 
   for (const r of lpcdRows.rows) {
-    const key = `${r.scheme_id}_${String(r.village_name).trim().toLowerCase()}`;
     const d = parseHistoryDate(String(r.data_date));
     if (!d) continue;
+    if (targetDate && d.getTime() > targetDate.getTime()) continue;
+
+    const key = `${r.scheme_id}_${String(r.village_name).trim().toLowerCase()}`;
 
     if (!villageLpcdMap.has(key)) {
       villageLpcdMap.set(key, {
@@ -138,12 +301,11 @@ export async function calculateAllAlertStreaksFromHistory(
   }
 
   villageLpcdMap.forEach((entry) => {
-    // Sort descending by date (latest first)
     entry.records.sort((a, b) => b.date.getTime() - a.date.getTime());
     if (entry.records.length === 0) return;
 
     const latest = entry.records[0];
-    // Active alert only if latest date is non-compliant (< 55 LPCD)
+    if (targetDate && latest.date.getTime() !== targetDate.getTime()) return;
     if (latest.lpcd >= 55) return;
 
     let streak = 1;
@@ -158,11 +320,9 @@ export async function calculateAllAlertStreaksFromHistory(
           streak++;
           prevDate = curr.date;
         } else {
-          // Breached condition stopped
           break;
         }
       } else {
-        // Calendar continuity broken
         break;
       }
     }
@@ -181,25 +341,7 @@ export async function calculateAllAlertStreaksFromHistory(
     });
   });
 
-  // -------------------------------------------------------------
-  // 2. Chlorine Streaks (from chlorine_history & water_consumption_history)
-  // -------------------------------------------------------------
-  const clRows = await db.execute(sql`
-    SELECT 
-      c.scheme_id, c.scheme_name, c.region, c.village_name, c.esr_name, c.chlorine_date, c.chlorine_value,
-      wc.water_value
-    FROM chlorine_history c
-    JOIN scheme_status ss ON ss.scheme_id = c.scheme_id AND ss.water_supply = 'Yes'
-    LEFT JOIN water_consumption_history wc ON (
-      c.scheme_id = wc.scheme_id AND
-      LOWER(TRIM(COALESCE(c.village_name, ''))) = LOWER(TRIM(COALESCE(wc.village_name, ''))) AND
-      LOWER(TRIM(COALESCE(c.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, ''))) AND
-      c.chlorine_date = wc.data_date
-    )
-    WHERE c.chlorine_date IS NOT NULL
-    ORDER BY c.scheme_id, LOWER(TRIM(COALESCE(c.village_name, ''))), LOWER(TRIM(COALESCE(c.esr_name, ''))), c.uploaded_at DESC, c.id DESC
-  `);
-
+  // Process Chlorine rows
   const esrClMap = new Map<string, {
     scheme_id: string;
     scheme_name: string;
@@ -210,9 +352,11 @@ export async function calculateAllAlertStreaksFromHistory(
   }>();
 
   for (const r of clRows.rows) {
-    const key = `${r.scheme_id}_${String(r.village_name).trim().toLowerCase()}_${String(r.esr_name).trim().toLowerCase()}`;
     const d = parseHistoryDate(String(r.chlorine_date));
     if (!d) continue;
+    if (targetDate && d.getTime() > targetDate.getTime()) continue;
+
+    const key = `${r.scheme_id}_${String(r.village_name).trim().toLowerCase()}_${String(r.esr_name).trim().toLowerCase()}`;
 
     if (!esrClMap.has(key)) {
       esrClMap.set(key, {
@@ -241,7 +385,7 @@ export async function calculateAllAlertStreaksFromHistory(
     if (entry.records.length === 0) return;
 
     const latest = entry.records[0];
-    // Active Day 7 breach: chlorine < 0.2 or > 0.5 with water > 0
+    if (targetDate && latest.date.getTime() !== targetDate.getTime()) return;
     if (latest.cl === null || isNaN(latest.cl) || (latest.cl >= 0.2 && latest.cl <= 0.5) || latest.water <= 0) {
       return;
     }
@@ -280,25 +424,7 @@ export async function calculateAllAlertStreaksFromHistory(
     });
   });
 
-  // -------------------------------------------------------------
-  // 3. Pressure Streaks (from pressure_history & water_consumption_history)
-  // -------------------------------------------------------------
-  const prRows = await db.execute(sql`
-    SELECT 
-      p.scheme_id, p.scheme_name, p.region, p.village_name, p.esr_name, p.pressure_date, p.pressure_value,
-      wc.water_value
-    FROM pressure_history p
-    JOIN scheme_status ss ON ss.scheme_id = p.scheme_id AND ss.water_supply = 'Yes'
-    LEFT JOIN water_consumption_history wc ON (
-      p.scheme_id = wc.scheme_id AND
-      LOWER(TRIM(COALESCE(p.village_name, ''))) = LOWER(TRIM(COALESCE(wc.village_name, ''))) AND
-      LOWER(TRIM(COALESCE(p.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, ''))) AND
-      p.pressure_date = wc.data_date
-    )
-    WHERE p.pressure_date IS NOT NULL
-    ORDER BY p.scheme_id, LOWER(TRIM(COALESCE(p.village_name, ''))), LOWER(TRIM(COALESCE(p.esr_name, ''))), p.uploaded_at DESC, p.id DESC
-  `);
-
+  // Process Pressure rows
   const esrPrMap = new Map<string, {
     scheme_id: string;
     scheme_name: string;
@@ -309,9 +435,11 @@ export async function calculateAllAlertStreaksFromHistory(
   }>();
 
   for (const r of prRows.rows) {
-    const key = `${r.scheme_id}_${String(r.village_name).trim().toLowerCase()}_${String(r.esr_name).trim().toLowerCase()}`;
     const d = parseHistoryDate(String(r.pressure_date));
     if (!d) continue;
+    if (targetDate && d.getTime() > targetDate.getTime()) continue;
+
+    const key = `${r.scheme_id}_${String(r.village_name).trim().toLowerCase()}_${String(r.esr_name).trim().toLowerCase()}`;
 
     if (!esrPrMap.has(key)) {
       esrPrMap.set(key, {
@@ -340,7 +468,7 @@ export async function calculateAllAlertStreaksFromHistory(
     if (entry.records.length === 0) return;
 
     const latest = entry.records[0];
-    // Active Day 7 breach: pressure < 0.2 Bar and >= 0 with water > 0
+    if (targetDate && latest.date.getTime() !== targetDate.getTime()) return;
     if (latest.pr === null || isNaN(latest.pr) || latest.pr >= 0.2 || latest.pr < 0 || latest.water <= 0) {
       return;
     }
@@ -378,24 +506,7 @@ export async function calculateAllAlertStreaksFromHistory(
     });
   });
 
-  // -------------------------------------------------------------
-  // 4. Offline Streaks (from communication_status vs yesterday)
-  // -------------------------------------------------------------
-  const offRes: any = await db.execute(sql`
-    SELECT DISTINCT ON (c.scheme_id, LOWER(TRIM(COALESCE(c.village_name, ''))), LOWER(TRIM(COALESCE(c.esr_name, ''))))
-      c.scheme_id, c.scheme_name, c.region, c.village_name, c.esr_name,
-      c.chlorine_connected, c.pressure_connected, c.flow_meter_connected,
-      c.chlorine_status, c.pressure_status, c.flow_meter_status,
-      c.last_seen, c.pressure_last_seen,
-      ((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - 1) as yesterday_ist
-    FROM communication_status c
-    JOIN scheme_status ss ON ss.scheme_id = c.scheme_id AND ss.water_supply = 'Yes'
-    WHERE (TRIM(c.chlorine_connected) = 'Connected' AND c.chlorine_status = 'Offline')
-       OR (TRIM(c.pressure_connected) = 'Connected' AND c.pressure_status = 'Offline')
-       OR (TRIM(c.flow_meter_connected) = 'Connected' AND c.flow_meter_status = 'Offline')
-    ORDER BY c.scheme_id, LOWER(TRIM(COALESCE(c.village_name, ''))), LOWER(TRIM(COALESCE(c.esr_name, '')))
-  `);
-
+  // Process Offline rows
   (offRes.rows || []).forEach((row: any) => {
     const isChlorine = String(row.chlorine_connected || '').trim() === 'Connected' && row.chlorine_status === 'Offline';
     const isPressure = String(row.pressure_connected || '').trim() === 'Connected' && row.pressure_status === 'Offline';
@@ -407,16 +518,16 @@ export async function calculateAllAlertStreaksFromHistory(
     if (isFlow) offlineSensorsList.push('Flow Meter');
     if (offlineSensorsList.length === 0) return;
 
-    const yesterday = new Date(row.yesterday_ist);
+    const evalDate = targetDate || new Date(row.yesterday_ist);
     let clFlowDays = 0;
     if ((isChlorine || isFlow) && row.last_seen) {
       const ls = new Date(row.last_seen);
-      clFlowDays = Math.max(1, Math.floor((yesterday.getTime() - ls.getTime()) / (1000 * 86400)));
+      clFlowDays = Math.max(1, Math.floor((evalDate.getTime() - ls.getTime()) / (1000 * 86400)));
     }
     let prDays = 0;
     if (isPressure && row.pressure_last_seen) {
       const pls = new Date(row.pressure_last_seen);
-      prDays = Math.max(1, Math.floor((yesterday.getTime() - pls.getTime()) / (1000 * 86400)));
+      prDays = Math.max(1, Math.floor((evalDate.getTime() - pls.getTime()) / (1000 * 86400)));
     }
     const finalStreak = Math.max(clFlowDays, prDays, 1);
     const offlineDate = row.last_seen || row.pressure_last_seen || null;
@@ -440,6 +551,6 @@ export async function calculateAllAlertStreaksFromHistory(
   });
 
   const result = { allAlerts, alertsByScheme, alertsByKey };
-  cachedAlertsData = { timestamp: Date.now(), data: result };
+  cachedAlertsMap.set(cacheKey, { timestamp: Date.now(), data: result });
   return result;
 }

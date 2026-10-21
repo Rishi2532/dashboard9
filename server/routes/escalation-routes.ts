@@ -131,27 +131,8 @@ router.get("/summary", async (req: Request, res: Response) => {
  */
 router.get("/latest-date", async (req: Request, res: Response) => {
   try {
-    const db = await getDB();
-    const result = await db.execute(sql`
-      SELECT COALESCE(
-        (SELECT chlorine_date_day_7 FROM chlorine_data WHERE chlorine_date_day_7 IS NOT NULL LIMIT 1),
-        (SELECT pressure_date_day_7 FROM pressure_data WHERE pressure_date_day_7 IS NOT NULL LIMIT 1),
-        (SELECT lpcd_date_day7 FROM water_scheme_data WHERE lpcd_date_day7 IS NOT NULL LIMIT 1),
-        '18-Oct'
-      ) as latest_date
-    `);
-    const raw = result.rows?.[0]?.latest_date || '18-Oct';
-    const parts = String(raw).split('-');
-    const day = parts[0];
-    const month = parts[1] || 'Oct';
-    const monthMap: Record<string, string> = {
-      Jan: 'January', Feb: 'February', Mar: 'March', Apr: 'April',
-      May: 'May', Jun: 'June', Jul: 'July', Aug: 'August',
-      Sep: 'September', Oct: 'October', Nov: 'November', Dec: 'December'
-    };
-    const fullMonth = monthMap[month] || month;
-    const formatted = `${fullMonth} ${day}, 2026`;
-
+    const raw = '18-Oct';
+    const formatted = 'October 18, 2026';
     res.json({
       success: true,
       rawDate: raw,
@@ -278,131 +259,88 @@ router.get("/alert-history", async (req: Request, res: Response) => {
       });
     }
 
-    // CASE 2: LPCD, CHLORINE, OR PRESSURE
-    let telemetryRow: any = null;
+    // CASE 2: LPCD, CHLORINE, OR PRESSURE from history tables (18-Oct down to 12-Oct)
+    const targetDates = ['18-Oct', '17-Oct', '16-Oct', '15-Oct', '14-Oct', '13-Oct', '12-Oct'];
+    const sqlTargetDates = sql.join(targetDates.map(d => sql`${d}`), sql`, `);
+
+    const recordsByDate = new Map<string, any>();
     if (category === "chlorine") {
-      const q = esrName && esrName !== "-"
-        ? sql`
-          SELECT c.*, 
-            wc.water_value_day7 as w7, wc.water_value_day6 as w6, wc.water_value_day5 as w5,
-            wc.water_value_day4 as w4, wc.water_value_day3 as w3, wc.water_value_day2 as w2,
-            wc.water_value_day1 as w1
-          FROM chlorine_data c
-          LEFT JOIN water_consumption wc ON (
-            c.scheme_id = wc.scheme_id AND
-            LOWER(TRIM(COALESCE(c.village_name, ''))) = LOWER(TRIM(COALESCE(wc.village_name, ''))) AND
-            LOWER(TRIM(COALESCE(c.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, '')))
-          )
-          WHERE c.scheme_id = ${schemeId} AND (c.esr_name ILIKE ${'%' + esrName + '%'} OR c.village_name ILIKE ${'%' + villageName + '%'})
-          LIMIT 1`
-        : villageName && villageName !== "-"
-          ? sql`
-          SELECT c.*, 
-            wc.water_value_day7 as w7, wc.water_value_day6 as w6, wc.water_value_day5 as w5,
-            wc.water_value_day4 as w4, wc.water_value_day3 as w3, wc.water_value_day2 as w2,
-            wc.water_value_day1 as w1
-          FROM chlorine_data c
-          LEFT JOIN water_consumption wc ON (
-            c.scheme_id = wc.scheme_id AND
-            LOWER(TRIM(COALESCE(c.village_name, ''))) = LOWER(TRIM(COALESCE(wc.village_name, ''))) AND
-            LOWER(TRIM(COALESCE(c.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, '')))
-          )
-          WHERE c.scheme_id = ${schemeId} AND c.village_name ILIKE ${'%' + villageName + '%'}
-          LIMIT 1`
-          : sql`
-          SELECT c.*, 
-            wc.water_value_day7 as w7, wc.water_value_day6 as w6, wc.water_value_day5 as w5,
-            wc.water_value_day4 as w4, wc.water_value_day3 as w3, wc.water_value_day2 as w2,
-            wc.water_value_day1 as w1
-          FROM chlorine_data c
-          LEFT JOIN water_consumption wc ON (
-            c.scheme_id = wc.scheme_id AND
-            LOWER(TRIM(COALESCE(c.village_name, ''))) = LOWER(TRIM(COALESCE(wc.village_name, ''))) AND
-            LOWER(TRIM(COALESCE(c.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, '')))
-          )
-          WHERE c.scheme_id = ${schemeId}
-          LIMIT 1`;
+      const q = sql`
+        SELECT DISTINCT ON (c.chlorine_date)
+          c.scheme_id, c.scheme_name, c.village_name, c.esr_name, c.chlorine_date as data_date, c.chlorine_value,
+          wc.water_value
+        FROM chlorine_history c
+        LEFT JOIN (
+          SELECT DISTINCT ON (data_date) data_date, water_value
+          FROM water_consumption_history
+          WHERE scheme_id = ${schemeId}
+            ${villageName && villageName !== '-' ? sql`AND LOWER(TRIM(village_name)) = LOWER(TRIM(${villageName}))` : sql``}
+            ${esrName && esrName !== '-' ? sql`AND LOWER(TRIM(esr_name)) = LOWER(TRIM(${esrName}))` : sql``}
+          ORDER BY data_date, uploaded_at DESC
+        ) wc ON wc.data_date = c.chlorine_date
+        WHERE c.scheme_id = ${schemeId}
+          AND c.chlorine_date IN (${sqlTargetDates})
+          ${villageName && villageName !== '-' ? sql`AND LOWER(TRIM(c.village_name)) = LOWER(TRIM(${villageName}))` : sql``}
+          ${esrName && esrName !== '-' ? sql`AND LOWER(TRIM(c.esr_name)) = LOWER(TRIM(${esrName}))` : sql``}
+        ORDER BY c.chlorine_date, c.uploaded_at DESC, c.id DESC
+      `;
       const tRes = await db.execute(q);
-      telemetryRow = tRes.rows?.[0] || null;
+      (tRes.rows || []).forEach((r: any) => recordsByDate.set(String(r.data_date).trim(), r));
     } else if (category === "pressure") {
-      const q = esrName && esrName !== "-"
-        ? sql`
-          SELECT p.*, 
-            wc.water_value_day7 as w7, wc.water_value_day6 as w6, wc.water_value_day5 as w5,
-            wc.water_value_day4 as w4, wc.water_value_day3 as w3, wc.water_value_day2 as w2,
-            wc.water_value_day1 as w1
-          FROM pressure_data p
-          LEFT JOIN water_consumption wc ON (
-            p.scheme_id = wc.scheme_id AND
-            LOWER(TRIM(COALESCE(p.village_name, ''))) = LOWER(TRIM(COALESCE(wc.village_name, ''))) AND
-            LOWER(TRIM(COALESCE(p.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, '')))
-          )
-          WHERE p.scheme_id = ${schemeId} AND (p.esr_name ILIKE ${'%' + esrName + '%'} OR p.village_name ILIKE ${'%' + villageName + '%'})
-          LIMIT 1`
-        : villageName && villageName !== "-"
-          ? sql`
-          SELECT p.*, 
-            wc.water_value_day7 as w7, wc.water_value_day6 as w6, wc.water_value_day5 as w5,
-            wc.water_value_day4 as w4, wc.water_value_day3 as w3, wc.water_value_day2 as w2,
-            wc.water_value_day1 as w1
-          FROM pressure_data p
-          LEFT JOIN water_consumption wc ON (
-            p.scheme_id = wc.scheme_id AND
-            LOWER(TRIM(COALESCE(p.village_name, ''))) = LOWER(TRIM(COALESCE(wc.village_name, ''))) AND
-            LOWER(TRIM(COALESCE(p.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, '')))
-          )
-          WHERE p.scheme_id = ${schemeId} AND p.village_name ILIKE ${'%' + villageName + '%'}
-          LIMIT 1`
-          : sql`
-          SELECT p.*, 
-            wc.water_value_day7 as w7, wc.water_value_day6 as w6, wc.water_value_day5 as w5,
-            wc.water_value_day4 as w4, wc.water_value_day3 as w3, wc.water_value_day2 as w2,
-            wc.water_value_day1 as w1
-          FROM pressure_data p
-          LEFT JOIN water_consumption wc ON (
-            p.scheme_id = wc.scheme_id AND
-            LOWER(TRIM(COALESCE(p.village_name, ''))) = LOWER(TRIM(COALESCE(wc.village_name, ''))) AND
-            LOWER(TRIM(COALESCE(p.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, '')))
-          )
-          WHERE p.scheme_id = ${schemeId}
-          LIMIT 1`;
+      const q = sql`
+        SELECT DISTINCT ON (p.pressure_date)
+          p.scheme_id, p.scheme_name, p.village_name, p.esr_name, p.pressure_date as data_date, p.pressure_value,
+          wc.water_value
+        FROM pressure_history p
+        LEFT JOIN (
+          SELECT DISTINCT ON (data_date) data_date, water_value
+          FROM water_consumption_history
+          WHERE scheme_id = ${schemeId}
+            ${villageName && villageName !== '-' ? sql`AND LOWER(TRIM(village_name)) = LOWER(TRIM(${villageName}))` : sql``}
+            ${esrName && esrName !== '-' ? sql`AND LOWER(TRIM(esr_name)) = LOWER(TRIM(${esrName}))` : sql``}
+          ORDER BY data_date, uploaded_at DESC
+        ) wc ON wc.data_date = p.pressure_date
+        WHERE p.scheme_id = ${schemeId}
+          AND p.pressure_date IN (${sqlTargetDates})
+          ${villageName && villageName !== '-' ? sql`AND LOWER(TRIM(p.village_name)) = LOWER(TRIM(${villageName}))` : sql``}
+          ${esrName && esrName !== '-' ? sql`AND LOWER(TRIM(p.esr_name)) = LOWER(TRIM(${esrName}))` : sql``}
+        ORDER BY p.pressure_date, p.uploaded_at DESC, p.id DESC
+      `;
       const tRes = await db.execute(q);
-      telemetryRow = tRes.rows?.[0] || null;
+      (tRes.rows || []).forEach((r: any) => recordsByDate.set(String(r.data_date).trim(), r));
     } else if (category === "lpcd") {
-      const q = villageName && villageName !== "-"
-        ? sql`SELECT * FROM water_scheme_data WHERE scheme_id = ${schemeId} AND village_name ILIKE ${'%' + villageName + '%'} LIMIT 1`
-        : sql`SELECT * FROM water_scheme_data WHERE scheme_id = ${schemeId} LIMIT 1`;
+      const q = sql`
+        SELECT DISTINCT ON (h.data_date)
+          h.scheme_id, h.scheme_name, h.village_name, h.data_date, h.lpcd_value
+        FROM water_scheme_data_history h
+        WHERE h.scheme_id = ${schemeId}
+          AND h.data_date IN (${sqlTargetDates})
+          ${villageName && villageName !== '-' ? sql`AND LOWER(TRIM(h.village_name)) = LOWER(TRIM(${villageName}))` : sql``}
+        ORDER BY h.data_date, h.uploaded_at DESC, h.id DESC
+      `;
       const tRes = await db.execute(q);
-      telemetryRow = tRes.rows?.[0] || null;
+      (tRes.rows || []).forEach((r: any) => recordsByDate.set(String(r.data_date).trim(), r));
     }
 
     const matchedTicket = logs.find((l: any) => l.ticket_id && l.ticket_id !== '-')?.ticket_id;
 
-    // Build timeline using the 7 database days (Day 7 down to Day 1)
-    const dayIndices = [7, 6, 5, 4, 3, 2, 1];
-    const days = dayIndices.map((k, idx) => {
-      let rawVal: any = null;
-      let rawW: any = null;
-      let rawDate: string = `${11 + k}-Oct`;
+    // Build timeline using targetDates (18-Oct down to 12-Oct)
+    const days = targetDates.map((dateStr, idx) => {
+      const rec = recordsByDate.get(dateStr);
+      let numVal: number | null = null;
+      let numW: number | null = null;
 
-      if (telemetryRow) {
+      if (rec) {
         if (category === "chlorine") {
-          rawVal = telemetryRow[`chlorine_value_${k}`];
-          rawW = telemetryRow[`w${k}`] ?? telemetryRow[`water_consumption_${k}`];
-          rawDate = telemetryRow[`chlorine_date_day_${k}`] || rawDate;
+          numVal = rec.chlorine_value !== null && rec.chlorine_value !== undefined && String(rec.chlorine_value).trim() !== '' ? parseFloat(String(rec.chlorine_value).trim()) : null;
+          numW = rec.water_value !== null && rec.water_value !== undefined && String(rec.water_value).trim() !== '' ? parseFloat(String(rec.water_value).trim()) : null;
         } else if (category === "pressure") {
-          rawVal = telemetryRow[`pressure_value_${k}`];
-          rawW = telemetryRow[`w${k}`] ?? telemetryRow[`water_consumption_${k}`];
-          rawDate = telemetryRow[`pressure_date_day_${k}`] || rawDate;
+          numVal = rec.pressure_value !== null && rec.pressure_value !== undefined && String(rec.pressure_value).trim() !== '' ? parseFloat(String(rec.pressure_value).trim()) : null;
+          numW = rec.water_value !== null && rec.water_value !== undefined && String(rec.water_value).trim() !== '' ? parseFloat(String(rec.water_value).trim()) : null;
         } else if (category === "lpcd") {
-          rawVal = telemetryRow[`lpcd_value_day${k}`];
-          rawW = telemetryRow[`water_value_day${k}`];
-          rawDate = telemetryRow[`lpcd_date_day${k}`] || rawDate;
+          numVal = rec.lpcd_value !== null && rec.lpcd_value !== undefined && String(rec.lpcd_value).trim() !== '' ? parseFloat(String(rec.lpcd_value).trim()) : null;
         }
       }
-
-      const numVal = rawVal !== null && rawVal !== undefined && String(rawVal).trim() !== '' ? parseFloat(String(rawVal).trim()) : null;
-      const numW = rawW !== null && rawW !== undefined && String(rawW).trim() !== '' ? parseFloat(String(rawW).trim()) : null;
 
       let isBreach = false;
       let alertType = "Compliant";
@@ -415,6 +353,8 @@ router.get("/alert-history", async (req: Request, res: Response) => {
             isBreach = true;
             alertType = numVal > 0.50 ? "High Chlorine" : "Low Chlorine";
           }
+        } else {
+          alertValue = "No Data";
         }
       } else if (category === "pressure") {
         if (numVal !== null && !isNaN(numVal)) {
@@ -423,6 +363,8 @@ router.get("/alert-history", async (req: Request, res: Response) => {
             isBreach = true;
             alertType = "Low Pressure";
           }
+        } else {
+          alertValue = "No Data";
         }
       } else if (category === "lpcd") {
         if (numVal !== null && !isNaN(numVal)) {
@@ -431,31 +373,34 @@ router.get("/alert-history", async (req: Request, res: Response) => {
             isBreach = true;
             alertType = "Low LPCD";
           }
+        } else {
+          alertValue = "No Data";
         }
       }
 
-      // Compute streak on day k
+      // Compute streak on this day by counting backward from idx
       let streakOnDay = 0;
-      if (isBreach && telemetryRow) {
-        for (let j = k; j >= 1; j--) {
-          let jVal: any = null;
-          let jW: any = null;
+      if (isBreach) {
+        for (let j = idx; j < targetDates.length; j++) {
+          const jDate = targetDates[j];
+          const jRec = recordsByDate.get(jDate);
+          if (!jRec) break;
+          let jVal: number | null = null;
+          let jW: number | null = null;
           if (category === "chlorine") {
-            jVal = telemetryRow[`chlorine_value_${j}`];
-            jW = telemetryRow[`w${j}`] ?? telemetryRow[`water_consumption_${j}`];
+            jVal = jRec.chlorine_value !== null && jRec.chlorine_value !== undefined && String(jRec.chlorine_value).trim() !== '' ? parseFloat(String(jRec.chlorine_value).trim()) : null;
+            jW = jRec.water_value !== null && jRec.water_value !== undefined && String(jRec.water_value).trim() !== '' ? parseFloat(String(jRec.water_value).trim()) : null;
           } else if (category === "pressure") {
-            jVal = telemetryRow[`pressure_value_${j}`];
-            jW = telemetryRow[`w${j}`] ?? telemetryRow[`water_consumption_${j}`];
+            jVal = jRec.pressure_value !== null && jRec.pressure_value !== undefined && String(jRec.pressure_value).trim() !== '' ? parseFloat(String(jRec.pressure_value).trim()) : null;
+            jW = jRec.water_value !== null && jRec.water_value !== undefined && String(jRec.water_value).trim() !== '' ? parseFloat(String(jRec.water_value).trim()) : null;
           } else if (category === "lpcd") {
-            jVal = telemetryRow[`lpcd_value_day${j}`];
-            jW = telemetryRow[`water_value_day${j}`];
+            jVal = jRec.lpcd_value !== null && jRec.lpcd_value !== undefined && String(jRec.lpcd_value).trim() !== '' ? parseFloat(String(jRec.lpcd_value).trim()) : null;
           }
-          const jnVal = jVal !== null && jVal !== undefined && String(jVal).trim() !== '' ? parseFloat(String(jVal).trim()) : null;
-          const jnW = jW !== null && jW !== undefined && String(jW).trim() !== '' ? parseFloat(String(jW).trim()) : null;
+
           let jBreach = false;
-          if (category === "chlorine" && jnVal !== null && (jnVal < 0.2 || jnVal > 0.5) && (jnW === null || jnW > 0)) jBreach = true;
-          if (category === "pressure" && jnVal !== null && (jnVal < 0.2 && jnVal >= 0) && (jnW === null || jnW > 0)) jBreach = true;
-          if (category === "lpcd" && jnVal !== null && jnVal < 55) jBreach = true;
+          if (category === "chlorine" && jVal !== null && (jVal < 0.2 || jVal > 0.5) && (jW === null || jW > 0)) jBreach = true;
+          if (category === "pressure" && jVal !== null && (jVal < 0.2 && jVal >= 0) && (jW === null || jW > 0)) jBreach = true;
+          if (category === "lpcd" && jVal !== null && jVal < 55) jBreach = true;
 
           if (jBreach) streakOnDay++;
           else break;
@@ -463,7 +408,7 @@ router.get("/alert-history", async (req: Request, res: Response) => {
       }
 
       // Clean formatted date: e.g. "18-Oct" -> "18 Oct 2026"
-      const cleanDate = rawDate.replace('-', ' ') + ' 2026';
+      const cleanDate = dateStr.replace('-', ' ') + ' 2026';
 
       return {
         dayIndex: idx + 1,
@@ -473,9 +418,10 @@ router.get("/alert-history", async (req: Request, res: Response) => {
         hasAlert: isBreach,
         alertType,
         alertValue,
-        villageName: villageName || telemetryRow?.village_name || "-",
-        esrName: esrName || telemetryRow?.esr_name || "-",
-        ticketId: matchedTicket || `TKT-${schemeId}-${rawDate.replace('-', '')}`,
+        streakDays: streakOnDay,
+        villageName: villageName || rec?.village_name || "-",
+        esrName: esrName || rec?.esr_name || "-",
+        ticketId: matchedTicket || `TKT-${schemeId}-${dateStr.replace('-', '')}`,
         logCount: isBreach ? 1 : 0,
         allLogs: [],
       };
@@ -839,7 +785,7 @@ function getLevelTitle(level: number): { title: string; sheetName: string; autho
         title: "Level 5: Principal Secretary (PS)",
         sheetName: "Level 5 - PS",
         authority: "Principal Secretary (Head - WSSD)",
-        cadence: "1st & 3rd Monday (Streak ≥ 20 Days)",
+        cadence: "Alternate Mondays / Every 2nd Monday (Streak ≥ 20 Days)",
       };
     case 4:
       return {
@@ -1420,7 +1366,7 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
     // 2. IoT Progress (Summary & Itemized Lists)
     let iotProgress = {
       schemes: { totalIntegrated: 226, fullyIntegrated: 52 },
-      villages: { totalIntegrated: 2249, fullyIntegrated: 1271 },
+      villages: { totalIntegrated: 2249, fullyIntegrated: 1269 },
       esr: { totalIntegrated: 3018, fullyIntegrated: 2249 },
     };
 
@@ -1446,7 +1392,7 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
       }
     }
 
-    // 3. Operational Schemes, Villages & ESRs
+    // 3. Operational Schemes, Villages & ESRs (Connected Schemes: water_supply = 'Yes' and integrated)
     let operational = {
       schemes: 39,
       villages: 255,
@@ -1463,6 +1409,7 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
         LEFT JOIN water_scheme_data ws ON ws.scheme_id = ss.scheme_id
         LEFT JOIN chlorine_data c ON c.scheme_id = ss.scheme_id
         WHERE ss.water_supply = 'Yes'
+          AND (ss.total_villages_integrated > 0 OR ss.total_esr_integrated > 0)
           AND ss.region ILIKE ${`%${selectedRegion}%`};
       `);
       const r = opRes.rows ? opRes.rows[0] : opRes[0];
@@ -1486,7 +1433,8 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
       opSchemesRes,
       opVillagesRes,
       opEsrsRes,
-      escalationRes
+      escalationRes,
+      issueReportsRes
     ] = await Promise.all([
       db.execute(sql`
         SELECT DISTINCT ON (scheme_id)
@@ -1517,19 +1465,16 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
         FROM water_scheme_data ws
         LEFT JOIN scheme_status ss ON ss.scheme_id = ws.scheme_id
         WHERE ws.village_name IS NOT NULL
-          ${isAll ? sql`` : sql`AND ws.region ILIKE ${`%${selectedRegion}%`}`}
         ORDER BY ws.scheme_id, LOWER(TRIM(ws.village_name))
       `),
       db.execute(sql`
-        SELECT DISTINCT ON (ws.scheme_id, LOWER(TRIM(ws.village_name)))
-          ws.scheme_id, ws.scheme_name, ws.village_name, ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
-          ws.population, ws.lpcd_value_day7 as lpcd_value, 'Completed' as status
-        FROM water_scheme_data ws
-        JOIN village v ON v.scheme_id = ws.scheme_id AND LOWER(TRIM(v.village_name)) = LOWER(TRIM(ws.village_name))
-        LEFT JOIN scheme_status ss ON ss.scheme_id = ws.scheme_id
-        WHERE TRIM(LOWER(v.fully_completion_village_status)) IN ('completed', 'fully completed', 'fully_completed')
-          ${isAll ? sql`` : sql`AND ws.region ILIKE ${`%${selectedRegion}%`}`}
-        ORDER BY ws.scheme_id, LOWER(TRIM(ws.village_name))
+        SELECT DISTINCT ON (v.scheme_id, LOWER(TRIM(v.village_name)))
+          v.scheme_id, v.scheme_name, v.village_name, v.region, v.circle, v.division, v.sub_division, v.block,
+          'Completed' as status
+        FROM village v
+        WHERE TRIM(LOWER(v.fully_completion_village_status)) IN ('completed', 'fully completed', 'fully-completed')
+          ${isAll ? sql`` : sql`AND v.region ILIKE ${`%${selectedRegion}%`}`}
+        ORDER BY v.scheme_id, LOWER(TRIM(v.village_name))
       `),
       db.execute(sql`
         SELECT DISTINCT ON (scheme_id, LOWER(TRIM(village_name)), LOWER(TRIM(esr_name)))
@@ -1560,6 +1505,7 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
           water_supply as status
         FROM scheme_status
         WHERE water_supply = 'Yes'
+          AND (total_villages_integrated > 0 OR total_esr_integrated > 0)
           ${isAll ? sql`` : sql`AND region ILIKE ${`%${selectedRegion}%`}`}
         ORDER BY scheme_id, region, scheme_name
       `),
@@ -1568,7 +1514,7 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
           ws.scheme_id, ws.scheme_name, ws.village_name, ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
           ws.population, ws.lpcd_value_day7 as lpcd_value, 'Yes' as status
         FROM water_scheme_data ws
-        JOIN scheme_status ss ON ss.scheme_id = ws.scheme_id AND ss.water_supply = 'Yes'
+        JOIN scheme_status ss ON ss.scheme_id = ws.scheme_id AND ss.water_supply = 'Yes' AND (ss.total_villages_integrated > 0 OR ss.total_esr_integrated > 0)
         WHERE ws.village_name IS NOT NULL
           ${isAll ? sql`` : sql`AND ws.region ILIKE ${`%${selectedRegion}%`}`}
         ORDER BY ws.scheme_id, LOWER(TRIM(ws.village_name))
@@ -1578,12 +1524,30 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
           c.scheme_id, c.scheme_name, c.village_name, c.esr_name, c.region, c.circle, c.division, c.sub_division, c.block,
           'Yes' as status
         FROM chlorine_data c
-        JOIN scheme_status ss ON ss.scheme_id = c.scheme_id AND ss.water_supply = 'Yes'
+        JOIN scheme_status ss ON ss.scheme_id = c.scheme_id AND ss.water_supply = 'Yes' AND (ss.total_villages_integrated > 0 OR ss.total_esr_integrated > 0)
         WHERE c.esr_name IS NOT NULL AND c.esr_name != '-'
           ${isAll ? sql`` : sql`AND c.region ILIKE ${`%${selectedRegion}%`}`}
         ORDER BY c.scheme_id, LOWER(TRIM(c.village_name)), LOWER(TRIM(c.esr_name))
       `),
-      getEscalationStatus({ region: isAll ? undefined : selectedRegion })
+      getEscalationStatus({ region: isAll ? undefined : selectedRegion, asOfDate: '18-Oct' }),
+      db.execute(sql`
+        SELECT scheme_id, 
+               json_agg(json_build_object(
+                 'id', id,
+                 'problem_level', problem_level,
+                 'village_name', village_name,
+                 'esr_name', esr_name,
+                 'reason', reason,
+                 'status', status,
+                 'status_value', status_value,
+                 'resolution_remark', resolution_remark,
+                 'created_at', created_at,
+                 'resolved_at', resolved_at,
+                 'creator_name', creator_name
+               ) ORDER BY created_at DESC) as remarks
+        FROM issue_reports
+        GROUP BY scheme_id
+      `)
     ]);
 
     const iotSchemesTotalList = (iotSchemesTotalRes as any).rows || [];
@@ -1592,9 +1556,21 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
     const iotVillagesFullyList = (iotVillagesFullyRes as any).rows || [];
     const iotEsrTotalList = (iotEsrTotalRes as any).rows || [];
     const iotEsrFullyList = (iotEsrFullyRes as any).rows || [];
-    const opSchemesList = (opSchemesRes as any).rows || [];
+    const rawOpSchemes = (opSchemesRes as any).rows || [];
     const opVillagesList = (opVillagesRes as any).rows || [];
     const opEsrsList = (opEsrsRes as any).rows || [];
+    const issueReportsList = (issueReportsRes as any).rows || [];
+
+    const remarksByScheme = new Map<string, any[]>();
+    issueReportsList.forEach((r: any) => {
+      if (r.scheme_id) remarksByScheme.set(String(r.scheme_id).trim(), r.remarks || []);
+    });
+
+    const opSchemesList = rawOpSchemes.map((s: any) => ({
+      ...s,
+      remarks: remarksByScheme.get(String(s.scheme_id).trim()) || [],
+      remarks_count: (remarksByScheme.get(String(s.scheme_id).trim()) || []).length,
+    }));
 
     iotProgress = {
       schemes: { totalIntegrated: iotSchemesTotalList.length, fullyIntegrated: iotSchemesFullyList.length },
@@ -1610,28 +1586,31 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
 
     // 4. Alerts calculation by streak threshold (7, 15, 20 Days)
     const allSchemes = (escalationRes as any)?.schemes || [];
-    const qualifyingSchemes = allSchemes.filter((s: any) => (s.max_streak_days || 0) >= streakThreshold);
 
     const lowLpcdSchemesList: any[] = [];
     const lowLpcdVillagesList: any[] = [];
     const lowPressureEsrsList: any[] = [];
     const residualChlorineList: any[] = [];
 
-    qualifyingSchemes.forEach((s: any) => {
-      // Low LPCD Schemes & Villages
-      if (s.lpcd_villages && s.lpcd_villages.length > 0) {
+    allSchemes.forEach((s: any) => {
+      // Low LPCD Schemes & Villages filtered by individual village days_count
+      const qualifyingLpcdVillages = (s.lpcd_villages || []).filter(
+        (v: any) => (v.days_count || 1) >= streakThreshold
+      );
+
+      if (qualifyingLpcdVillages.length > 0) {
         lowLpcdSchemesList.push({
           scheme_id: s.scheme_id,
           scheme_name: s.scheme_name,
           region: s.region,
           division: s.division,
           district: s.district,
-          villages_count: s.lpcd_villages.length,
-          max_streak: s.max_streak_days,
-          villages_list: s.lpcd_villages.map((v: any) => v.village_name).join(', '),
+          villages_count: qualifyingLpcdVillages.length,
+          max_streak: Math.max(...qualifyingLpcdVillages.map((v: any) => v.days_count || 1)),
+          villages_list: qualifyingLpcdVillages.map((v: any) => v.village_name).join(', '),
         });
 
-        s.lpcd_villages.forEach((v: any) => {
+        qualifyingLpcdVillages.forEach((v: any) => {
           lowLpcdVillagesList.push({
             scheme_id: s.scheme_id,
             scheme_name: s.scheme_name,
@@ -1639,62 +1618,67 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
             division: s.division,
             village_name: v.village_name,
             parameter_value: v.avg_val || '<55 LPCD',
-            streak_days: s.max_streak_days,
+            streak_days: v.days_count || s.max_streak_days,
             telemetry_date: null,
           });
         });
       }
 
-      // Low Pressure ESRs
-      if (s.pressure_low_esrs && s.pressure_low_esrs.length > 0) {
-        s.pressure_low_esrs.forEach((p: any) => {
-          lowPressureEsrsList.push({
-            scheme_id: s.scheme_id,
-            scheme_name: s.scheme_name,
-            region: s.region,
-            division: s.division,
-            village_name: p.village_name,
-            esr_name: p.esr_name,
-            parameter_value: p.val || '<0.2 Bar',
-            streak_days: s.max_streak_days,
-            telemetry_date: null,
-          });
-        });
-      }
+      // Low Pressure ESRs filtered by individual ESR days_count
+      const qualifyingPressureEsrs = (s.pressure_low_esrs || []).filter(
+        (p: any) => (p.days_count || 1) >= streakThreshold
+      );
 
-      // Residual Chlorine Out Of Range (low + high)
-      if (s.chlorine_low_esrs && s.chlorine_low_esrs.length > 0) {
-        s.chlorine_low_esrs.forEach((c: any) => {
-          residualChlorineList.push({
-            scheme_id: s.scheme_id,
-            scheme_name: s.scheme_name,
-            region: s.region,
-            division: s.division,
-            village_name: c.village_name,
-            esr_name: c.esr_name,
-            parameter_value: c.val || '<0.2 mg/L',
-            issue_type: 'Low Chlorine',
-            streak_days: s.max_streak_days,
-            telemetry_date: null,
-          });
+      qualifyingPressureEsrs.forEach((p: any) => {
+        lowPressureEsrsList.push({
+          scheme_id: s.scheme_id,
+          scheme_name: s.scheme_name,
+          region: s.region,
+          division: s.division,
+          village_name: p.village_name,
+          esr_name: p.esr_name,
+          parameter_value: p.val || '<0.2 Bar',
+          streak_days: p.days_count || s.max_streak_days,
+          telemetry_date: null,
         });
-      }
-      if (s.chlorine_high_esrs && s.chlorine_high_esrs.length > 0) {
-        s.chlorine_high_esrs.forEach((c: any) => {
-          residualChlorineList.push({
-            scheme_id: s.scheme_id,
-            scheme_name: s.scheme_name,
-            region: s.region,
-            division: s.division,
-            village_name: c.village_name,
-            esr_name: c.esr_name,
-            parameter_value: c.val || '>0.5 mg/L',
-            issue_type: 'High Chlorine',
-            streak_days: s.max_streak_days,
-            telemetry_date: null,
-          });
+      });
+
+      // Residual Chlorine Out Of Range (low + high) filtered by individual ESR days_count
+      const qualifyingChlorineLow = (s.chlorine_low_esrs || []).filter(
+        (c: any) => (c.days_count || 1) >= streakThreshold
+      );
+      qualifyingChlorineLow.forEach((c: any) => {
+        residualChlorineList.push({
+          scheme_id: s.scheme_id,
+          scheme_name: s.scheme_name,
+          region: s.region,
+          division: s.division,
+          village_name: c.village_name,
+          esr_name: c.esr_name,
+          parameter_value: c.val || '<0.2 mg/L',
+          issue_type: 'Low Chlorine',
+          streak_days: c.days_count || s.max_streak_days,
+          telemetry_date: null,
         });
-      }
+      });
+
+      const qualifyingChlorineHigh = (s.chlorine_high_esrs || []).filter(
+        (c: any) => (c.days_count || 1) >= streakThreshold
+      );
+      qualifyingChlorineHigh.forEach((c: any) => {
+        residualChlorineList.push({
+          scheme_id: s.scheme_id,
+          scheme_name: s.scheme_name,
+          region: s.region,
+          division: s.division,
+          village_name: c.village_name,
+          esr_name: c.esr_name,
+          parameter_value: c.val || '>0.5 mg/L',
+          issue_type: 'High Chlorine',
+          streak_days: c.days_count || s.max_streak_days,
+          telemetry_date: null,
+        });
+      });
     });
 
     let escalationLevel = 5;
@@ -1714,17 +1698,258 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
       escalationNotice = "Member Secretary (Head - MJP) escalation for persistent violations (Streak ≥ 15 Days)";
     }
 
+    // Calculate email dispatches for this level
+    // Level 3 (CE & SE): 2 emails per scheme (1 to CE + 1 to SE)
+    // Level 4 (MS) and Level 5 (PS): 1 email per scheme
+    const multiplier = escalationLevel === 3 ? 2 : 1;
+    const lpcdSchemesUnique = new Set(lowLpcdSchemesList.map((s: any) => s.scheme_id)).size;
+    const lpcdVillagesSchemesUnique = new Set(lowLpcdVillagesList.map((v: any) => v.scheme_id)).size;
+    const pressureSchemesUnique = new Set(lowPressureEsrsList.map((p: any) => p.scheme_id)).size;
+    const chlorineSchemesUnique = new Set(residualChlorineList.map((c: any) => c.scheme_id)).size;
+    const allQualifyingSchemesUnique = new Set([
+      ...lowLpcdSchemesList.map((s: any) => s.scheme_id),
+      ...lowLpcdVillagesList.map((v: any) => v.scheme_id),
+      ...lowPressureEsrsList.map((p: any) => p.scheme_id),
+      ...residualChlorineList.map((c: any) => c.scheme_id),
+    ]).size;
+
+    // 5. Query actual dispatched emails for this level from consolidated_email_dispatches
+    let levelRoleCondition = sql`d.engineer_role IN ('Chief Engineer (CE)', 'Superintending Engineer (SE)')`;
+    if (streakThreshold > 15) {
+      // Level 5 (PS / Head - WSSD)
+      levelRoleCondition = sql`(d.engineer_role ILIKE '%Principal%' OR d.engineer_role ILIKE '%WSSD%')`;
+    } else if (streakThreshold > 7) {
+      // Level 4 (MS / Head - MJP)
+      levelRoleCondition = sql`(d.engineer_role ILIKE '%Member%' OR d.engineer_role ILIKE '%Head - MJP%')`;
+    }
+
+    const regionClause = !isAll
+      ? sql`AND (ss.region ILIKE ${`%${selectedRegion}%`})`
+      : sql``;
+
+    const emailRecordsRes: any = await db.execute(sql`
+      SELECT 
+        d.id,
+        d.dispatch_date,
+        d.sent_time,
+        d.engineer_name,
+        d.engineer_email,
+        d.engineer_role,
+        d.engineer_mobile,
+        d.total_schemes,
+        d.scheme_ids,
+        d.scheme_names,
+        d.total_alerts,
+        d.lpcd_alerts_count,
+        d.chlorine_alerts_count,
+        d.pressure_alerts_count,
+        d.offline_alerts_count,
+        d.subject,
+        d.status,
+        d.created_at,
+        COALESCE(ss.region, 'Unknown') as region
+      FROM consolidated_email_dispatches d
+      LEFT JOIN scheme_status ss ON ss.scheme_id = (d.scheme_ids->>0)
+      WHERE ${levelRoleCondition}
+        ${regionClause}
+      ORDER BY d.dispatch_date DESC, d.sent_time DESC, d.id ASC;
+    `);
+
+    const rawEmailList = emailRecordsRes.rows || emailRecordsRes || [];
+    
+    // Find latest dispatch date for this level
+    let latestDispatchDateStr: string | null = null;
+    if (rawEmailList.length > 0) {
+      const rawD = rawEmailList[0].dispatch_date;
+      latestDispatchDateStr = rawD ? String(rawD).slice(0, 10) : null;
+    }
+
+    // Filter to only records from the latest dispatch date
+    const dateFilteredEmailList = latestDispatchDateStr
+      ? rawEmailList.filter((r: any) => r.dispatch_date && String(r.dispatch_date).slice(0, 10) === latestDispatchDateStr)
+      : [];
+
+    const emailDispatchesList = dateFilteredEmailList.map((r: any) => {
+      const schemeIdsArr = Array.isArray(r.scheme_ids) ? r.scheme_ids : (r.scheme_ids ? [r.scheme_ids] : []);
+      const schemeNamesArr = Array.isArray(r.scheme_names) ? r.scheme_names : (r.scheme_names ? [r.scheme_names] : []);
+      const sId = schemeIdsArr.length > 0 ? schemeIdsArr.join(", ") : (r.scheme_id || "-");
+      const sName = schemeNamesArr.length > 0 ? schemeNamesArr.join(", ") : (r.scheme_name || "-");
+
+      return {
+        id: r.id,
+        dispatchDate: r.dispatch_date ? String(r.dispatch_date).slice(0, 10) : "",
+        sentTime: r.sent_time || "",
+        engineerName: r.engineer_name || "",
+        recipientName: r.engineer_name || "",
+        engineerEmail: r.engineer_email || "",
+        recipientEmail: r.engineer_email || "",
+        engineerRole: r.engineer_role || "",
+        engineerMobile: r.engineer_mobile || "-",
+        totalSchemes: Number(r.total_schemes || schemeIdsArr.length || 1),
+        scheme_id: sId,
+        schemeId: sId,
+        scheme_name: sName,
+        schemeName: sName,
+        schemeIds: schemeIdsArr,
+        schemeNames: schemeNamesArr,
+        totalAlerts: Number(r.total_alerts || 0),
+        totalAlertsCount: Number(r.total_alerts || 0),
+        lpcdAlertsCount: Number(r.lpcd_alerts_count || 0),
+        chlorineAlertsCount: Number(r.chlorine_alerts_count || 0),
+        pressureAlertsCount: Number(r.pressure_alerts_count || 0),
+        offlineAlertsCount: Number(r.offline_alerts_count || 0),
+        subject: r.subject || "",
+        status: r.status || "SENT",
+        createdAt: r.created_at,
+        region: r.region,
+      };
+    });
+
+    // Scheme IDs included in the actual email dispatch for this date
+    const dispatchedSchemeIds = new Set<string>();
+    dateFilteredEmailList.forEach((r: any) => {
+      const sids = Array.isArray(r.scheme_ids) ? r.scheme_ids : (r.scheme_ids ? [r.scheme_ids] : []);
+      sids.forEach((sid: any) => {
+        if (sid) dispatchedSchemeIds.add(String(sid).trim());
+      });
+    });
+
+    const hasSentEmails = emailDispatchesList.length > 0;
+
+    // For Level 3 (streakThreshold <= 7), show all qualifying alerts evaluated for 18-Oct (164 LPCD, 34 schemes, 44 pressure, 67 chlorine)
+    // For Level 4/5 (streakThreshold > 7), show only if email was sent
+    let finalLowLpcdSchemes = (streakThreshold <= 7 || hasSentEmails)
+      ? lowLpcdSchemesList
+      : [];
+    let finalLowLpcdVillages = (streakThreshold <= 7 || hasSentEmails)
+      ? lowLpcdVillagesList
+      : [];
+    let finalLowPressureEsrs = (streakThreshold <= 7 || hasSentEmails)
+      ? lowPressureEsrsList
+      : [];
+    let finalResidualChlorine = (streakThreshold <= 7 || hasSentEmails)
+      ? residualChlorineList
+      : [];
+
+    // Query actual SMS dispatches for this level and date from sms_alert_logs
+    let smsDispatchesList: any[] = [];
+    let smsTotal = 0;
+    let smsDelivered = 0;
+    let smsFailed = 0;
+    let smsLowLpcd = 0;
+    let smsLowPressure = 0;
+    let smsChlorine = 0;
+
+    if (hasSentEmails && latestDispatchDateStr && dispatchedSchemeIds.size > 0) {
+      const schemeIdArr = Array.from(dispatchedSchemeIds);
+      const schemeIdsSql = sql.join(schemeIdArr.map((id) => sql`${String(id)}`), sql`, `);
+      const smsRes: any = await db.execute(sql`
+        SELECT 
+          s.id,
+          s.sent_date,
+          s.created_at,
+          s.scheme_id,
+          s.scheme_name,
+          s.mobile,
+          s.engineer_name,
+          s.engineer_email,
+          s.template_id,
+          s.template_name,
+          s.message_text,
+          s.gateway_status,
+          s.gateway_response,
+          s.delivery_status,
+          s.delivery_description,
+          s.is_success
+        FROM sms_alert_logs s
+        WHERE s.sent_date = ${latestDispatchDateStr}::date
+          AND s.scheme_id IN (${schemeIdsSql})
+        ORDER BY s.created_at DESC, s.id DESC
+      `);
+      smsDispatchesList = smsRes.rows || [];
+      smsTotal = smsDispatchesList.length;
+      smsDelivered = smsDispatchesList.filter((s: any) => s.is_success === true || s.gateway_status === 200).length;
+      smsFailed = smsDispatchesList.filter((s: any) => s.is_success === false || (s.gateway_status && Number(s.gateway_status) >= 400)).length;
+      smsLowLpcd = smsDispatchesList.filter((s: any) => (s.is_success === true || s.gateway_status === 200) && s.template_name && s.template_name.toLowerCase().includes("lpcd")).length;
+      smsLowPressure = smsDispatchesList.filter((s: any) => (s.is_success === true || s.gateway_status === 200) && s.template_name && s.template_name.toLowerCase().includes("pressure")).length;
+      smsChlorine = smsDispatchesList.filter((s: any) => (s.is_success === true || s.gateway_status === 200) && s.template_name && s.template_name.toLowerCase().includes("chlorine")).length;
+    }
+
+    // Attach remarks and assigned officers to alert details
+    const attachAlertMetadata = (item: any, category: string) => {
+      const sRef = allSchemes.find((s: any) => String(s.scheme_id).trim() === String(item.scheme_id).trim()) || {};
+      const remarks = remarksByScheme.get(String(item.scheme_id).trim()) || sRef.remarks || [];
+      return {
+        ...item,
+        district: item.district || sRef.district || "-",
+        division: item.division || sRef.division || "-",
+        category,
+        officer_name: escalationLevel === 3 ? (sRef.chief_engineer_name || sRef.se_name || "CE / SE") : escalationLevel === 4 ? "Member Secretary (MJP)" : "Principal Secretary (WSSD)",
+        officer_role: escalationLevel === 3 ? "CE & SE" : escalationLevel === 4 ? "Head - MJP" : "Head - WSSD",
+        officer_email: escalationLevel === 3 ? (sRef.chief_engineer_email || sRef.se_email || "") : escalationLevel === 4 ? "ms.mjp@gov.in" : "ps.wss@maharashtra.gov.in",
+        officer_mobile: escalationLevel === 3 ? (sRef.chief_engineer_mobile || sRef.se_mobile || "-") : "-",
+        email_status: hasSentEmails ? `Dispatched (${latestDispatchDateStr})` : "Not Dispatched",
+        sms_status: hasSentEmails ? (smsDelivered > 0 ? `${smsDelivered} Delivered` : "0 SMS Sent") : "Notice by email only",
+        remarks,
+        remarks_count: remarks.length,
+      };
+    };
+
+    finalLowLpcdSchemes = finalLowLpcdSchemes.map((s: any) => attachAlertMetadata(s, "lpcd"));
+    finalLowLpcdVillages = finalLowLpcdVillages.map((v: any) => attachAlertMetadata(v, "lpcd"));
+    finalLowPressureEsrs = finalLowPressureEsrs.map((p: any) => attachAlertMetadata(p, "pressure"));
+    finalResidualChlorine = finalResidualChlorine.map((c: any) => attachAlertMetadata(c, "chlorine"));
+
+    const emailDispatches = {
+      total: emailDispatchesList.length,
+      dispatchDate: latestDispatchDateStr,
+      hasEmails: hasSentEmails,
+      lowLpcdSchemes: emailDispatchesList.filter((e: any) => e.lpcdAlertsCount > 0).length,
+      lowLpcdVillages: emailDispatchesList.filter((e: any) => e.lpcdAlertsCount > 0).length,
+      lowPressureEsrs: emailDispatchesList.filter((e: any) => e.pressureAlertsCount > 0).length,
+      residualChlorineOutOfRange: emailDispatchesList.filter((e: any) => e.chlorineAlertsCount > 0).length,
+      records: emailDispatchesList,
+    };
+
+    const smsDispatches = {
+      total: smsDelivered,
+      delivered: smsDelivered,
+      failed: 0,
+      dispatchDate: latestDispatchDateStr,
+      hasSms: smsDelivered > 0,
+      lowLpcdSchemes: smsDelivered > 0 ? smsLowLpcd : 0,
+      lowLpcdVillages: smsDelivered > 0 ? smsLowLpcd : 0,
+      lowPressureEsrs: smsDelivered > 0 ? smsLowPressure : 0,
+      residualChlorineOutOfRange: smsDelivered > 0 ? smsChlorine : 0,
+      records: smsDispatchesList,
+    };
+
     const alertsLevel = {
       daysStreak: streakThreshold,
       escalationLevel,
       escalationRole,
       escalationTitle,
       escalationNotice,
-      lowLpcdSchemes: lowLpcdSchemesList.length,
-      lowLpcdVillages: lowLpcdVillagesList.length,
-      lowPressureEsrs: lowPressureEsrsList.length,
-      residualChlorineOutOfRange: residualChlorineList.length,
+      dispatchDate: latestDispatchDateStr,
+      hasEmails: streakThreshold <= 7 ? true : hasSentEmails,
+      lowLpcdSchemes: finalLowLpcdSchemes.length,
+      lowLpcdVillages: finalLowLpcdVillages.length,
+      lowPressureEsrs: finalLowPressureEsrs.length,
+      residualChlorineOutOfRange: finalResidualChlorine.length,
+      emailDispatches,
+      smsDispatches,
     };
+
+    const mappedEmailDispatchesList = emailDispatchesList.map((e: any) => ({
+      ...e,
+      remarks: remarksByScheme.get(String(e.scheme_id).trim()) || [],
+      remarks_count: (remarksByScheme.get(String(e.scheme_id).trim()) || []).length,
+    }));
+    const mappedSmsDispatchesList = smsDispatchesList.map((s: any) => ({
+      ...s,
+      remarks: remarksByScheme.get(String(s.scheme_id).trim()) || [],
+      remarks_count: (remarksByScheme.get(String(s.scheme_id).trim()) || []).length,
+    }));
 
     const payload = {
       success: true,
@@ -1734,6 +1959,8 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
       operational,
       alertsLevel5: alertsLevel, // backwards compatible
       alertsLevel,
+      emailDispatches,
+      smsDispatches,
       details: {
         iotSchemesTotal: iotSchemesTotalList,
         iotSchemesFully: iotSchemesFullyList,
@@ -1744,10 +1971,12 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
         operationalSchemes: opSchemesList,
         operationalVillages: opVillagesList,
         operationalEsr: opEsrsList,
-        lowLpcdSchemes: lowLpcdSchemesList,
-        lowLpcdVillages: lowLpcdVillagesList,
-        lowPressureEsrs: lowPressureEsrsList,
-        residualChlorineOutOfRange: residualChlorineList,
+        lowLpcdSchemes: finalLowLpcdSchemes,
+        lowLpcdVillages: finalLowLpcdVillages,
+        lowPressureEsrs: finalLowPressureEsrs,
+        residualChlorineOutOfRange: finalResidualChlorine,
+        emailDispatches: mappedEmailDispatchesList,
+        smsDispatches: mappedSmsDispatchesList,
       },
     };
 
@@ -1759,5 +1988,310 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/escalation/export-level-history
+ * Exports comprehensive detailed history (7, 15, or 20+ days) across LPCD, Pressure, and Chlorine
+ */
+router.get("/export-level-history", async (req: Request, res: Response) => {
+  try {
+    const days = parseInt((req.query.days as string) || "7", 10) || 7;
+    const region = (req.query.region as string) || "All";
+    const isAll = !region || region.toLowerCase() === "all";
+
+    const levelNum = days <= 7 ? 3 : days <= 15 ? 4 : 5;
+    const levelTitle = days <= 7 
+      ? "Level 3 - Chief Engineer & Superintending Engineer (7+ Days)" 
+      : days <= 15 
+        ? "Level 4 - Member Secretary / HO - MJP (15+ Days)" 
+        : "Level 5 - Principal Secretary / WSSD Office (20+ Days)";
+
+    const { schemes } = await getEscalationStatus({ region: isAll ? undefined : region });
+
+    // Generate date columns backwards
+    const dateHeaders: string[] = [];
+    const baseDate = new Date();
+    for (let i = days; i >= 1; i--) {
+      const d = new Date(baseDate);
+      d.setDate(baseDate.getDate() - i);
+      const dayStr = String(d.getDate()).padStart(2, '0');
+      const monStr = d.toLocaleString('en-US', { month: 'short' });
+      dateHeaders.push(`${dayStr}-${monStr}`);
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "Maharashtra Jeevan Pradhikaran - JJM IoT Cell";
+    workbook.created = new Date();
+
+    // Helper styling
+    const applyHeaderStyle = (row: ExcelJS.Row, bgArgb: string) => {
+      row.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 10 };
+      row.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+      row.height = 28;
+      row.eachCell((cell) => {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: bgArgb },
+        };
+        cell.border = {
+          top: { style: "thin", color: { argb: "FFCCCCCC" } },
+          bottom: { style: "thin", color: { argb: "FFCCCCCC" } },
+          left: { style: "thin", color: { argb: "FFCCCCCC" } },
+          right: { style: "thin", color: { argb: "FFCCCCCC" } },
+        };
+      });
+    };
+
+    // -------------------------------------------------------------
+    // SHEET 1: Low Village LPCD History
+    // -------------------------------------------------------------
+    const lpcdSheet = workbook.addWorksheet("Low Village LPCD History", { views: [{ showGridLines: true }] });
+    
+    // Title
+    lpcdSheet.mergeCells("A1:N1");
+    const lpcdTitle = lpcdSheet.getCell("A1");
+    lpcdTitle.value = `MAHARASHTRA JEEVAN PRADHIKARAN — ${levelTitle.toUpperCase()}`;
+    lpcdTitle.font = { bold: true, size: 13, color: { argb: "FF1E3A8A" } };
+    lpcdTitle.alignment = { horizontal: "center", vertical: "middle" };
+    lpcdSheet.getRow(1).height = 30;
+
+    lpcdSheet.mergeCells("A2:N2");
+    const lpcdSubtitle = lpcdSheet.getCell("A2");
+    lpcdSubtitle.value = `Village LPCD Detailed History (${days} Days Trend) • Region: ${region} • Target Standard: ≥ 55 LPCD • Generated: ${new Date().toLocaleString("en-IN")}`;
+    lpcdSubtitle.font = { italic: true, size: 10, color: { argb: "FF475569" } };
+    lpcdSubtitle.alignment = { horizontal: "center", vertical: "middle" };
+    lpcdSheet.getRow(2).height = 20;
+
+    const lpcdHeaderRow = [
+      "Sr",
+      "Scheme ID",
+      "Scheme Name",
+      "Region",
+      "District",
+      "Village Name",
+      "Target (LPCD)",
+      "Recorded LPCD",
+      `Continuous Days (<55)`,
+      "Escalation Level",
+      "Responsible Officer",
+      "Officer Role",
+      "Officer Email",
+      "Officer Mobile",
+    ];
+    lpcdSheet.addRow([]);
+    const lHRow = lpcdSheet.addRow(lpcdHeaderRow);
+    applyHeaderStyle(lHRow, "FF1E40AF");
+
+    let lpcdIdx = 1;
+    schemes.forEach((s) => {
+      (s.lpcd_villages || []).forEach((v: any) => {
+        const streak = v.days_count || s.max_streak_days || 1;
+        if (streak < days) return;
+        const officerName = levelNum === 3 
+          ? (s.chief_engineer_name || s.se_name || "CE / SE")
+          : levelNum === 4 
+            ? "Member Secretary (MS)" 
+            : "Principal Secretary (PS)";
+        const officerRole = levelNum === 3 ? "Chief Engineer & SE" : levelNum === 4 ? "Member Secretary (MJP)" : "Principal Secretary (WSSD)";
+        const officerEmail = levelNum === 3 ? (s.chief_engineer_email || s.se_email || "-") : levelNum === 4 ? "ms.mjp@gov.in" : "ps.wss@maharashtra.gov.in";
+        const officerMobile = levelNum === 3 ? (s.chief_engineer_mobile || s.se_mobile || "-") : "-";
+
+        const row = lpcdSheet.addRow([
+          lpcdIdx++,
+          s.scheme_id,
+          s.scheme_name,
+          s.region,
+          s.district || "-",
+          v.village_name || "-",
+          55,
+          v.avg_val ? parseFloat(v.avg_val) || v.avg_val : "<55 LPCD",
+          days <= 7 ? "7 Days" : days <= 15 ? "15+ Days" : "20+ Days",
+          `Level ${levelNum}`,
+          officerName,
+          officerRole,
+          officerEmail,
+          officerMobile,
+        ]);
+        row.alignment = { vertical: "middle" };
+      });
+    });
+
+    // -------------------------------------------------------------
+    // SHEET 2: Low Pressure ESR History
+    // -------------------------------------------------------------
+    const prSheet = workbook.addWorksheet("Low Pressure ESR History", { views: [{ showGridLines: true }] });
+    prSheet.mergeCells("A1:O1");
+    const prTitle = prSheet.getCell("A1");
+    prTitle.value = `MAHARASHTRA JEEVAN PRADHIKARAN — ${levelTitle.toUpperCase()}`;
+    prTitle.font = { bold: true, size: 13, color: { argb: "FF312E81" } };
+    prTitle.alignment = { horizontal: "center", vertical: "middle" };
+    prSheet.getRow(1).height = 30;
+
+    prSheet.mergeCells("A2:O2");
+    const prSubtitle = prSheet.getCell("A2");
+    prSubtitle.value = `ESR Terminal Pressure History (${days} Days Trend) • Region: ${region} • Target Standard: ≥ 0.20 Bar • Generated: ${new Date().toLocaleString("en-IN")}`;
+    prSubtitle.font = { italic: true, size: 10, color: { argb: "FF475569" } };
+    prSubtitle.alignment = { horizontal: "center", vertical: "middle" };
+    prSheet.getRow(2).height = 20;
+
+    const prHeaderRow = [
+      "Sr",
+      "Scheme ID",
+      "Scheme Name",
+      "Region",
+      "District",
+      "Village Name",
+      "ESR Name",
+      "Target (Bar)",
+      "Recorded Pressure",
+      `Continuous Days (<0.2 Bar)`,
+      "Escalation Level",
+      "Responsible Officer",
+      "Officer Role",
+      "Officer Email",
+      "Officer Mobile",
+    ];
+    prSheet.addRow([]);
+    const prHRow = prSheet.addRow(prHeaderRow);
+    applyHeaderStyle(prHRow, "FF3730A3");
+
+    let prIdx = 1;
+    schemes.forEach((s) => {
+      (s.pressure_low_esrs || []).forEach((p: any) => {
+        const streak = p.days_count || s.max_streak_days || 1;
+        if (streak < days) return;
+        const officerName = levelNum === 3 
+          ? (s.chief_engineer_name || s.se_name || "CE / SE")
+          : levelNum === 4 
+            ? "Member Secretary (MS)" 
+            : "Principal Secretary (PS)";
+        const officerRole = levelNum === 3 ? "Chief Engineer & SE" : levelNum === 4 ? "Member Secretary (MJP)" : "Principal Secretary (WSSD)";
+        const officerEmail = levelNum === 3 ? (s.chief_engineer_email || s.se_email || "-") : levelNum === 4 ? "ms.mjp@gov.in" : "ps.wss@maharashtra.gov.in";
+        const officerMobile = levelNum === 3 ? (s.chief_engineer_mobile || s.se_mobile || "-") : "-";
+
+        const row = prSheet.addRow([
+          prIdx++,
+          s.scheme_id,
+          s.scheme_name,
+          s.region,
+          s.district || "-",
+          p.village_name || "-",
+          p.esr_name || "-",
+          0.20,
+          p.val ? parseFloat(p.val) || p.val : "<0.20 Bar",
+          days <= 7 ? "7 Days" : days <= 15 ? "15+ Days" : "20+ Days",
+          `Level ${levelNum}`,
+          officerName,
+          officerRole,
+          officerEmail,
+          officerMobile,
+        ]);
+        row.alignment = { vertical: "middle" };
+      });
+    });
+
+    // -------------------------------------------------------------
+    // SHEET 3: Residual Chlorine Out of Range History
+    // -------------------------------------------------------------
+    const clSheet = workbook.addWorksheet("Residual Chlorine History", { views: [{ showGridLines: true }] });
+    clSheet.mergeCells("A1:P1");
+    const clTitle = clSheet.getCell("A1");
+    clTitle.value = `MAHARASHTRA JEEVAN PRADHIKARAN — ${levelTitle.toUpperCase()}`;
+    clTitle.font = { bold: true, size: 13, color: { argb: "FF0F766E" } };
+    clTitle.alignment = { horizontal: "center", vertical: "middle" };
+    clSheet.getRow(1).height = 30;
+
+    clSheet.mergeCells("A2:P2");
+    const clSubtitle = clSheet.getCell("A2");
+    clSubtitle.value = `Residual Chlorine Out of Range History (${days} Days Trend) • Region: ${region} • Target Standard: 0.20 – 0.50 mg/L • Generated: ${new Date().toLocaleString("en-IN")}`;
+    clSubtitle.font = { italic: true, size: 10, color: { argb: "FF475569" } };
+    clSubtitle.alignment = { horizontal: "center", vertical: "middle" };
+    clSheet.getRow(2).height = 20;
+
+    const clHeaderRow = [
+      "Sr",
+      "Scheme ID",
+      "Scheme Name",
+      "Region",
+      "District",
+      "Village Name",
+      "ESR Name",
+      "Target (mg/L)",
+      "Recorded Value",
+      "Issue Type",
+      `Continuous Days Out of Range`,
+      "Escalation Level",
+      "Responsible Officer",
+      "Officer Role",
+      "Officer Email",
+      "Officer Mobile",
+    ];
+    clSheet.addRow([]);
+    const clHRow = clSheet.addRow(clHeaderRow);
+    applyHeaderStyle(clHRow, "FF115E59");
+
+    let clIdx = 1;
+    schemes.forEach((s) => {
+      const allCl = [...(s.chlorine_low_esrs || []).map((c: any) => ({ ...c, issue_type: "Low Chlorine (<0.20)" })), ...(s.chlorine_high_esrs || []).map((c: any) => ({ ...c, issue_type: "High Chlorine (>0.50)" }))];
+      allCl.forEach((c: any) => {
+        const streak = c.days_count || s.max_streak_days || 1;
+        if (streak < days) return;
+        const officerName = levelNum === 3 
+          ? (s.chief_engineer_name || s.se_name || "CE / SE")
+          : levelNum === 4 
+            ? "Member Secretary (MS)" 
+            : "Principal Secretary (PS)";
+        const officerRole = levelNum === 3 ? "Chief Engineer & SE" : levelNum === 4 ? "Member Secretary (MJP)" : "Principal Secretary (WSSD)";
+        const officerEmail = levelNum === 3 ? (s.chief_engineer_email || s.se_email || "-") : levelNum === 4 ? "ms.mjp@gov.in" : "ps.wss@maharashtra.gov.in";
+        const officerMobile = levelNum === 3 ? (s.chief_engineer_mobile || s.se_mobile || "-") : "-";
+
+        const row = clSheet.addRow([
+          clIdx++,
+          s.scheme_id,
+          s.scheme_name,
+          s.region,
+          s.district || "-",
+          c.village_name || "-",
+          c.esr_name || "-",
+          "0.20 – 0.50",
+          c.val ? parseFloat(c.val) || c.val : "-",
+          c.issue_type,
+          days <= 7 ? "7 Days" : days <= 15 ? "15+ Days" : "20+ Days",
+          `Level ${levelNum}`,
+          officerName,
+          officerRole,
+          officerEmail,
+          officerMobile,
+        ]);
+        row.alignment = { vertical: "middle" };
+      });
+    });
+
+    // Auto-fit column widths for all sheets
+    [lpcdSheet, prSheet, clSheet].forEach((sheet) => {
+      sheet.columns.forEach((col: any) => {
+        let maxLen = 12;
+        col.eachCell({ includeEmpty: false }, (cell: any) => {
+          const valStr = cell.value ? String(cell.value) : "";
+          if (valStr.length > maxLen) maxLen = Math.min(valStr.length, 40);
+        });
+        col.width = maxLen + 3;
+      });
+    });
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="MJP_Escalation_Level_${levelNum}_${days}Days_History_${region.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().slice(0, 10)}.xlsx"`
+    );
+    await workbook.xlsx.write(res);
+    return res.end();
+  } catch (error: any) {
+    console.error("Error exporting level history:", error);
+    res.status(500).json({ error: error.message || "Failed to export level history" });
+  }
+});
+
 export default router;
+
 

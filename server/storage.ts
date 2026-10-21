@@ -495,6 +495,7 @@ export interface IStorage {
     scheme_id?: string;
     village_name?: string;
     esr_name?: string;
+    schemeIds?: string[];
   }): Promise<
     Array<{
       scheme_id: string;
@@ -5689,6 +5690,7 @@ export class PostgresStorage implements IStorage {
     regionFilter?: string,
     schemeFilter?: string,
     villageFilter?: string,
+    schemeIds?: string[],
   ): Promise<ChlorineHistory[]> {
     await this.initialized;
     const db = await this.ensureInitialized();
@@ -5719,6 +5721,10 @@ export class PostgresStorage implements IStorage {
         if (villageFilter) {
           filterSql += ` AND village_name = $${paramIdx++}`;
           queryParams.push(villageFilter);
+        }
+        if (schemeIds && schemeIds.length > 0) {
+          const ids = schemeIds.map(id => `'${id}'`).join(',');
+          filterSql += ` AND scheme_id IN (${ids})`;
         }
 
         const rawQuery = `
@@ -12789,6 +12795,7 @@ export class PostgresStorage implements IStorage {
     scheme_id?: string;
     village_name?: string;
     esr_name?: string;
+    schemeIds?: string[];
   }): Promise<
     Array<{
       scheme_id: string;
@@ -12857,6 +12864,10 @@ export class PostgresStorage implements IStorage {
         if (filter.esr_name) {
           filterSql += ` AND p.esr_name = $${paramIdx++}`;
           queryParams.push(filter.esr_name);
+        }
+        if (filter.schemeIds && filter.schemeIds.length > 0) {
+          const ids = filter.schemeIds.map(id => `'${id}'`).join(',');
+          filterSql += ` AND p.scheme_id IN (${ids})`;
         }
 
         const rawQuery = `

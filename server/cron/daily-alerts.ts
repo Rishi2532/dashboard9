@@ -645,6 +645,19 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
       console.warn("⚠️ Could not load last EE dispatch dates:", eeErr);
     }
 
+    // Query last Principal Secretary (PS - Level 5) dispatch date from database
+    let lastPsDispatchDate: string | null = null;
+    try {
+      const psRes: any = await db.execute(sql`
+        SELECT MAX(dispatch_date)::text as last_date
+        FROM consolidated_email_dispatches
+        WHERE engineer_role ILIKE '%Principal%' OR engineer_role ILIKE '%WSSD%';
+      `);
+      lastPsDispatchDate = psRes.rows?.[0]?.last_date || null;
+    } catch (psErr) {
+      console.warn("⚠️ Could not load last PS dispatch date:", psErr);
+    }
+
     const getAlertStreak = (alert: Alert): number => {
       if (alert.streak_days && alert.streak_days >= 1) {
         return alert.streak_days;
@@ -666,6 +679,23 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
     const istDateStr = now.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
     const istDayOfWeek = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", weekday: "long" }).format(now);
     console.log(`📅 Daily Alerts Dispatch Day (IST): ${istDayOfWeek} (${istDateStr} ${istTimeStr})`);
+
+    let daysSinceLastPs = 999;
+    if (lastPsDispatchDate) {
+      try {
+        const [ly, lm, ld] = lastPsDispatchDate.slice(0, 10).split('-').map(Number);
+        const [ty, tm, td] = istDateStr.slice(0, 10).split('-').map(Number);
+        const lastD = new Date(Date.UTC(ly, lm - 1, ld));
+        const todayD = new Date(Date.UTC(ty, tm - 1, td));
+        daysSinceLastPs = Math.round((todayD.getTime() - lastD.getTime()) / (1000 * 60 * 60 * 24));
+      } catch (e) {
+        daysSinceLastPs = 999;
+      }
+    }
+
+    // Level 5 (PS): Sent every third Monday (two Mondays later, not the following Monday):
+    // Requires Monday AND at least 13 days since previous Level 5 dispatch (or never sent before)
+    const isLevel5PsEligibleMonday = Boolean(ist.isMonday && daysSinceLastPs >= 13);
 
     allEngineerDetails.forEach((engineer) => {
       let schemeAlerts: Alert[] = [];
@@ -807,10 +837,10 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
           ? schemeAlerts.filter(a => (a.streak_days || 1) >= 15)
           : [];
 
-        // 5. Principal Secretary (PS): 1st & 3rd MONDAY of the month (streak >= 15 days)
-        const isPsDay = Boolean(options?.forceAllTiers || ist.is1stOr3rdMonday);
+        // 5. Principal Secretary (PS): Dispatched every third Monday (two Mondays later, streak >= 20 days)
+        const isPsDay = Boolean(options?.forceAllTiers || isLevel5PsEligibleMonday);
         const psAlerts = isPsDay
-          ? schemeAlerts.filter(a => (a.streak_days || 1) >= 15)
+          ? schemeAlerts.filter(a => (a.streak_days || 1) >= 20)
           : [];
 
         // --- Dispatch by Role ---
@@ -888,7 +918,7 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
           );
         }
 
-        // 6. Principal Secretary (PS) - Repeating Alerts Every 15 Days
+        // 6. Principal Secretary (PS) - Repeating Alerts Every Third Monday (Two Mondays Later, Streak >= 20 Days)
         if (psAlerts.length > 0 && execContacts.ps.email) {
           addEngineerEmails(
             sanitizeEmails(execContacts.ps.email),

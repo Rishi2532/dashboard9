@@ -29,6 +29,8 @@ import {
   UserCheck,
   Users,
   BellRing,
+  ShieldAlert,
+  Layers,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import Sidebar from "./sidebar";
@@ -188,6 +190,36 @@ export default function Header() {
                     >
                       <BellRing className="h-3.5 w-3.5 mr-1" />
                       Alerts Progress
+                    </Button>
+                  </Link>
+                  <Link href="/escalation-portal">
+                    <Button
+                      size="sm"
+                      className={cn(
+                        "hidden sm:flex text-white h-8 text-xs font-semibold shadow-sm transition-all",
+                        isActive("/escalation-portal") || isActive("/escalation")
+                          ? "bg-amber-800 text-white ring-2 ring-amber-300"
+                          : "bg-amber-600 hover:bg-amber-700 text-white"
+                      )}
+                      title="Multi-Tier Escalation Portal (Levels 1–5)"
+                    >
+                      <ShieldAlert className="h-3.5 w-3.5 mr-1" />
+                      Escalation Portal
+                    </Button>
+                  </Link>
+                  <Link href="/level5-summary">
+                    <Button
+                      size="sm"
+                      className={cn(
+                        "hidden sm:flex text-white h-8 text-xs font-semibold shadow-sm transition-all",
+                        isActive("/level5-summary") || isActive("/level-5-summary") || isActive("/alert-summary")
+                          ? "bg-indigo-800 text-white ring-2 ring-indigo-300"
+                          : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                      )}
+                      title="Level 5 Escalation Summary Portal"
+                    >
+                      <Layers className="h-3.5 w-3.5 mr-1" />
+                      Level 5 Portal
                     </Button>
                   </Link>
                   <Link href="/admin/users">
@@ -656,6 +688,36 @@ export default function Header() {
                   >
                     <BellRing className="h-4 w-4 mr-2" />
                     Alerts Progress
+                  </Button>
+                </Link>
+                <Link href="/escalation-portal" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      "w-full justify-start h-10 font-semibold transition-colors",
+                      isActive("/escalation-portal") || isActive("/escalation")
+                        ? "bg-amber-50 text-amber-700 border-l-4 border-amber-600 rounded-none pl-3"
+                        : "text-amber-700 hover:bg-amber-50"
+                    )}
+                  >
+                    <ShieldAlert className="h-4 w-4 mr-2" />
+                    Escalation Portal
+                  </Button>
+                </Link>
+                <Link href="/level5-summary" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      "w-full justify-start h-10 font-semibold transition-colors",
+                      isActive("/level5-summary") || isActive("/level-5-summary") || isActive("/alert-summary")
+                        ? "bg-indigo-50 text-indigo-700 border-l-4 border-indigo-600 rounded-none pl-3"
+                        : "text-indigo-700 hover:bg-indigo-50"
+                    )}
+                  >
+                    <Layers className="h-4 w-4 mr-2" />
+                    Level 5 Portal
                   </Button>
                 </Link>
               </>

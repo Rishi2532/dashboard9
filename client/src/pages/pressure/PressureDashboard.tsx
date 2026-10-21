@@ -843,6 +843,9 @@ const PressureDashboard: React.FC = () => {
       historicalEndDate,
       selectedRegion,
       selectedAgencyType,
+      uiSchemeFilter,
+      waterSupplyStatus,
+      villageFilter,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -854,6 +857,15 @@ const PressureDashboard: React.FC = () => {
       }
       if (selectedAgencyType !== 'ALL') {
         params.append("agencyType", selectedAgencyType);
+      }
+      if (uiSchemeFilter && uiSchemeFilter !== "all") {
+        params.append("filterType", uiSchemeFilter);
+      }
+      if (waterSupplyStatus && waterSupplyStatus !== "All") {
+        params.append("waterSupplyStatus", waterSupplyStatus);
+      }
+      if (villageFilter && villageFilter !== "all") {
+        params.append("villageFilter", villageFilter);
       }
 
       const queryString = params.toString();
@@ -2404,6 +2416,18 @@ const PressureDashboard: React.FC = () => {
 
       if (selectedRegion && selectedRegion !== "all") {
         params.append("region", selectedRegion);
+      }
+      if (selectedAgencyType !== 'ALL') {
+        params.append("agencyType", selectedAgencyType);
+      }
+      if (uiSchemeFilter && uiSchemeFilter !== "all") {
+        params.append("filterType", uiSchemeFilter);
+      }
+      if (waterSupplyStatus && waterSupplyStatus !== "All") {
+        params.append("waterSupplyStatus", waterSupplyStatus);
+      }
+      if (villageFilter && villageFilter !== "all") {
+        params.append("villageFilter", villageFilter);
       }
 
       const url = `/api/pressure/export/historical?${params.toString()}`;

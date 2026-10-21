@@ -54,8 +54,8 @@ const navigationItems: NavigationItem[] = [
   { name: "Smart Reports", href: "/smart-reports", icon: FileText },
   { name: "Monthly Reports", href: "/monthly-reports", icon: FileText },
   { name: "Alerts Progress", href: "/alerts-progress", icon: BellRing, adminOnly: true },
-  { name: "Escalation Matrix", href: "/escalation", icon: TrendingUp },
-  { name: "Level 5 Alert Summary", href: "/level5-summary", icon: Table2 },
+  { name: "Escalation Portal", href: "/escalation-portal", icon: TrendingUp, adminOnly: true },
+  { name: "Level 5 Portal", href: "/level5-summary", icon: Table2, adminOnly: true },
 
   { name: "Village LPCD", href: "/lpcd", icon: Droplet },
   { name: "Scheme LPCD", href: "/scheme-lpcd", icon: Droplet },

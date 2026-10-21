@@ -162,11 +162,13 @@ export async function getEscalationStatus(options: {
   daysLookback?: number;
   region?: string;
   forceRefresh?: boolean;
+  asOfDate?: string;
 } = {}): Promise<{
   summary: EscalationSummary;
   schemes: SchemeEscalationItem[];
 }> {
-  const cacheKey = `${options.region || 'ALL'}::${options.daysLookback || 30}`;
+  const asOfDate = options.asOfDate || '18-Oct';
+  const cacheKey = `${options.region || 'ALL'}::${asOfDate}::${options.daysLookback || 30}`;
   if (!options.forceRefresh && cachedEscalationStatus && cachedEscalationStatus.key === cacheKey && (Date.now() - cachedEscalationStatus.timestamp < ESCALATION_STATUS_CACHE_TTL)) {
     return cachedEscalationStatus.data;
   }
@@ -199,8 +201,8 @@ export async function getEscalationStatus(options: {
     }
   });
 
-  // 2. Query exact alerts & streaks directly from history tables from latest available date
-  const { allAlerts } = await calculateAllAlertStreaksFromHistory(db);
+  // 2. Query exact alerts & streaks directly from history tables for evaluation date (18-Oct)
+  const { allAlerts } = await calculateAllAlertStreaksFromHistory(db, options.forceRefresh, asOfDate);
 
   // Query issue_reports (Field Remarks)
   const remarksByScheme = new Map<string, any[]>();
@@ -1062,7 +1064,7 @@ export async function getEscalationStatus(options: {
   }
 
   // 4. Calculate active escalation levels and flags
-  const schemesList = Array.from(schemeAgg.values()).map(s => {
+  let schemesList = Array.from(schemeAgg.values()).map(s => {
     if (s.max_streak_days >= 20) {
       s.escalation_level = 5;
       s.ee_escalated = true;
@@ -1104,6 +1106,15 @@ export async function getEscalationStatus(options: {
     }
     return b.max_streak_days - a.max_streak_days;
   });
+
+  // Filter schemes by region if specified (e.g. Pune, Nashik, etc.)
+  if (options.region && options.region.trim().toLowerCase() !== "all") {
+    const targetReg = options.region.trim().toLowerCase();
+    schemesList = schemesList.filter(s => {
+      const r = (s.region || "").trim().toLowerCase();
+      return r === targetReg || r.includes(targetReg) || targetReg.includes(r);
+    });
+  }
 
   // 5. Aggregate overall summary
   const summary: EscalationSummary = {
@@ -1702,7 +1713,7 @@ export function renderMsSchemeEscalationEmail(scheme: SchemeEscalationItem): { s
  * Builds the scheme-wise HTML Email for Principal Secretary (PS) - Level 5 Escalation
  */
 export function renderPsSchemeEscalationEmail(scheme: SchemeEscalationItem): { subject: string; html: string } {
-  const subject = `🚨 [Level 5 Escalation - 15+ Days Persistent] Scheme: ${scheme.scheme_name} (${scheme.scheme_id})`;
+  const subject = `🚨 [Level 5 Escalation - 20+ Days Persistent] Scheme: ${scheme.scheme_name} (${scheme.scheme_id})`;
 
   const html = `
     <!DOCTYPE html>
@@ -1736,7 +1747,7 @@ export function renderPsSchemeEscalationEmail(scheme: SchemeEscalationItem): { s
       <div class="card">
         <div class="header">
           <h1>🚨 Principal Secretary (PS) — Level 5 Escalation Notice</h1>
-          <p>Critical non-compliance persisting for <strong>${scheme.max_streak_days} consecutive days (15+ Days Persisting)</strong></p>
+          <p>Critical non-compliance persisting for <strong>${scheme.max_streak_days} consecutive days (20+ Days Persisting)</strong></p>
           <span class="badge">Level 5 Escalation • ${scheme.max_streak_days} Days Unresolved</span>
         </div>
         <div class="content">
@@ -1815,7 +1826,7 @@ export function renderPsSchemeEscalationEmail(scheme: SchemeEscalationItem): { s
           </table>
 
           <p style="margin-top: 24px; font-size: 13px; color: #64748b; line-height: 1.5;">
-            Escalation Note: This scheme has persisted for 15+ consecutive days without resolution across frontline, division, regional, and Member Secretary levels. Escalated directly to Principal Secretary (PS), Water Supply and Sanitation Department.
+            Escalation Note: This scheme has persisted for 20+ consecutive days without resolution across frontline, division, regional, and Member Secretary levels. Escalated directly to Principal Secretary (PS), Water Supply and Sanitation Department.
           </p>
         </div>
         <div class="footer">
@@ -1909,8 +1920,8 @@ export async function updateExecutiveContacts(data: {
  * Dispatches Escalations:
  * - Level 2 (EE Civil): Scheme-wise Email & Scheme-wise SMS (3+ days unresolved)
  * - Level 3 (Chief Engineer): Consolidated Regional Email + Scheme-wise SMS (7+ days unresolved)
- * - Level 4 (Member Secretary): Scheme-wise Email & SMS for all schemes unresolved for 10+ days (dispatched every 10 days)
- * - Level 5 (Principal Secretary): Scheme-wise Email & SMS for all persistent schemes unresolved for 15+ days
+ * - Level 4 (Member Secretary): Scheme-wise Email & SMS for all schemes unresolved for 15+ days (dispatched 1st & 3rd Monday)
+ * - Level 5 (Principal Secretary): Scheme-wise Email & SMS for all persistent schemes unresolved for 20+ days (dispatched alternate Mondays / every third Monday)
  */
 export async function executeEscalationDispatch(options: {
   dryRun?: boolean;
@@ -1963,12 +1974,44 @@ export async function executeEscalationDispatch(options: {
   const is3rdMonday = isMonday && dayOfMonth >= 15 && dayOfMonth <= 21;
   const is1stOr3rdMonday = is1stMonday || is3rdMonday;
 
+  // Check last PS dispatch date for alternate Monday interval (every 14 days / skipping following Monday)
+  let lastPsDispatchDate: string | null = null;
+  const db = await getDB();
+  const todayStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(now);
+  try {
+    const psRes: any = await db.execute(sql`
+      SELECT MAX(dispatch_date)::text as last_date
+      FROM consolidated_email_dispatches
+      WHERE engineer_role ILIKE '%Principal%' OR engineer_role ILIKE '%WSSD%';
+    `);
+    lastPsDispatchDate = psRes.rows?.[0]?.last_date || null;
+  } catch (psErr) {
+    console.warn("⚠️ Could not load last PS dispatch date:", psErr);
+  }
+
+  let daysSinceLastPs = 999;
+  if (lastPsDispatchDate) {
+    try {
+      const [ly, lm, ld] = lastPsDispatchDate.slice(0, 10).split('-').map(Number);
+      const [ty, tm, td] = todayStr.slice(0, 10).split('-').map(Number);
+      const lastD = new Date(Date.UTC(ly, lm - 1, ld));
+      const todayD = new Date(Date.UTC(ty, tm - 1, td));
+      daysSinceLastPs = Math.round((todayD.getTime() - lastD.getTime()) / (1000 * 60 * 60 * 24));
+    } catch (e) {
+      daysSinceLastPs = 999;
+    }
+  }
+
+  // Level 5 (PS): Sent every third Monday (two Mondays later, not the following Monday):
+  // Requires Monday AND at least 13 days since previous Level 5 dispatch (or never sent before)
+  const isLevel5PsMonday = Boolean(isMonday && daysSinceLastPs >= 13);
+
   // Filter if single scheme requested
   const targetSchemes = options.schemeId
     ? schemes.filter(s => s.scheme_id === options.schemeId)
     : schemes;
 
-  logs.push(`🔍 Evaluating ${targetSchemes.length} schemes for escalation dispatch (Mode: ${dryRun ? 'PREVIEW / DRY RUN' : 'LIVE DISPATCH'}, Monday: ${isMonday}, 1st/3rd Mon: ${is1stOr3rdMonday})...`);
+  logs.push(`🔍 Evaluating ${targetSchemes.length} schemes for escalation dispatch (Mode: ${dryRun ? 'PREVIEW / DRY RUN' : 'LIVE DISPATCH'}, Monday: ${isMonday}, 1st/3rd Mon: ${is1stOr3rdMonday}, Level 5 Mon: ${isLevel5PsMonday})...`);
 
   // --- 1. Level 2 Escalations to EE (Civil) (Every 3rd day if streak >= 3 days) ---
   const level2Schemes = options.schemeId
@@ -2235,11 +2278,11 @@ export async function executeEscalationDispatch(options: {
     }
   }
 
-  // --- 4. Level 5 Escalations to Principal Secretary (PS) (1st & 3rd Monday for streak >= 15 days) ---
+  // --- 4. Level 5 Escalations to Principal Secretary (PS) (Sent every third Monday / alternate Monday for streak >= 20 days) ---
   const level5Schemes = options.schemeId
-    ? targetSchemes.filter(s => s.max_streak_days >= 15)
-    : (is1stOr3rdMonday ? targetSchemes.filter(s => s.max_streak_days >= 15) : []);
-  logs.push(`📊 Found ${level5Schemes.length} schemes for Principal Secretary (PS) Escalation (1st & 3rd Monday, streak >= 15 days; Today: ${is1stOr3rdMonday}).`);
+    ? targetSchemes.filter(s => s.max_streak_days >= 20)
+    : (isLevel5PsMonday ? targetSchemes.filter(s => s.max_streak_days >= 20) : []);
+  logs.push(`📊 Found ${level5Schemes.length} schemes for Principal Secretary (PS) Escalation (Alternate Mondays, streak >= 20 days; Today eligible: ${isLevel5PsMonday}).`);
 
   if (level5Schemes.length > 0) {
     const psEmail = execContacts.ps.email;
@@ -2303,8 +2346,8 @@ export async function executeEscalationDispatch(options: {
               engineer_email: psEmail,
               scheme_id: scheme.scheme_id,
               scheme_name: scheme.scheme_name,
-              template_id: 'PS_ESCALATION_15D',
-              template_name: 'Level 5 Escalation Principal Secretary (15 Days)',
+              template_id: 'PS_ESCALATION_20D',
+              template_name: 'Level 5 Escalation Principal Secretary (20 Days)',
               message_text: smsText,
               gateway_status: smsRes.status,
               gateway_response: smsRes.response,

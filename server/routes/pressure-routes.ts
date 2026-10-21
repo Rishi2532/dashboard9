@@ -64,7 +64,22 @@ router.get("/filters", async (req, res) => {
 // Get historical pressure data with date range filters
 router.get("/historical", async (req, res) => {
   try {
-    const { startDate, endDate, region, scheme_id, village_name, esr_name } = req.query;
+    const { startDate, endDate, region, scheme_id, village_name, esr_name, agencyType, filterType, fullyCompleted, villageFilter } = req.query;
+
+    const db = await getDB();
+    const scope = getEngineerSchemeScope(req);
+    const filteredSchemeIds = await getFilteredSchemeIds(
+      db,
+      filterType,
+      fullyCompleted,
+      agencyType as string,
+      scope,
+      villageFilter as string
+    );
+
+    if (filteredSchemeIds && (filteredSchemeIds.includes('NO_MATCHES') || filteredSchemeIds.length === 0)) {
+      return res.json([]);
+    }
 
     const filter = {
       startDate: (startDate as string) || "2000-01-01",
@@ -73,14 +88,14 @@ router.get("/historical", async (req, res) => {
       scheme_id: scheme_id as string | undefined,
       village_name: village_name as string | undefined,
       esr_name: esr_name as string | undefined,
-      agencyType: req.query.agencyType as string | undefined,
+      agencyType: agencyType as string | undefined,
+      schemeIds: filteredSchemeIds,
     };
 
     console.log("Historical pressure data request:", filter);
 
     let historicalData = await storage.getHistoricalPressureData(filter);
 
-    const scope = getEngineerSchemeScope(req);
     if (scope.isEngineer) {
       const allowedIds = new Set(scope.schemeIds);
       const allowedNames = new Set(scope.schemeNames);
@@ -1937,16 +1952,35 @@ router.post("/import/csv", requireAdmin, upload.single("file"), async (req, res)
 // Export historical pressure data to Excel
 router.get("/export/historical", async (req, res) => {
   try {
-    const { startDate, endDate, region, searchQuery, commissioned, fullyCompleted, schemeStatus, pressureRange } = req.query;
+    const { startDate, endDate, region, searchQuery, commissioned, fullyCompleted, schemeStatus, pressureRange, agencyType, filterType, villageFilter } = req.query;
 
     if (!startDate || !endDate) {
       return res.status(400).json({ error: "startDate and endDate are required" });
+    }
+
+    const db = await getDB();
+    const scope = getEngineerSchemeScope(req);
+    const activeFilter = filterType || (commissioned === 'true' ? 'commissioned' : undefined);
+    const filteredSchemeIds = await getFilteredSchemeIds(
+      db,
+      activeFilter,
+      fullyCompleted,
+      agencyType as string,
+      scope,
+      villageFilter as string
+    );
+
+    if (filteredSchemeIds && (filteredSchemeIds.includes('NO_MATCHES') || filteredSchemeIds.length === 0)) {
+      return res.status(404).json({
+        error: "No historical data found for the specified filters"
+      });
     }
 
     const filter = {
       startDate: startDate as string,
       endDate: endDate as string,
       region: region as string | undefined,
+      schemeIds: filteredSchemeIds
     };
 
     console.log("Historical pressure export request:", filter);
@@ -2042,12 +2076,12 @@ router.get("/export/historical", async (req, res) => {
     const historicalData = filteredHistoricalData;
 
     // Fetch base ESRs to ensure all are included, even if blank
-    const db = await getDB();
     const baseEsrsQuery = sql`
       SELECT scheme_id, scheme_name, village_name, esr_name, region, circle, division, sub_division, block
       FROM pressure_data
       WHERE 1=1
       ${region && region !== 'all' ? sql` AND region ILIKE ${region}` : sql``}
+      ${filteredSchemeIds && filteredSchemeIds.length > 0 ? sql` AND scheme_id IN (${sql.raw(filteredSchemeIds.map((id: string) => `'${id}'`).join(','))})` : sql``}
     `;
 
     const baseEsrsResult = await db.execute(baseEsrsQuery);

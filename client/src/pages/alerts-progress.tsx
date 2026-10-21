@@ -3249,6 +3249,58 @@ export default function AlertsProgressPage() {
     const totalAckEngineers = notifiedEngineersList.filter(e => e.isAcknowledged).length;
     const totalPendingEngineers = (dispatchedEngineersList.length > 0 ? dispatchedEngineersList : notifiedEngineersList).filter(e => !e.isAcknowledged).length;
 
+    // Categorize engineers by tier/role: AE/DE (Level 1), EE (Level 2), and SE/CE (Level 3)
+    const isEeRole = (eng: any) => {
+      const roles = (eng.rolesList || []).join(" ").toLowerCase();
+      const name = (eng.name || "").toLowerCase();
+      return (roles.includes("executive") || roles.includes("ee") || name.includes("executive") || name.includes("ee ")) &&
+             !roles.includes("chief") && !roles.includes("superintending");
+    };
+
+    const isSeCeRole = (eng: any) => {
+      const roles = (eng.rolesList || []).join(" ").toLowerCase();
+      const name = (eng.name || "").toLowerCase();
+      return roles.includes("superintending") || roles.includes("se") || roles.includes("chief") || roles.includes("ce") ||
+             name.includes("superintending") || name.includes("chief");
+    };
+
+    const isAeDeRole = (eng: any) => !isEeRole(eng) && !isSeCeRole(eng);
+
+    const aeDeEngineers = notifiedEngineersList.filter(isAeDeRole);
+    const eeEngineers = notifiedEngineersList.filter(isEeRole);
+    const seCeEngineers = notifiedEngineersList.filter(isSeCeRole);
+
+    // AE/DE counts (notified daily)
+    const aeDeTotal = aeDeEngineers.length;
+    const aeDeDispatched = aeDeEngineers.filter(e => e.isDispatched);
+    const aeDeNotified = aeDeDispatched.length || aeDeEngineers.filter(e => e.ackCount > 0).length || (baseData.some(r => r.acknowledgements?.length) ? Math.min(aeDeTotal, dispatchedSchemesCount || 1) : 0);
+
+    // EE notification schedule: persistent streak >= 3 days or actually dispatched
+    const hasEeDispatched = eeEngineers.some(e => e.isDispatched);
+    const hasEeStreak = baseData.some(r => Number((r as any).days_since || (r as any).streak_days || 0) >= 3);
+    const isEeNotificationDay = hasEeDispatched || hasEeStreak;
+    const eeTotal = eeEngineers.length;
+    const eeDispatched = eeEngineers.filter(e => e.isDispatched);
+    const eeNotified = isEeNotificationDay ? (eeDispatched.length || eeEngineers.filter(e => e.ackCount > 0).length || (hasEeDispatched ? eeTotal : 0)) : 0;
+
+    // SE & CE notification schedule: Monday weekly dispatch for chronic streak >= 7 days or actually dispatched
+    const activeDateObj = customDate ? new Date(customDate) : activeSubTab === "previous" ? new Date(yesterdayYmd) : new Date(todayYmd);
+    const isMonday = !isNaN(activeDateObj.getTime()) && activeDateObj.getDay() === 1;
+    const hasWeeklyStreak = baseData.some(r => Number((r as any).days_since || (r as any).streak_days || 0) >= 7);
+    const hasSeCeDispatched = seCeEngineers.some(e => e.isDispatched);
+    const isSeCeNotificationDay = hasSeCeDispatched || (isMonday && hasWeeklyStreak);
+    const seCeTotal = seCeEngineers.length;
+    const seCeDispatched = seCeEngineers.filter(e => e.isDispatched);
+    const seCeNotified = isSeCeNotificationDay ? (seCeDispatched.length || seCeEngineers.filter(e => e.ackCount > 0).length || (hasSeCeDispatched ? seCeTotal : 0)) : 0;
+
+    // Active scheduled engineers for today
+    const scheduledEngineersList = notifiedEngineersList.filter(e => {
+      if (isAeDeRole(e)) return true;
+      if (isEeRole(e)) return isEeNotificationDay;
+      if (isSeCeRole(e)) return isSeCeNotificationDay;
+      return true;
+    });
+
     // Actually notified engineers count from email_acknowledgements
     const actuallyNotifiedCount = notifiedOfficersCount;
 
@@ -3600,9 +3652,31 @@ export default function AlertsProgressPage() {
               </button>
             </div>
 
-            <div className="flex items-center gap-2.5 text-xs text-slate-600 flex-wrap">
-              <span>
-                Engineers Notified <strong className="text-[#0f4c81] font-bold text-sm ml-1">{actuallyNotifiedCount} / {totalEngineers}</strong>
+            <div className="flex items-center gap-2.5 text-xs text-slate-700 flex-wrap">
+              <span className="flex items-center gap-1.5 flex-wrap">
+                <span>
+                  Engineers Notified: <strong className="text-[#0f4c81] font-bold text-sm ml-0.5">{aeDeNotified} / {aeDeTotal} AE/DE</strong>
+                </span>
+                {isEeNotificationDay && (
+                  <>
+                    <span className="text-slate-300">•</span>
+                    <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200 px-1.5 py-0.5 rounded font-medium">
+                      <span>EE:</span>
+                      <strong className="font-bold text-amber-950">{eeNotified} / {eeTotal}</strong>
+                      <span className="text-[10px] text-amber-700 font-normal">(Day 3+ Streak)</span>
+                    </span>
+                  </>
+                )}
+                {isSeCeNotificationDay && (
+                  <>
+                    <span className="text-slate-300">•</span>
+                    <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-900 border border-purple-200 px-1.5 py-0.5 rounded font-medium">
+                      <span>SE/CE:</span>
+                      <strong className="font-bold text-purple-950">{seCeNotified} / {seCeTotal}</strong>
+                      <span className="text-[10px] text-purple-700 font-normal">(Monday Weekly)</span>
+                    </span>
+                  </>
+                )}
               </span>
 
               <span className="text-slate-300">|</span>
@@ -3610,8 +3684,8 @@ export default function AlertsProgressPage() {
                 type="button"
                 onClick={() => {
                   setEngineersModalData({
-                    title: `Notified Engineers & Assigned Personnel (${totalEngineers})`,
-                    engineers: notifiedEngineersList
+                    title: `Notified Engineers & Assigned Personnel (${scheduledEngineersList.length})`,
+                    engineers: scheduledEngineersList
                   });
                   setEngineerModalSearch("");
                   setEngineerFilterTab("all");

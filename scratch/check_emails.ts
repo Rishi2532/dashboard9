@@ -1,34 +1,29 @@
-import { getDB } from '../server/db';
+import { getDB } from '../server/db.js';
 import { sql } from 'drizzle-orm';
 
-async function main() {
+async function check() {
   try {
     const db = await getDB();
-    const eng = await db.execute(sql`
-      SELECT * FROM scheme_engineer_details WHERE scheme_id = '20027978'
-    `);
-    console.log('--- scheme_engineer_details for 20027978 ---');
-    console.log(eng.rows[0]);
+    const countRes = await db.execute(sql`SELECT count(*) FROM consolidated_email_dispatches;`);
+    console.log("Total rows in consolidated_email_dispatches:", countRes.rows);
 
-    const cols = await db.execute(sql`
-      SELECT column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_name = 'email_alert_logs'
+    const rolesRes = await db.execute(sql`
+      SELECT engineer_role, count(*), array_agg(DISTINCT dispatch_date) as dates
+      FROM consolidated_email_dispatches
+      GROUP BY engineer_role;
     `);
-    console.log('--- email_alert_logs columns ---');
-    console.table(cols.rows);
+    console.log("Roles in consolidated_email_dispatches:", rolesRes.rows);
 
-    const emailLogsToday = await db.execute(sql`
-      SELECT * FROM email_alert_logs ORDER BY id DESC LIMIT 5
+    const sampleRes = await db.execute(sql`
+      SELECT id, dispatch_date, engineer_name, engineer_role, scheme_ids, scheme_names, lpcd_alerts_count, chlorine_alerts_count, pressure_alerts_count
+      FROM consolidated_email_dispatches
+      LIMIT 5;
     `);
-    console.log('--- latest email_alert_logs ---');
-    console.log(emailLogsToday.rows);
-
-  } catch (e: any) {
-    console.error('Error:', e.message);
-  } finally {
-    process.exit(0);
+    console.log("Sample records:", sampleRes.rows);
+  } catch (e) {
+    console.error(e);
   }
+  process.exit(0);
 }
 
-main();
+check();

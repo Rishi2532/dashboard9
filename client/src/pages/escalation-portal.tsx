@@ -44,7 +44,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+
+const REGIONS = [
+  "All",
+  "Amravati",
+  "Chhatrapati Sambhajinagar",
+  "Konkan",
+  "Nagpur",
+  "Nashik",
+  "Pune",
+];
 
 interface SchemeEscalationItem {
   scheme_id: string;
@@ -329,6 +346,9 @@ export default function EscalationPortalPage() {
     };
   }, [selectedSevenDaysAlert]);
 
+  // Region Filter State (All, Pune, Nashik, etc.)
+  const [selectedRegion, setSelectedRegion] = useState<string>("All");
+
   // Full System Email Dispatch Logs Modal State
   const [emailLogsModalOpen, setEmailLogsModalOpen] = useState(false);
   const [emailLogsFilterTier, setEmailLogsFilterTier] = useState<"all" | "1" | "2" | "3" | "4" | "5" | "vendor">("all");
@@ -358,14 +378,14 @@ export default function EscalationPortalPage() {
     refetchInterval: 15000,
   });
 
-  // Fetch actual sent alerts history (fetching email across 30 days so each level gets its latest dispatch, and sms in parallel)
+  // Fetch actual sent alerts history across 30 days for both email and sms so each level/scheme gets its latest dispatch
   const { data: sentAlertsData, refetch: refetchSentAlerts } = useQuery<{ alerts: any[]; summary: any }>({
     queryKey: ["/api/escalation/sent-alerts", "combined_alerts"],
     queryFn: async () => {
       try {
         const [emailRes, smsRes] = await Promise.all([
           fetch("/api/escalation/sent-alerts?timeRange=30days&channel=email&limit=3000"),
-          fetch("/api/escalation/sent-alerts?timeRange=today&channel=sms&limit=5000"),
+          fetch("/api/escalation/sent-alerts?timeRange=30days&channel=sms&limit=5000"),
         ]);
         const emailJson = emailRes.ok ? await emailRes.json() : { alerts: [], summary: {} };
         const smsJson = smsRes.ok ? await smsRes.json() : { alerts: [], summary: {} };
@@ -392,24 +412,81 @@ export default function EscalationPortalPage() {
         if (!emailMap.has(sid)) emailMap.set(sid, []);
         emailMap.get(sid)!.push(a);
       } else if (a.channel === "sms") {
-        if (a.created_at) {
-          const smsDate = new Date(a.created_at);
-          const now = new Date();
-          // Check if SMS belongs to today (same year, month, date)
-          if (
-            smsDate.getFullYear() !== now.getFullYear() ||
-            smsDate.getMonth() !== now.getMonth() ||
-            smsDate.getDate() !== now.getDate()
-          ) {
-            return;
-          }
-        }
         if (!smsMap.has(sid)) smsMap.set(sid, []);
         smsMap.get(sid)!.push(a);
       }
     });
 
     return { emailsByScheme: emailMap, smsByScheme: smsMap };
+  }, [sentAlertsData]);
+
+  // Vendor emails latest dispatch info for top right summary and logs (strictly for the latest dispatch date)
+  const vendorLatestInfo = useMemo(() => {
+    const vendorAlerts = (sentAlertsData?.alerts || []).filter(
+      (a: any) =>
+        a.channel === "email" &&
+        (Number(a.tier) === 0 || (a.recipient_role && a.recipient_role.toLowerCase().includes("vendor")))
+    );
+    if (vendorAlerts.length === 0) {
+      return { hasEmails: false, count: 0, latestDateStr: null, recipientCount: 0 };
+    }
+    
+    // Find latest dispatch date among vendor alerts
+    let maxDate: Date | null = null;
+    let maxDateRawStr: string | null = null;
+    vendorAlerts.forEach((a: any) => {
+      const raw = a.sent_date || a.created_at;
+      if (raw) {
+        let d: Date;
+        if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) {
+          const [y, m, day] = raw.trim().split("-").map(Number);
+          d = new Date(y, m - 1, day);
+        } else {
+          d = new Date(raw);
+        }
+        if (!isNaN(d.getTime())) {
+          if (!maxDate || d > maxDate) {
+            maxDate = d;
+            maxDateRawStr = typeof raw === "string" ? raw.trim().slice(0, 10) : d.toISOString().slice(0, 10);
+          }
+        }
+      }
+    });
+
+    const latestDateStr = maxDate
+      ? maxDate.toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : null;
+
+    // Count dispatches and unique recipients strictly on the latest dispatch date
+    const uniqueDispatches = new Set<string>();
+    const uniqueRecipients = new Set<string>();
+
+    const latestAlerts = maxDateRawStr
+      ? vendorAlerts.filter((a: any) => {
+          const raw = a.sent_date || a.created_at;
+          const s = raw ? (typeof raw === "string" ? raw.trim().slice(0, 10) : new Date(raw).toISOString().slice(0, 10)) : "";
+          return s === maxDateRawStr;
+        })
+      : vendorAlerts;
+
+    latestAlerts.forEach((a: any) => {
+      const dispId = String(a.id || "").split("-")[0];
+      if (dispId) uniqueDispatches.add(dispId);
+      if (a.recipient_email) uniqueRecipients.add(a.recipient_email.toLowerCase().trim());
+    });
+
+    const count = uniqueDispatches.size > 0 ? uniqueDispatches.size : (uniqueRecipients.size > 0 ? uniqueRecipients.size : latestAlerts.length);
+
+    return {
+      hasEmails: count > 0,
+      count,
+      recipientCount: uniqueRecipients.size || count,
+      latestDateStr,
+    };
   }, [sentAlertsData]);
 
   // Filtered actual email dispatches for the email logs modal
@@ -500,14 +577,18 @@ export default function EscalationPortalPage() {
     }
   };
 
-  // Fetch summary and schemes
-  const { data, isLoading, refetch, isFetching } = useQuery<EscalationSummaryResponse>({
-    queryKey: ["/api/escalation/summary"],
+  // Fetch summary and schemes (filtered by selectedRegion if selected)
+  const { data, isLoading, isError, refetch, isFetching } = useQuery<EscalationSummaryResponse>({
+    queryKey: ["/api/escalation/summary", selectedRegion],
     queryFn: async () => {
-      const res = await fetch("/api/escalation/summary");
+      const url = selectedRegion && selectedRegion !== "All"
+        ? `/api/escalation/summary?region=${encodeURIComponent(selectedRegion)}`
+        : "/api/escalation/summary";
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to load escalation status");
       return res.json();
     },
+    staleTime: 60 * 1000,
   });
 
   // Fetch all schemes metadata (for total villages and installed sensors)
@@ -521,33 +602,217 @@ export default function EscalationPortalPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const schemes = data?.schemes || [];
+  const rawSchemes = data?.schemes || [];
+  const schemes = useMemo(() => {
+    if (!selectedRegion || selectedRegion === "All") return rawSchemes;
+    const target = selectedRegion.toLowerCase().trim();
+    return rawSchemes.filter((s: any) => {
+      const r = (s.region || "").toLowerCase().trim();
+      return r === target || r.includes(target) || target.includes(r);
+    });
+  }, [rawSchemes, selectedRegion]);
   const dispatches = data?.summary?.dispatches || data?.dispatches;
 
-  // Layer 1: DE / AE Civil (Daily Notice) -> All active schemes with telemetry breaches
+  // Latest email & sms dispatch batch per tier (Tier 1..5) calculated strictly for the date on which emails were sent
+  const tierLatestInfo = useMemo(() => {
+    const info: Record<number, {
+      hasEmails: boolean;
+      latestDate: Date | null;
+      latestDateStr: string | null;
+      emailCount: number;
+      seEmailCount?: number;
+      ceEmailCount?: number;
+      schemeIds: Set<string>;
+      categoryEmails: { lpcd: number; chlorine: number; pressure: number; offline: number };
+      categorySchemes: { lpcd: number; chlorine: number; pressure: number; offline: number };
+      sms: { count: number; delivered: number; failed: number; latestDateStr: string | null; hasSms: boolean };
+    }> = {};
+
+    [1, 2, 3, 4, 5].forEach((tierNum) => {
+      // 1. Emails for this tier
+      const emailAlerts = (sentAlertsData?.alerts || []).filter(
+        (a: any) => a.channel === "email" && Number(a.tier) === tierNum
+      );
+
+      // 2. SMS for this tier
+      const smsAlerts = (sentAlertsData?.alerts || []).filter(
+        (a: any) => a.channel === "sms" && Number(a.tier) === tierNum
+      );
+
+      let smsMaxDate: Date | null = null;
+      let smsMaxDateRawStr: string | null = null;
+      smsAlerts.forEach((a: any) => {
+        const raw = a.sent_date || a.created_at;
+        if (raw) {
+          const d = new Date(raw);
+          if (!isNaN(d.getTime())) {
+            if (!smsMaxDate || d > smsMaxDate) {
+              smsMaxDate = d;
+              smsMaxDateRawStr = typeof raw === "string" ? raw.trim().slice(0, 10) : d.toISOString().slice(0, 10);
+            }
+          }
+        }
+      });
+      const smsDateStr = smsMaxDate
+        ? smsMaxDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+        : null;
+
+      const latestSms = smsMaxDateRawStr
+        ? smsAlerts.filter((a: any) => {
+            const raw = a.sent_date || a.created_at;
+            const s = raw ? (typeof raw === "string" ? raw.trim().slice(0, 10) : new Date(raw).toISOString().slice(0, 10)) : "";
+            return s === smsMaxDateRawStr;
+          })
+        : smsAlerts;
+
+      const smsDelivered = latestSms.filter((a: any) => a.status === "DELIVERED" || a.is_success === true).length;
+      const smsFailed = latestSms.filter((a: any) => a.status === "FAILED" || a.is_success === false || (a.gateway_status && Number(a.gateway_status) >= 400)).length;
+      const smsMeta = {
+        count: latestSms.length,
+        delivered: smsDelivered,
+        failed: smsFailed,
+        latestDateStr: smsDateStr,
+        hasSms: latestSms.length > 0,
+      };
+
+      if (emailAlerts.length === 0) {
+        info[tierNum] = {
+          hasEmails: false,
+          latestDate: null,
+          latestDateStr: null,
+          emailCount: 0,
+          schemeIds: new Set<string>(),
+          categoryEmails: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 },
+          categorySchemes: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 },
+          sms: smsMeta,
+        };
+        return;
+      }
+
+      // Find max date for email
+      let maxDate: Date | null = null;
+      let maxDateRawStr: string | null = null;
+      emailAlerts.forEach((a: any) => {
+        const raw = a.sent_date || a.created_at;
+        if (raw) {
+          let d: Date;
+          if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) {
+            const [y, m, day] = raw.trim().split("-").map(Number);
+            d = new Date(y, m - 1, day);
+          } else {
+            d = new Date(raw);
+          }
+          if (!isNaN(d.getTime())) {
+            if (!maxDate || d > maxDate) {
+              maxDate = d;
+              maxDateRawStr = typeof raw === "string" ? raw.trim().slice(0, 10) : d.toISOString().slice(0, 10);
+            }
+          }
+        }
+      });
+
+      const latestDateStr = maxDate
+        ? maxDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+        : null;
+
+      // Filter email alerts strictly to that dispatch date
+      const latestEmailAlerts = maxDateRawStr
+        ? emailAlerts.filter((a: any) => {
+            const raw = a.sent_date || a.created_at;
+            const s = raw ? (typeof raw === "string" ? raw.trim().slice(0, 10) : new Date(raw).toISOString().slice(0, 10)) : "";
+            return s === maxDateRawStr;
+          })
+        : emailAlerts;
+
+      const schemeIds = new Set<string>();
+      latestEmailAlerts.forEach((a: any) => {
+        const sid = String(a.scheme_id || "").trim();
+        if (sid) schemeIds.add(sid);
+      });
+
+      const lpcdSchemes = new Set<string>();
+      const chlorineSchemes = new Set<string>();
+      const pressureSchemes = new Set<string>();
+      const offlineSchemes = new Set<string>();
+
+      latestEmailAlerts.forEach((a: any) => {
+        const sid = String(a.scheme_id || "").trim();
+        if (!sid) return;
+        if (a.is_lpcd || (a.categories && a.categories.includes("lpcd"))) lpcdSchemes.add(sid);
+        if (a.is_chlorine || (a.categories && a.categories.includes("chlorine"))) chlorineSchemes.add(sid);
+        if (a.is_pressure || (a.categories && a.categories.includes("pressure"))) pressureSchemes.add(sid);
+        if (a.is_offline || (a.categories && a.categories.includes("offline"))) offlineSchemes.add(sid);
+      });
+
+      let emailCount = schemeIds.size;
+      let seEmailCount: number | undefined = undefined;
+      let ceEmailCount: number | undefined = undefined;
+
+      if (tierNum === 3) {
+        const seAlerts = latestEmailAlerts.filter((a: any) => a.recipient_role && (a.recipient_role.toLowerCase().includes("superintending") || a.recipient_role.toLowerCase().includes("se")));
+        const ceAlerts = latestEmailAlerts.filter((a: any) => a.recipient_role && (a.recipient_role.toLowerCase().includes("chief") || a.recipient_role.toLowerCase().includes("ce")));
+        seEmailCount = new Set(seAlerts.map((a: any) => String(a.id || "").split("-")[0])).size || schemeIds.size;
+        ceEmailCount = new Set(ceAlerts.map((a: any) => String(a.id || "").split("-")[0])).size || schemeIds.size;
+        emailCount = seEmailCount + ceEmailCount;
+      }
+
+      info[tierNum] = {
+        hasEmails: schemeIds.size > 0,
+        latestDate: maxDate,
+        latestDateStr,
+        emailCount,
+        seEmailCount,
+        ceEmailCount,
+        schemeIds,
+        categoryEmails: {
+          lpcd: tierNum === 3 ? lpcdSchemes.size * 2 : lpcdSchemes.size,
+          chlorine: tierNum === 3 ? chlorineSchemes.size * 2 : chlorineSchemes.size,
+          pressure: tierNum === 3 ? pressureSchemes.size * 2 : pressureSchemes.size,
+          offline: tierNum === 3 ? offlineSchemes.size * 2 : offlineSchemes.size,
+        },
+        categorySchemes: {
+          lpcd: lpcdSchemes.size,
+          chlorine: chlorineSchemes.size,
+          pressure: pressureSchemes.size,
+          offline: offlineSchemes.size,
+        },
+        sms: smsMeta,
+      };
+    });
+
+    return info;
+  }, [sentAlertsData]);
+
+  // Schemes strictly for the date emails were sent for each tier
+  // Layer 1: DE / AE Civil (Daily Notice) -> schemes from latest dispatch date
   const layer1Schemes = useMemo(() => {
-    return schemes.filter((s) => s.total_issues_count > 0);
-  }, [schemes]);
+    if (!tierLatestInfo[1]?.hasEmails) return schemes.filter((s) => s.total_issues_count > 0);
+    return schemes.filter((s) => tierLatestInfo[1].schemeIds.has(String(s.scheme_id)));
+  }, [schemes, tierLatestInfo]);
 
-  // Layer 2: EE Civil -> Persisting >= 3 days (sent to DE for 3 days without resolution)
+  // Layer 2: EE Civil -> Schemes emailed on EE's dispatch date (19-Oct)
   const layer2Schemes = useMemo(() => {
-    return schemes.filter((s) => s.max_streak_days >= 3 || s.escalation_level >= 2);
-  }, [schemes]);
+    if (!tierLatestInfo[2]?.hasEmails) return [];
+    return schemes.filter((s) => tierLatestInfo[2].schemeIds.has(String(s.scheme_id)));
+  }, [schemes, tierLatestInfo]);
 
-  // Layer 3: SE & CE -> Notified Weekly for chronic issues persisting >= 7 days (1 full week)
+  // Layer 3: SE & CE -> Schemes emailed on CE/SE dispatch date (19-Oct)
   const layer3Schemes = useMemo(() => {
-    return schemes.filter((s) => s.max_streak_days >= 7 || s.escalation_level >= 3);
-  }, [schemes]);
+    if (!tierLatestInfo[3]?.hasEmails) return [];
+    return schemes.filter((s) => tierLatestInfo[3].schemeIds.has(String(s.scheme_id)));
+  }, [schemes, tierLatestInfo]);
 
-  // Layer 4: MS (Member Secretary) -> 1st & 3rd Monday for persistent issues >= 15 days
+  // Layer 4: MS (Member Secretary) -> strictly empty if no email was sent
   const layer4Schemes = useMemo(() => {
-    return schemes.filter((s) => s.max_streak_days >= 15 || s.escalation_level >= 4);
-  }, [schemes]);
+    if (!tierLatestInfo[4]?.hasEmails) return [];
+    return schemes.filter((s) => tierLatestInfo[4].schemeIds.has(String(s.scheme_id)));
+  }, [schemes, tierLatestInfo]);
 
-  // Layer 5: PS (Principal Secretary) -> 1st & 3rd Monday for persistent issues >= 20 days
+  // Layer 5: PS (Principal Secretary) -> strictly empty if no email was sent
   const layer5Schemes = useMemo(() => {
-    return schemes.filter((s) => s.max_streak_days >= 20 || s.escalation_level === 5);
-  }, [schemes]);
+    if (!tierLatestInfo[5]?.hasEmails) return [];
+    return schemes.filter((s) => tierLatestInfo[5].schemeIds.has(String(s.scheme_id)));
+  }, [schemes, tierLatestInfo]);
 
   // Helper to extract officer for scheme and active layer
   const getOfficerForLevel = (s: SchemeEscalationItem, layer: string) => {
@@ -621,224 +886,6 @@ export default function EscalationPortalPage() {
     if (activeLayer === "layer4") return 4;
     return 5;
   }, [activeLayer]);
-
-  // Latest email dispatch batch per tier (Tier 1..5) calculated scheme-wise (1 email per qualifying scheme)
-  const tierLatestInfo = useMemo(() => {
-    const computeTierStats = (minStreak: number) => {
-      let lpcdCount = 0;
-      let chlorineCount = 0;
-      let pressureCount = 0;
-      let offlineCount = 0;
-      const lpcdSchemes = new Set<string>();
-      const chlorineSchemes = new Set<string>();
-      const pressureSchemes = new Set<string>();
-      const offlineSchemes = new Set<string>();
-      const qualifyingSchemes = new Set<string>();
-
-      schemes.forEach((s: any) => {
-        const sid = String(s.scheme_id);
-        (s.lpcd_villages || []).forEach((v: any) => {
-          const st = v.days_count || s.max_streak_days || 1;
-          if (st >= minStreak) {
-            lpcdCount++;
-            lpcdSchemes.add(sid);
-            qualifyingSchemes.add(sid);
-          }
-        });
-        (s.chlorine_low_esrs || []).forEach((e: any) => {
-          const st = e.days_count || s.max_streak_days || 1;
-          if (st >= minStreak) {
-            chlorineCount++;
-            chlorineSchemes.add(sid);
-            qualifyingSchemes.add(sid);
-          }
-        });
-        (s.chlorine_high_esrs || []).forEach((e: any) => {
-          const st = e.days_count || s.max_streak_days || 1;
-          if (st >= minStreak) {
-            chlorineCount++;
-            chlorineSchemes.add(sid);
-            qualifyingSchemes.add(sid);
-          }
-        });
-        (s.pressure_low_esrs || []).forEach((e: any) => {
-          const st = e.days_count || s.max_streak_days || 1;
-          if (st >= minStreak) {
-            pressureCount++;
-            pressureSchemes.add(sid);
-            qualifyingSchemes.add(sid);
-          }
-        });
-        (s.offline_esrs || []).forEach((e: any) => {
-          const st = e.days_count || s.max_streak_days || 1;
-          if (st >= minStreak) {
-            offlineCount++;
-            offlineSchemes.add(sid);
-            qualifyingSchemes.add(sid);
-          }
-        });
-      });
-
-      return {
-        lpcdCount,
-        chlorineCount,
-        pressureCount,
-        offlineCount,
-        lpcdSchemes,
-        chlorineSchemes,
-        pressureSchemes,
-        offlineSchemes,
-        qualifyingSchemes,
-      };
-    };
-
-    const stats1 = computeTierStats(1);
-    const stats2 = computeTierStats(3);
-    const stats3 = computeTierStats(7);
-    const stats4 = computeTierStats(15);
-    const stats5 = computeTierStats(20);
-
-    // Helper to find latest dispatch date for a given tier from actual sent alerts
-    const getTierDispatchMeta = (tierNum: number) => {
-      const emailAlerts = (sentAlertsData?.alerts || []).filter((a: any) =>
-        a.channel === "email" && Number(a.tier) === tierNum
-      );
-      if (emailAlerts.length === 0) {
-        // Fallback to dispatches today or last 7 days from summary if sentAlertsData has no rows yet
-        const tierKey = tierNum === 5 ? 'ps' : tierNum === 4 ? 'ms' : tierNum === 3 ? 'ce_se' : tierNum === 2 ? 'ee' : 'de';
-        const todayEmailCount = Number((dispatches?.today as any)?.[`${tierKey}_emails`] || 0);
-        const last7EmailCount = Number((dispatches?.last_7_days as any)?.[`${tierKey}_emails`] || 0);
-        if (todayEmailCount > 0 || last7EmailCount > 0) {
-          return {
-            hasEmails: true,
-            latestDate: new Date(),
-            latestDateStr: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
-          };
-        }
-        return { hasEmails: false, latestDate: null, latestDateStr: null };
-      }
-      let maxDate: Date | null = null;
-      emailAlerts.forEach((a: any) => {
-        const raw = a.sent_date || a.created_at;
-        if (raw) {
-          let d: Date;
-          if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) {
-            const [y, m, day] = raw.trim().split("-").map(Number);
-            d = new Date(y, m - 1, day);
-          } else {
-            d = new Date(raw);
-          }
-          if (!isNaN(d.getTime())) {
-            if (!maxDate || d > maxDate) maxDate = d;
-          }
-        }
-      });
-      const latestDateStr = maxDate ? maxDate.toLocaleDateString("en-GB", {
-        day: "numeric",
-        month: "short",
-        year: "numeric"
-      }) : null;
-      return { hasEmails: true, latestDate: maxDate, latestDateStr };
-    };
-
-    const tier1Meta = getTierDispatchMeta(1);
-    const tier2Meta = getTierDispatchMeta(2);
-    const tier3Meta = getTierDispatchMeta(3);
-    const tier4Meta = getTierDispatchMeta(4);
-    const tier5Meta = getTierDispatchMeta(5);
-
-    const info: Record<number, {
-      hasEmails: boolean;
-      latestDate: Date | null;
-      latestDateStr: string | null;
-      emailCount: number;
-      seEmailCount?: number;
-      ceEmailCount?: number;
-      schemeIds: Set<string>;
-      categoryEmails: { lpcd: number; chlorine: number; pressure: number; offline: number };
-      categorySchemes: { lpcd: number; chlorine: number; pressure: number; offline: number };
-    }> = {
-      1: {
-        hasEmails: stats1.qualifyingSchemes.size > 0 && Boolean(tier1Meta.hasEmails),
-        latestDate: tier1Meta.latestDate,
-        latestDateStr: tier1Meta.latestDateStr,
-        emailCount: stats1.qualifyingSchemes.size,
-        schemeIds: stats1.qualifyingSchemes,
-        categoryEmails: {
-          lpcd: stats1.lpcdSchemes.size,
-          chlorine: stats1.chlorineSchemes.size,
-          pressure: stats1.pressureSchemes.size,
-          offline: stats1.offlineSchemes.size,
-        },
-        categorySchemes: {
-          lpcd: stats1.lpcdSchemes.size,
-          chlorine: stats1.chlorineSchemes.size,
-          pressure: stats1.pressureSchemes.size,
-          offline: stats1.offlineSchemes.size,
-        },
-      },
-      2: {
-        hasEmails: stats2.qualifyingSchemes.size > 0 && Boolean(tier2Meta.hasEmails),
-        latestDate: tier2Meta.latestDate,
-        latestDateStr: tier2Meta.latestDateStr,
-        emailCount: stats2.qualifyingSchemes.size,
-        schemeIds: stats2.qualifyingSchemes,
-        categoryEmails: {
-          lpcd: stats2.lpcdSchemes.size,
-          chlorine: stats2.chlorineSchemes.size,
-          pressure: stats2.pressureSchemes.size,
-          offline: stats2.offlineSchemes.size,
-        },
-        categorySchemes: {
-          lpcd: stats2.lpcdSchemes.size,
-          chlorine: stats2.chlorineSchemes.size,
-          pressure: stats2.pressureSchemes.size,
-          offline: stats2.offlineSchemes.size,
-        },
-      },
-      3: {
-        hasEmails: stats3.qualifyingSchemes.size > 0 && Boolean(tier3Meta.hasEmails),
-        latestDate: tier3Meta.latestDate,
-        latestDateStr: tier3Meta.latestDateStr,
-        emailCount: stats3.qualifyingSchemes.size * 2,
-        seEmailCount: stats3.qualifyingSchemes.size,
-        ceEmailCount: stats3.qualifyingSchemes.size,
-        schemeIds: stats3.qualifyingSchemes,
-        categoryEmails: {
-          lpcd: stats3.lpcdSchemes.size * 2,
-          chlorine: stats3.chlorineSchemes.size * 2,
-          pressure: stats3.pressureSchemes.size * 2,
-          offline: stats3.offlineSchemes.size * 2,
-        },
-        categorySchemes: {
-          lpcd: stats3.lpcdSchemes.size,
-          chlorine: stats3.chlorineSchemes.size,
-          pressure: stats3.pressureSchemes.size,
-          offline: stats3.offlineSchemes.size,
-        },
-      },
-      4: {
-        hasEmails: stats4.qualifyingSchemes.size > 0 && Boolean(tier4Meta.hasEmails),
-        latestDate: tier4Meta.latestDate,
-        latestDateStr: tier4Meta.latestDateStr,
-        emailCount: stats4.qualifyingSchemes.size,
-        schemeIds: stats4.qualifyingSchemes,
-        categoryEmails: { lpcd: 0, chlorine: 0, pressure: 0, offline: stats4.offlineSchemes.size },
-        categorySchemes: { lpcd: 0, chlorine: 0, pressure: 0, offline: stats4.offlineSchemes.size },
-      },
-      5: {
-        hasEmails: stats5.qualifyingSchemes.size > 0 && Boolean(tier5Meta.hasEmails),
-        latestDate: tier5Meta.latestDate,
-        latestDateStr: tier5Meta.latestDateStr,
-        emailCount: stats5.qualifyingSchemes.size,
-        schemeIds: stats5.qualifyingSchemes,
-        categoryEmails: { lpcd: 0, chlorine: 0, pressure: 0, offline: stats5.offlineSchemes.size },
-        categorySchemes: { lpcd: 0, chlorine: 0, pressure: 0, offline: stats5.offlineSchemes.size },
-      },
-    };
-
-    return info;
-  }, [schemes, sentAlertsData, dispatches]);
 
   const activeSchemes = useMemo(() => {
     if (activeLayer === "layer1") return layer1Schemes;
@@ -1145,7 +1192,7 @@ export default function EscalationPortalPage() {
       }
       if (!hasMobile) {
         return {
-          label: "DE / AE number not present",
+          label: "Number not present (SMS not dispatched)",
           tooltip: `Mobile number missing or invalid for DE/AE (${s.de_ae_civil_name || 'Unassigned'})`,
           variant: "missing_mobile"
         };
@@ -1162,7 +1209,7 @@ export default function EscalationPortalPage() {
       }
       if (!hasMobile) {
         return {
-          label: "EE number not present",
+          label: "Number not present (SMS not dispatched)",
           tooltip: `Mobile number missing or invalid for EE (${s.ee_civil_name || 'Unassigned'})`,
           variant: "missing_mobile"
         };
@@ -1180,37 +1227,23 @@ export default function EscalationPortalPage() {
           variant: "missing_engineer"
         };
       }
-      if (!hasSE) {
-        return {
-          label: "SE not present",
-          tooltip: "Superintending Engineer not assigned in directory",
-          variant: "missing_engineer"
-        };
-      }
-      if (!hasCE) {
-        return {
-          label: "CE not present",
-          tooltip: "Chief Engineer not assigned in directory",
-          variant: "missing_engineer"
-        };
-      }
       if (!hasSEMobile && !hasCEMobile) {
         return {
-          label: "SE & CE numbers not present",
+          label: "Number not present (SMS not dispatched)",
           tooltip: "Mobile numbers missing for both SE and CE",
           variant: "missing_mobile"
         };
       }
       if (!hasSEMobile) {
         return {
-          label: "SE number not present",
+          label: "SE number not present (SMS not dispatched)",
           tooltip: `Mobile number missing for SE: ${s.se_name}`,
           variant: "missing_mobile"
         };
       }
       if (!hasCEMobile) {
         return {
-          label: "CE number not present",
+          label: "CE number not present (SMS not dispatched)",
           tooltip: `Mobile number missing for CE: ${s.chief_engineer_name}`,
           variant: "missing_mobile"
         };
@@ -1218,19 +1251,34 @@ export default function EscalationPortalPage() {
     }
 
     return {
-      label: "SMS not dispatched",
-      tooltip: "SMS was not queued or dispatched today for this scheme",
+      label: "Not Queued for Level " + (layer === "layer1" ? "1" : layer === "layer2" ? "2" : "3"),
+      tooltip: "Officer mobile number is on record, but SMS alert was not scheduled/triggered for this scheme/level",
       variant: "pending"
     };
   };
 
-  // Helper to accurately match SMS dispatches for a specific alert item (by category, village, and ESR)
+  // Helper to accurately match SMS dispatches for a specific alert item (by category, village, ESR, and latest date for that tier)
   const getMatchingSmsForAlert = (item: any, allSchemeSms: any[], activeTierNumber: number): any[] => {
+    // 1. Isolate SMS strictly for the active level/tier
     const tierSms = allSchemeSms.filter(
       (s: any) => Number(s.tier) === activeTierNumber
     );
-    const schemeSms = tierSms.length > 0 ? tierSms : allSchemeSms;
-    if (schemeSms.length === 0) return [];
+    if (tierSms.length === 0) return [];
+
+    // 2. Find the latest dispatch date for this tier/scheme so it shows the latest status for that date
+    let latestDateStr = "";
+    tierSms.forEach((s: any) => {
+      const raw = s.sent_date || s.created_at;
+      const d = raw ? String(raw).slice(0, 10) : "";
+      if (d > latestDateStr) latestDateStr = d;
+    });
+
+    const latestTierSms = latestDateStr
+      ? tierSms.filter((s: any) => {
+          const raw = s.sent_date || s.created_at;
+          return raw && String(raw).slice(0, 10) === latestDateStr;
+        })
+      : tierSms;
 
     const isCategoryMatch = (cat: string, s: any) => {
       const c = (cat || '').toLowerCase();
@@ -1244,8 +1292,11 @@ export default function EscalationPortalPage() {
       return false;
     };
 
-    const catSms = schemeSms.filter((s: any) => isCategoryMatch(item.category, s));
-    if (catSms.length === 0) return [];
+    const catSms = latestTierSms.filter((s: any) => isCategoryMatch(item.category, s));
+    if (catSms.length === 0) {
+      if (latestTierSms.length > 0) return [latestTierSms[0]];
+      return [];
+    }
 
     const vName = (item.village_name || "").toLowerCase().trim();
     const esr = (item.esr_name || "").toLowerCase().trim();
@@ -1885,15 +1936,50 @@ export default function EscalationPortalPage() {
             </div>
 
             <div className="flex items-center gap-2 self-start lg:self-center flex-wrap">
-              {/* <Button
+              {/* Region Filter Dropdown matching Level 5 Portal */}
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-300 rounded-md px-2.5 py-1 shadow-2xs">
+                <label htmlFor="escalation-region-select" className="text-xs font-bold text-slate-800 whitespace-nowrap">
+                  Region:
+                </label>
+                <div className="w-44 sm:w-52">
+                  <Select
+                    value={selectedRegion}
+                    onValueChange={(val) => {
+                      setSelectedRegion(val);
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger
+                      id="escalation-region-select"
+                      className="h-7 bg-white border-slate-300 font-medium text-slate-800 shadow-2xs focus:ring-1 focus:ring-blue-500 rounded text-xs px-2"
+                    >
+                      <SelectValue placeholder="All Regions" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {REGIONS.map((r) => (
+                        <SelectItem key={r} value={r} className="text-xs font-medium">
+                          {r === "All" ? "All Regions (State-wide)" : r}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Vendor Emails Dispatched Button on Top Right */}
+              <Button
                 variant="outline"
                 size="sm"
-                onClick={openExecutiveModal}
-                className="h-8 text-xs border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-900 font-semibold"
+                onClick={() => {
+                  setEmailLogsModalOpen(true);
+                  setEmailLogsFilterTier("vendor");
+                }}
+                className="h-8 text-xs border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-semibold shadow-2xs"
+                title="View IoT Vendor alert digest emails dispatched for telemetry outages"
               >
-                <User className="w-3.5 h-3.5 mr-1.5 text-purple-700" />
-                Configure MS & PS Details
-              </Button> */}
+                <Mail className="w-3.5 h-3.5 mr-1.5 text-emerald-700" />
+                Vendor: {vendorLatestInfo.hasEmails ? `${vendorLatestInfo.count} Emails (${vendorLatestInfo.latestDateStr})` : "0 Emails"}
+              </Button>
 
               <Link href="/level5-summary">
                 <Button
@@ -1926,7 +2012,7 @@ export default function EscalationPortalPage() {
                 className="h-8 text-xs bg-slate-800 hover:bg-slate-900 text-white font-medium shadow-xs"
               >
                 <a
-                  href={`/api/escalation/export-excel?level=${activeTierNumber}${activeCategory !== "all" ? `&category=${activeCategory}` : ""}`}
+                  href={`/api/escalation/export-excel?level=${activeTierNumber}${activeCategory !== "all" ? `&category=${activeCategory}` : ""}${selectedRegion !== "All" ? `&region=${encodeURIComponent(selectedRegion)}` : ""}`}
                   target="_blank"
                   rel="noreferrer"
                   title={`Export Level ${activeTierNumber} email dispatches${activeCategory !== "all" ? ` for ${activeCategory.toUpperCase()}` : ""}`}
@@ -1942,7 +2028,7 @@ export default function EscalationPortalPage() {
                 className="h-8 text-xs bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-xs"
               >
                 <a
-                  href={`/api/escalation/export-overall-dispatches${activeCategory !== "all" ? `?category=${activeCategory}` : ""}`}
+                  href={`/api/escalation/export-overall-dispatches${activeCategory !== "all" ? `?category=${activeCategory}` : ""}${selectedRegion !== "All" ? `&region=${encodeURIComponent(selectedRegion)}` : ""}`}
                   target="_blank"
                   rel="noreferrer"
                   title={`Export complete multi-level breakdown and officer email recipient roster${activeCategory !== "all" ? ` (${activeCategory.toUpperCase()} only)` : ""}`}
@@ -1954,18 +2040,30 @@ export default function EscalationPortalPage() {
             </div>
           </div>
 
+          {isError && (
+            <div className="bg-amber-50 border-t border-b border-amber-200 px-4 py-2.5 text-xs text-amber-900 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Unable to load escalation status. Click refresh to retry.</span>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => refetch()} className="h-7 text-xs border-amber-300 bg-white hover:bg-amber-100">
+                Retry
+              </Button>
+            </div>
+          )}
+
           {/* OFFICIAL KEY METRIC STRIP (Only Total Schemes, Total SMS, Total Emails) */}
           <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
             <div className="sm:border-r border-slate-200 pr-2">
               <div className="text-[11px] text-slate-500 tracking-wider font-semibold">Total Operational Schemes</div>
               <div className="text-xl font-bold font-mono text-slate-900 mt-0.5">
-                {schemes.length}
+                {isLoading ? <span className="text-slate-400 text-sm animate-pulse">Loading...</span> : schemes.length}
               </div>
             </div>
             <div className="sm:border-r border-slate-200 pr-2">
               <div className="text-[11px] text-slate-500 tracking-wider font-semibold">Total Sms Sent</div>
               <div className="text-sm font-bold font-mono text-slate-900 mt-0.5">
-                Today: {dispatches?.today?.total_sms ?? 0}
+                Today: {isLoading ? "..." : (dispatches?.today?.total_sms ?? 0)}
               </div>
               {/* <div className="text-[11px] text-slate-500 font-mono">7 Days: {dispatches?.last_7_days?.total_sms ?? 0}</div> */}
             </div>
@@ -2021,6 +2119,13 @@ export default function EscalationPortalPage() {
                 </span>
                 <span className={`${tierLatestInfo[5]?.hasEmails ? "bg-indigo-50 text-indigo-800 border-indigo-200 font-semibold" : "bg-slate-50 text-slate-500 border-slate-200"} px-1.5 py-0.5 rounded border`}>
                   WSSD Office: {tierLatestInfo[5]?.hasEmails ? `${tierLatestInfo[5].emailCount} Emails (${tierLatestInfo[5].latestDateStr})` : "0 (No Email Sent)"}
+                </span>
+                <span
+                  onClick={(e) => { e.stopPropagation(); setEmailLogsModalOpen(true); setEmailLogsFilterTier("vendor"); }}
+                  className="bg-emerald-50 text-emerald-850 px-1.5 py-0.5 rounded border border-emerald-300 font-semibold cursor-pointer hover:bg-emerald-100 transition-colors"
+                  title="Click to view IoT Vendor email dispatches"
+                >
+                  Vendor: {vendorLatestInfo.hasEmails ? `${vendorLatestInfo.count} Emails (${vendorLatestInfo.latestDateStr})` : "0 (No Email Sent)"}
                 </span>
               </div>
             </div>
@@ -2080,9 +2185,9 @@ export default function EscalationPortalPage() {
                 <div className="flex justify-between items-center p-1 border-t border-slate-200/60 pt-1">
                   <span className="font-sans font-medium text-slate-600">Sms:</span>
                   <span className="font-semibold text-slate-700">
-                    {(dispatches?.today?.de_sms ?? 0) > 0 && tierLatestInfo[1].latestDateStr
-                      ? `${dispatches?.today?.de_sms} Sent (${tierLatestInfo[1].latestDateStr})`
-                      : `${dispatches?.today?.de_sms ?? 0} Sent`}
+                    {tierLatestInfo[1]?.sms?.delivered > 0
+                      ? `${tierLatestInfo[1].sms.delivered} Sent${tierLatestInfo[1].sms.latestDateStr ? ` (${tierLatestInfo[1].sms.latestDateStr})` : ""}`
+                      : "0 Sent"}
                   </span>
                 </div>
               </div>
@@ -2154,9 +2259,9 @@ export default function EscalationPortalPage() {
                 <div className="flex justify-between items-center p-1 border-t border-slate-200/60 pt-1">
                   <span className="font-sans font-medium text-slate-600">Sms:</span>
                   <span className="font-semibold text-slate-700">
-                    {(dispatches?.today?.ee_sms ?? 0) > 0 && tierLatestInfo[2].latestDateStr
-                      ? `${dispatches?.today?.ee_sms} Sent (${tierLatestInfo[2].latestDateStr})`
-                      : `${dispatches?.today?.ee_sms ?? 0} Sent`}
+                    {tierLatestInfo[2]?.sms?.delivered > 0
+                      ? `${tierLatestInfo[2].sms.delivered} Sent${tierLatestInfo[2].sms.latestDateStr ? ` (${tierLatestInfo[2].sms.latestDateStr})` : ""}`
+                      : "0 Sent"}
                   </span>
                 </div>
               </div>
@@ -2240,9 +2345,9 @@ export default function EscalationPortalPage() {
                 <div className="flex justify-between items-center p-1 border-t border-slate-200/60 pt-1">
                   <span className="font-sans font-medium text-slate-600">Sms:</span>
                   <span className="font-semibold text-slate-700">
-                    {(dispatches?.today?.ce_se_sms ?? 0) > 0 && tierLatestInfo[3].latestDateStr
-                      ? `${dispatches?.today?.ce_se_sms} Sent (${tierLatestInfo[3].latestDateStr})`
-                      : `${dispatches?.today?.ce_se_sms ?? 0} Sent`}
+                    {tierLatestInfo[3]?.sms?.delivered > 0
+                      ? `${tierLatestInfo[3].sms.delivered} Sent${tierLatestInfo[3].sms.latestDateStr ? ` (${tierLatestInfo[3].sms.latestDateStr})` : ""}`
+                      : "0 Sent"}
                   </span>
                 </div>
               </div>
@@ -2313,10 +2418,10 @@ export default function EscalationPortalPage() {
                 </div>
                 <div className="flex justify-between items-center p-1 border-t border-purple-200/60 pt-1">
                   <span className="font-sans font-medium text-slate-700">Sms:</span>
-                  <span className="font-semibold text-slate-700">
-                    {(dispatches?.today?.ms_sms ?? 0) > 0 && tierLatestInfo[4].latestDateStr
-                      ? `${dispatches?.today?.ms_sms} Sent (${tierLatestInfo[4].latestDateStr})`
-                      : `${dispatches?.today?.ms_sms ?? 0} Sent`}
+                  <span className="font-semibold text-purple-950">
+                    {tierLatestInfo[4]?.sms?.delivered > 0
+                      ? `${tierLatestInfo[4].sms.delivered} Sent${tierLatestInfo[4].sms.latestDateStr ? ` (${tierLatestInfo[4].sms.latestDateStr})` : ""}`
+                      : "0 Sent"}
                   </span>
                 </div>
               </div>
@@ -2356,7 +2461,7 @@ export default function EscalationPortalPage() {
                   Level 5 • WSSD Office
                 </span>
                 <Badge variant="outline" className="text-[10px] bg-indigo-50 border-indigo-300 font-bold text-indigo-950">
-                  1st &amp; 3rd Mon
+                  Alternate Mon (≥ 20d)
                 </Badge>
               </div>
 
@@ -2388,10 +2493,10 @@ export default function EscalationPortalPage() {
                 </div>
                 <div className="flex justify-between items-center p-1 border-t border-indigo-200/60 pt-1">
                   <span className="font-sans font-medium text-slate-700">Sms:</span>
-                  <span className="font-semibold text-slate-700">
-                    {(dispatches?.today?.ps_sms ?? 0) > 0 && tierDispatchedDates[5]
-                      ? `${dispatches?.today?.ps_sms} Sent (${tierDispatchedDates[5]})`
-                      : `${dispatches?.today?.ps_sms ?? 0} Sent`}
+                  <span className="font-semibold text-indigo-950">
+                    {tierLatestInfo[5]?.sms?.delivered > 0
+                      ? `${tierLatestInfo[5].sms.delivered} Sent${tierLatestInfo[5].sms.latestDateStr ? ` (${tierLatestInfo[5].sms.latestDateStr})` : ""}`
+                      : "0 Sent"}
                   </span>
                 </div>
               </div>
@@ -3188,9 +3293,14 @@ export default function EscalationPortalPage() {
                               const successCount = targetSmsList.filter((s: any) => isSmsSuccess(s)).length;
                               const isFullSuccess = successCount === targetSmsList.length && targetSmsList.length > 0;
                               const latestSms = targetSmsList[0];
+                              const smsDateObj = latestSms?.sent_date || latestSms?.created_at ? new Date(latestSms.sent_date || latestSms.created_at) : null;
+                              const dateFormatted = smsDateObj && !isNaN(smsDateObj.getTime())
+                                ? smsDateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                                : null;
                               const timeStr = latestSms?.created_at
                                 ? new Date(latestSms.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
                                 : "10:37 am";
+                              const displayTime = dateFormatted ? `${dateFormatted} ${timeStr}` : timeStr;
 
                               return (
                                 <div className="flex flex-col items-center gap-0.5">
@@ -3199,18 +3309,18 @@ export default function EscalationPortalPage() {
                                       ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                                       : successCount > 0
                                         ? 'bg-amber-50 text-amber-800 border-amber-200'
-                                        : 'bg-rose-50 text-rose-800 border-rose-200'
+                                        : 'bg-slate-50 text-slate-600 border-slate-200'
                                       }`}>
                                       <MessageSquare className="w-2.5 h-2.5 text-current" />
                                       {isFullSuccess
                                         ? `Delivered (${successCount}/${targetSmsList.length})`
                                         : successCount > 0
                                           ? `Partial (${successCount}/${targetSmsList.length})`
-                                          : `Failed (${targetSmsList.length})`}
+                                          : `0 Sent`}
                                     </span>
-                                    {timeStr && (
+                                    {displayTime && (
                                       <span className="text-[10px] text-slate-500 font-normal">
-                                        {timeStr}
+                                        {displayTime}
                                       </span>
                                     )}
                                   </div>
@@ -3326,7 +3436,7 @@ export default function EscalationPortalPage() {
                             ? "Level 3: CE & SE Weekly Notice (Every Monday, Streak ≥ 7d)"
                             : previewTier === "MS"
                               ? "Level 4: Member Secretary (MS) Notice (1st & 3rd Mon, Streak ≥ 15d)"
-                              : "Level 5: Principal Secretary (PS) Notice (1st & 3rd Mon, Streak ≥ 20d)"}
+                              : "Level 5: Principal Secretary (PS) Notice (Alternate Mon, Streak ≥ 20d)"}
                     </Badge>
                     <Badge variant="outline" className="text-xs font-mono">
                       {previewScheme.max_streak_days} Consecutive Days Unresolved
@@ -3499,7 +3609,7 @@ export default function EscalationPortalPage() {
                 Executive Authority Contact Details
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-600">
-                Update the official mobile numbers and email addresses for Member Secretary (notified for all schemes after 10 days) and Principal Secretary (notified after 15 days).
+                Update the official mobile numbers and email addresses for Member Secretary (notified for all schemes after 15 days) and Principal Secretary (notified after 20 days).
               </DialogDescription>
             </DialogHeader>
 
@@ -3558,7 +3668,7 @@ export default function EscalationPortalPage() {
                       Level 5 • Principal Secretary (Ps)
                     </span>
                     <Badge variant="outline" className="text-[10px] bg-white border-indigo-300 text-indigo-950">
-                      Receives Notice After 15 Days
+                      Receives Notice After 20 Days (Alternate Mon)
                     </Badge>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
@@ -3757,6 +3867,30 @@ export default function EscalationPortalPage() {
                               <span className="italic font-medium">Mobile not on record (SMS not dispatched)</span>
                             </span>
                           )}
+                          {(() => {
+                            const schemeSms = smsByScheme.get(String(selectedEmailItem.item.scheme_id)) || [];
+                            const seSms = schemeSms.find((s: any) =>
+                              (s.recipient_role && (s.recipient_role.toLowerCase().includes("se") || s.recipient_role.toLowerCase().includes("superintending"))) ||
+                              (s.recipient_mobile && selectedEmailItem.item.se_officer?.mobile && s.recipient_mobile.includes(selectedEmailItem.item.se_officer.mobile.replace(/\D/g, '').slice(-10)))
+                            );
+                            if (!selectedEmailItem.item.se_officer?.mobile) return null;
+                            if (!seSms) {
+                              return (
+                                <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-slate-500 font-medium">
+                                  <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                                  <span>SMS: 0 Sent (Not queued for Level 3)</span>
+                                </div>
+                              );
+                            }
+                            const isOk = isSmsSuccess(seSms);
+                            const errMsg = parseSmsError(seSms);
+                            return (
+                              <div className={`mt-1.5 px-2 py-0.5 rounded text-[10.5px] font-semibold border flex items-center gap-1.5 ${isOk ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'}`}>
+                                {isOk ? <Check className="w-3 h-3 text-emerald-600 shrink-0" /> : <AlertCircle className="w-3 h-3 text-rose-600 shrink-0" />}
+                                <span>SMS: {isOk ? 'Delivered' : `Failed (${errMsg || 'DLT Insufficient Balance !'})`}</span>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
 
@@ -3826,6 +3960,30 @@ export default function EscalationPortalPage() {
                               <span className="italic font-medium">Mobile not on record (SMS not dispatched)</span>
                             </span>
                           )}
+                          {(() => {
+                            const schemeSms = smsByScheme.get(String(selectedEmailItem.item.scheme_id)) || [];
+                            const ceSms = schemeSms.find((s: any) =>
+                              (s.recipient_role && (s.recipient_role.toLowerCase().includes("ce") || s.recipient_role.toLowerCase().includes("chief"))) ||
+                              (s.recipient_mobile && selectedEmailItem.item.ce_officer?.mobile && s.recipient_mobile.includes(selectedEmailItem.item.ce_officer.mobile.replace(/\D/g, '').slice(-10)))
+                            );
+                            if (!selectedEmailItem.item.ce_officer?.mobile) return null;
+                            if (!ceSms) {
+                              return (
+                                <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-slate-500 font-medium">
+                                  <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                                  <span>SMS: 0 Sent (Not queued for Level 3)</span>
+                                </div>
+                              );
+                            }
+                            const isOk = isSmsSuccess(ceSms);
+                            const errMsg = parseSmsError(ceSms);
+                            return (
+                              <div className={`mt-1.5 px-2 py-0.5 rounded text-[10.5px] font-semibold border flex items-center gap-1.5 ${isOk ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'}`}>
+                                {isOk ? <Check className="w-3 h-3 text-emerald-600 shrink-0" /> : <AlertCircle className="w-3 h-3 text-rose-600 shrink-0" />}
+                                <span>SMS: {isOk ? 'Delivered' : `Failed (${errMsg || 'DLT Insufficient Balance !'})`}</span>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
 
@@ -3897,6 +4055,38 @@ export default function EscalationPortalPage() {
                               <span className="italic font-medium">Mobile not on record (SMS not dispatched)</span>
                             </span>
                           )}
+                          {(() => {
+                            const schemeSms = smsByScheme.get(String(selectedEmailItem.item.scheme_id)) || [];
+                            const offSms = schemeSms.find((s: any) =>
+                              Number(s.tier) === activeTierNumber ||
+                              (s.recipient_mobile && selectedEmailItem.item.officer_mobile && s.recipient_mobile.includes(selectedEmailItem.item.officer_mobile.replace(/\D/g, '').slice(-10)))
+                            );
+                            if (!selectedEmailItem.item.officer_mobile) return null;
+                            if (activeTierNumber >= 4) {
+                              return (
+                                <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-slate-500 font-medium">
+                                  <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                                  <span>SMS: Notice by email only (DLT SMS not scheduled for Secretariat)</span>
+                                </div>
+                              );
+                            }
+                            if (!offSms) {
+                              return (
+                                <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-slate-500 font-medium">
+                                  <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                                  <span>SMS: 0 Sent (Not queued for this level)</span>
+                                </div>
+                              );
+                            }
+                            const isOk = isSmsSuccess(offSms);
+                            const errMsg = parseSmsError(offSms);
+                            return (
+                              <div className={`mt-1.5 px-2 py-0.5 rounded text-[10.5px] font-semibold border flex items-center gap-1.5 ${isOk ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'}`}>
+                                {isOk ? <Check className="w-3 h-3 text-emerald-600 shrink-0" /> : <AlertCircle className="w-3 h-3 text-rose-600 shrink-0" />}
+                                <span>SMS: {isOk ? 'Delivered' : `Failed (${errMsg || 'DLT Insufficient Balance !'})`}</span>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
 
@@ -4445,7 +4635,7 @@ export default function EscalationPortalPage() {
                     {(emailLogsData?.summary?.tier_breakdown?.ms_emails || 0) + (emailLogsData?.summary?.tier_breakdown?.ps_emails || 0)}
                   </span>
                   <span className="inline-block mt-1 text-[9.5px] font-semibold text-purple-700 bg-purple-100/60 px-2 py-0.5 rounded-full border border-purple-200">
-                    1st &amp; 3rd Mon (≥ 15d)
+                    MS (1st &amp; 3rd Mon, ≥ 15d) • PS (Alternate Mon, ≥ 20d)
                   </span>
                 </div>
               </div>
