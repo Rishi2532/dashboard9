@@ -1276,11 +1276,6 @@ export default function Level5SummaryPage() {
                       value={streakDays > 7 ? 0 : alerts.lowLpcdSchemes}
                       colorClass="text-slate-900"
                     />
-                    {streakDays > 7 && (
-                      <span className="text-[10.5px] text-slate-500 italic block font-normal mt-0.5">
-                        (Only appears when email is sent)
-                      </span>
-                    )}
                   </div>
                   <div className="col-span-2 px-4 py-3 text-left text-base sm:text-lg">
                     <ClickableNumber
@@ -1288,11 +1283,6 @@ export default function Level5SummaryPage() {
                       value={streakDays > 7 ? 0 : alerts.lowLpcdVillages}
                       colorClass="text-slate-900"
                     />
-                    {streakDays > 7 && (
-                      <span className="text-[10.5px] text-slate-500 italic block font-normal mt-0.5">
-                        (Only appears when email is sent)
-                      </span>
-                    )}
                   </div>
                   <div className="col-span-2 px-4 py-3 text-left text-base sm:text-lg">
                     <ClickableNumber
@@ -1300,11 +1290,6 @@ export default function Level5SummaryPage() {
                       value={streakDays > 7 ? 0 : alerts.lowPressureEsrs}
                       colorClass="text-slate-900"
                     />
-                    {streakDays > 7 && (
-                      <span className="text-[10.5px] text-slate-500 italic block font-normal mt-0.5">
-                        (Only appears when email is sent)
-                      </span>
-                    )}
                   </div>
                   <div className="col-span-2 px-4 py-3 text-left text-base sm:text-lg">
                     <ClickableNumber
@@ -1312,11 +1297,6 @@ export default function Level5SummaryPage() {
                       value={streakDays > 7 ? 0 : alerts.residualChlorineOutOfRange}
                       colorClass="text-slate-900"
                     />
-                    {streakDays > 7 && (
-                      <span className="text-[10.5px] text-slate-500 italic block font-normal mt-0.5">
-                        (Only appears when email is sent)
-                      </span>
-                    )}
                   </div>
                 </div>
 
@@ -1723,8 +1703,8 @@ export default function Level5SummaryPage() {
                             {hasEmail ? (
                               <div className="flex flex-col items-center gap-1 max-w-[210px] mx-auto text-center">
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold border shadow-2xs bg-emerald-50 text-emerald-800 border-emerald-200">
-                                  <Mail className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
-                                  1 Email Sent • {emailDateStr}
+                                  <Check className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
+                                  Success ({emailDateStr})
                                 </span>
                                 <button
                                   type="button"
@@ -1754,9 +1734,9 @@ export default function Level5SummaryPage() {
                               </div>
                             ) : (
                               <div className="flex flex-col items-center gap-1 max-w-[200px] mx-auto text-center">
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-medium border bg-slate-50 text-slate-500 border-slate-200">
-                                  <AlertCircle className="w-3 h-3 shrink-0 opacity-70" />
-                                  0 Emails Sent
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-semibold border bg-rose-50 text-rose-700 border-rose-200">
+                                  <AlertCircle className="w-3 h-3 shrink-0 text-rose-500" />
+                                  Failed (0 Sent)
                                 </span>
                                 <button
                                   type="button"
@@ -1787,65 +1767,65 @@ export default function Level5SummaryPage() {
                             )}
                           </td>
                           <td className="py-3 px-3 text-center border-l border-slate-100 align-middle whitespace-nowrap">
-                            {smsFailed ? (
-                              <div className="flex flex-col items-center gap-0.5">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border bg-slate-50 text-slate-700 border-slate-200">
-                                    <MessageSquare className="w-2.5 h-2.5 text-slate-500" />
-                                    {smsDispatches.delivered > 0 ? `${smsDispatches.delivered} Sent` : "0 Sent"}
+                            <div className="flex flex-col items-center gap-0.5">
+                              <div className="flex items-center gap-1.5">
+                                {smsDispatches.delivered > 0 ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border bg-emerald-50 text-emerald-800 border-emerald-200">
+                                    <Check className="w-2.5 h-2.5 text-emerald-600" />
+                                    Success ({smsDispatches.delivered} Sent)
                                   </span>
-                                  <span className="text-[10px] text-slate-500 font-normal">
-                                    {emailDateStr} 10:37 am
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border bg-rose-50 text-rose-700 border-rose-200">
+                                    <AlertCircle className="w-2.5 h-2.5 text-rose-500" />
+                                    Failed (0 Sent)
                                   </span>
-                                </div>
-                                <button
-                                  type="button"
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold text-indigo-700 bg-indigo-50/90 hover:bg-indigo-100 hover:text-indigo-900 border border-indigo-200/80 cursor-pointer transition-all shadow-2xs mt-1"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedSmsItem({
-                                      item: {
-                                        ...item,
+                                )}
+                                <span className="text-[10px] text-slate-500 font-normal">
+                                  {emailDateStr} 10:37 am
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold text-indigo-700 bg-indigo-50/90 hover:bg-indigo-100 hover:text-indigo-900 border border-indigo-200/80 cursor-pointer transition-all shadow-2xs mt-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedSmsItem({
+                                    item: {
+                                      ...item,
+                                      scheme_id: sId,
+                                      scheme_name: sName,
+                                      village_name: vName,
+                                      esr_name: eName,
+                                      alert_title: item.alert_title || (cat === "lpcd" ? "LPCD – Low" : cat === "chlorine" ? "Residual Chlorine" : "Pressure Sensor – Low"),
+                                      parameter_value: pVal,
+                                    },
+                                    smsList: [
+                                      {
+                                        id: `sms-${sId}`,
                                         scheme_id: sId,
                                         scheme_name: sName,
                                         village_name: vName,
-                                        esr_name: eName,
-                                        alert_title: item.alert_title || (cat === "lpcd" ? "LPCD – Low" : cat === "chlorine" ? "Residual Chlorine" : "Pressure Sensor – Low"),
-                                        parameter_value: pVal,
-                                      },
-                                      smsList: [
-                                        {
-                                          id: `sms-${sId}`,
-                                          scheme_id: sId,
-                                          scheme_name: sName,
-                                          village_name: vName,
-                                          recipient_name: item.officer_name || item.engineer_name || "Superintending Engineer",
-                                          recipient_role: item.officer_role || "Superintending Engineer (SE)",
-                                          recipient_email: item.officer_email || item.engineer_email || "se.jalna@gov.in",
-                                          mobile: item.officer_mobile || item.mobile || "9422000000",
-                                          recipient_mobile: item.officer_mobile || item.mobile || "9422000000",
-                                          alert_title: cat === "lpcd" ? "LPCD – Low" : cat === "chlorine" ? "Residual Chlorine" : "Pressure Sensor – Low",
-                                          message_content: `सूचना: JJM MVS ${sName} अंतर्गत ${vName || eName || ''} येथील मूल्य विहित मानकापेक्षा कमी आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा`,
-                                          is_success: false,
-                                          gateway_status: 400,
-                                          error_message: '{"statusCode":2092,"description":"Insufficient Balance !"}',
-                                          created_at: `${data?.emailDispatches?.dispatchDate || '2026-10-19'}T10:37:00.000Z`,
-                                        }
-                                      ]
-                                    });
-                                  }}
-                                  title="View SMS Dispatch Logs"
-                                >
-                                  <Eye className="w-2.5 h-2.5 text-indigo-600" />
-                                  <span>View Log</span>
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-medium border bg-slate-50 text-slate-500 border-slate-200">
-                                <AlertCircle className="w-2.5 h-2.5 shrink-0 opacity-70" />
-                                Notice by email only
-                              </span>
-                            )}
+                                        recipient_name: item.officer_name || item.engineer_name || "Superintending Engineer",
+                                        recipient_role: item.officer_role || "Superintending Engineer (SE)",
+                                        recipient_email: item.officer_email || item.engineer_email || "se.jalna@gov.in",
+                                        mobile: item.officer_mobile || item.mobile || "9422000000",
+                                        recipient_mobile: item.officer_mobile || item.mobile || "9422000000",
+                                        alert_title: cat === "lpcd" ? "LPCD – Low" : cat === "chlorine" ? "Residual Chlorine" : "Pressure Sensor – Low",
+                                        message_content: `सूचना: JJM MVS ${sName} अंतर्गत ${vName || eName || ''} येथील मूल्य विहित मानकापेक्षा कमी आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा`,
+                                        is_success: false,
+                                        gateway_status: 400,
+                                        error_message: '{"statusCode":2092,"description":"Insufficient Balance !"}',
+                                        created_at: `${data?.emailDispatches?.dispatchDate || '2026-10-19'}T10:37:00.000Z`,
+                                      }
+                                    ]
+                                  });
+                                }}
+                                title="View SMS Dispatch Logs"
+                              >
+                                <Eye className="w-2.5 h-2.5 text-indigo-600" />
+                                <span>View Log</span>
+                              </button>
+                            </div>
                           </td>
                           <td className="py-3 px-3 text-center border-l border-slate-100 align-middle whitespace-nowrap">
                             {remarksList.length > 0 ? (
@@ -2632,20 +2612,13 @@ export default function Level5SummaryPage() {
                             <span>+91 {selectedEmailItem.item.officer_mobile}</span>
                           </a>
                         ) : (
-                          <span className="text-xs text-slate-400 mt-1 italic">Notice by email only</span>
+                          <span className="text-xs text-slate-500 mt-0.5">Mobile: Not available</span>
                         )}
                         {/* Officer SMS Status */}
-                        {streakDays > 7 ? (
-                          <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-slate-500 font-medium">
-                            <Clock className="w-3 h-3 text-slate-400 shrink-0" />
-                            <span>SMS: Notice by email only (DLT SMS not scheduled for Secretariat)</span>
-                          </div>
-                        ) : (
-                          <div className="mt-1.5 px-2 py-0.5 rounded text-[10.5px] font-semibold border flex items-center gap-1.5 bg-rose-50 text-rose-800 border-rose-200">
-                            <AlertCircle className="w-3 h-3 text-rose-600 shrink-0" />
-                            <span>SMS: Failed (DLT Insufficient Balance !)</span>
-                          </div>
-                        )}
+                        <div className="mt-1.5 px-2 py-0.5 rounded text-[10.5px] font-semibold border flex items-center gap-1.5 bg-rose-50 text-rose-800 border-rose-200">
+                          <AlertCircle className="w-3 h-3 text-rose-600 shrink-0" />
+                          <span>SMS: Failed (0 Sent)</span>
+                        </div>
                       </div>
                     </div>
 
@@ -2654,7 +2627,7 @@ export default function Level5SummaryPage() {
                         <>
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
                             <Check className="h-3.5 w-3.5 text-emerald-600" />
-                            Sent Via SMTP
+                            Success (Sent Via SMTP)
                           </span>
                           <span className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
                             <Clock className="w-3 h-3 text-slate-400" />
@@ -2662,9 +2635,9 @@ export default function Level5SummaryPage() {
                           </span>
                         </>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200 shadow-2xs">
-                          <AlertCircle className="h-3.5 w-3.5 text-slate-400" />
-                          0 Emails Sent (Not Scheduled)
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs">
+                          <AlertCircle className="h-3.5 w-3.5 text-rose-500" />
+                          Failed (0 Emails Sent)
                         </span>
                       )}
                     </div>

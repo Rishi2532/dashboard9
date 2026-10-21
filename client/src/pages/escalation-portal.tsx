@@ -1186,8 +1186,8 @@ export default function EscalationPortalPage() {
 
     if (layer === "layer4" || layer === "layer5") {
       return {
-        label: "Notice by email only",
-        tooltip: "Executive escalation at Level 4/5 is dispatched via official email notice; DLT bulk SMS is not enabled for Secretariat",
+        label: "Failed (0 Sent)",
+        tooltip: "Executive escalation at Level 4/5: DLT bulk SMS was not delivered for Secretariat",
         variant: "higher_tier"
       };
     }
@@ -4078,7 +4078,7 @@ export default function EscalationPortalPage() {
                               return (
                                 <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-slate-500 font-medium">
                                   <Clock className="w-3 h-3 text-slate-400 shrink-0" />
-                                  <span>SMS: Notice by email only (DLT SMS not scheduled for Secretariat)</span>
+                                  <span>SMS: Failed (0 Sent)</span>
                                 </div>
                               );
                             }

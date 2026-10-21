@@ -1913,9 +1913,8 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
         officer_name: escalationLevel === 3 ? (sRef.chief_engineer_name || sRef.se_name || "CE / SE") : escalationLevel === 4 ? "Member Secretary (MJP)" : "Principal Secretary (WSSD)",
         officer_role: escalationLevel === 3 ? "CE & SE" : escalationLevel === 4 ? "Head - MJP" : "Head - WSSD",
         officer_email: escalationLevel === 3 ? (sRef.chief_engineer_email || sRef.se_email || "") : escalationLevel === 4 ? "ms.mjp@gov.in" : "ps.wss@maharashtra.gov.in",
-        officer_mobile: escalationLevel === 3 ? (sRef.chief_engineer_mobile || sRef.se_mobile || "-") : "-",
-        email_status: hasSentEmails ? `Dispatched (${latestDispatchDateStr})` : "Not Dispatched",
-        sms_status: hasSentEmails ? (smsDelivered > 0 ? `${smsDelivered} Delivered` : "0 SMS Sent") : "Notice by email only",
+        email_status: hasSentEmails ? `Dispatched (${latestDispatchDateStr})` : "Failed (Not Dispatched)",
+        sms_status: smsDelivered > 0 ? `${smsDelivered} Delivered` : "Failed (0 SMS Sent)",
         remarks,
         remarks_count: remarks.length,
       };
