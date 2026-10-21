@@ -3136,6 +3136,8 @@ export default function AlertsProgressPage() {
     isLoading: boolean
   ) => {
     const baseData = getFilteredData(rawData, type);
+    const baseSchemesCount = new Set(baseData.map((r: any) => r.scheme_id)).size;
+    const baseUnitNoun = type === "lpcd" ? "Villages" : type === "offline" ? "ESRs" : "Sensors";
 
     // Calculations for KPIs & Explicit Unit Indications
     const unitNoun = type === "lpcd"
@@ -3648,7 +3650,7 @@ export default function AlertsProgressPage() {
                 onClick={() => setAckStatusFilter("all")}
                 className="text-xs text-slate-500 underline hover:text-[#0f4c81] cursor-pointer"
               >
-                Across {baseData.length} Schemes
+                Across {baseSchemesCount} Schemes ({baseData.length} {baseUnitNoun})
               </button>
             </div>
 
@@ -5077,9 +5079,9 @@ export default function AlertsProgressPage() {
                 <div className="text-[11px] font-semibold text-slate-700 mt-1 flex items-center gap-1.5 flex-wrap">
                   <span className="text-slate-800">{offlineSchemesCount} Scheme{offlineSchemesCount === 1 ? '' : 's'}</span>
                   <span className="text-slate-300">•</span>
-                  <span className="text-slate-800"><strong className="text-slate-900">{offlineBifurcation.total}</strong> Offline Sensors</span>
+                  <span className="text-slate-800"><strong className="text-slate-900">{offlineVillagesCount}</strong> Villages</span>
                   <span className="text-slate-300">•</span>
-                  <span className="text-slate-800"><strong className="text-slate-900">{offlineData.length}</strong> Locations</span>
+                  <span className="text-slate-800"><strong className="text-slate-900">{offlineEsrsCount}</strong> ESRs</span>
                 </div>
                 <div className="mt-1.5 pt-1.5 border-t border-slate-100 flex items-center gap-1.5 flex-wrap text-[10px]">
                   <span className="px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200 font-semibold" title="Chlorine Analyzers Offline">
