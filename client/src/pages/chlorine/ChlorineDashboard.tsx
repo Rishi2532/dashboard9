@@ -237,9 +237,9 @@ const ChlorineDashboard: React.FC = () => {
   const [selectedWithWaterFilter, setSelectedWithWaterFilter] =
     useState<ChlorineRange>("all");
 
-  // Sensor status filter state
+  // Sensor status filter state - default to "connected" to match the 324 connected sensors card
   const [sensorStatusFilter, setSensorStatusFilter] =
-    useState<SensorStatusFilter>("all");
+    useState<SensorStatusFilter>("connected");
 
   // Remove the old selectedCardFilter state entirely - we'll use selectedCardFilter instead
 
@@ -742,12 +742,17 @@ const ChlorineDashboard: React.FC = () => {
   // Handler for sensor status card clicks
   const handleSensorStatusClick = (status: SensorStatusFilter) => {
     if (sensorStatusFilter === status) {
-      // If same filter is clicked, clear the filter
-      setSensorStatusFilter("all");
+      // If same filter is clicked, toggle back to connected
+      setSensorStatusFilter("connected");
     } else {
       // Apply the new filter
       setSensorStatusFilter(status);
     }
+
+    // Clear range filters when switching primary status cards
+    setSelectedCardFilter("all");
+    setSelectedWithWaterFilter("all");
+    setSelectedWithoutWaterFilter("all");
 
     // Track filter usage
     trackFilterUsage("sensor_status", status, undefined, "chlorine_dashboard");
@@ -1319,6 +1324,99 @@ const ChlorineDashboard: React.FC = () => {
     // Start with the globally filtered data that affects both cards and table
     let filtered = [...globallyFilteredData];
 
+    // Build communication status map
+    const commStatusMap = new Map<string, CommunicationStatus>();
+    communicationStatusData?.forEach((status) => {
+      const key7 = `${status.region}|${status.circle}|${status.division}|${status.sub_division}|${status.block}|${status.village_name}|${status.esr_name}`.toLowerCase().trim();
+      commStatusMap.set(key7, status);
+      if (status.scheme_id && status.esr_name) {
+        commStatusMap.set(`${status.scheme_id}|${status.village_name}|${status.esr_name}`.toLowerCase().trim(), status);
+      }
+    });
+
+    const withWaterLocationKeys = new Set<string>();
+    if (withWaterSensorsData?.withWaterSensors) {
+      withWaterSensorsData.withWaterSensors.forEach((sensor: any) => {
+        const key7 = `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`.toLowerCase().trim();
+        withWaterLocationKeys.add(key7);
+        if (sensor.scheme_id && sensor.esr_name) {
+          withWaterLocationKeys.add(`${sensor.scheme_id}|${sensor.village_name}|${sensor.esr_name}`.toLowerCase().trim());
+        }
+      });
+    }
+
+    // Apply sensor status filter (matches card counts identically)
+    if (sensorStatusFilter === "online") {
+      filtered = filtered.filter((item) => {
+        const key7 = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
+        const keyEsr = `${item.scheme_id}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
+        const commStatus = commStatusMap.get(key7) || commStatusMap.get(keyEsr);
+        return commStatus ? commStatus.chlorine_connected === "Connected" && commStatus.chlorine_status === "Online" : false;
+      });
+      // Deduplicate to match calculateChlorineSensorStatus.online count
+      const seen = new Set<string>();
+      filtered = filtered.filter((item) => {
+        const key7 = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
+        if (seen.has(key7)) return false;
+        seen.add(key7);
+        return true;
+      });
+    } else if (sensorStatusFilter === "offline") {
+      filtered = filtered.filter((item) => {
+        const key7 = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
+        const keyEsr = `${item.scheme_id}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
+        const commStatus = commStatusMap.get(key7) || commStatusMap.get(keyEsr);
+        return commStatus ? commStatus.chlorine_connected === "Connected" && commStatus.chlorine_status === "Offline" : false;
+      });
+      const seen = new Set<string>();
+      filtered = filtered.filter((item) => {
+        const key7 = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
+        if (seen.has(key7)) return false;
+        seen.add(key7);
+        return true;
+      });
+    } else if (sensorStatusFilter === "noWater") {
+      if (noWaterSensorsData?.noWaterSensors) {
+        filtered = filtered.filter((item) =>
+          noWaterSensorsData.noWaterSensors.some(
+            (sensor) =>
+              String(sensor.region).toLowerCase() === String(item.region).toLowerCase() &&
+              String(sensor.circle).toLowerCase() === String(item.circle).toLowerCase() &&
+              String(sensor.division).toLowerCase() === String(item.division).toLowerCase() &&
+              String(sensor.sub_division).toLowerCase() === String(item.sub_division).toLowerCase() &&
+              String(sensor.block).toLowerCase() === String(item.block).toLowerCase() &&
+              String(sensor.scheme_id).toLowerCase() === String(item.scheme_id).toLowerCase() &&
+              String(sensor.village_name).toLowerCase() === String(item.village_name).toLowerCase() &&
+              String(sensor.esr_name).toLowerCase() === String(item.esr_name).toLowerCase(),
+          ),
+        );
+      } else {
+        filtered = [];
+      }
+    } else if (sensorStatusFilter === "withWater") {
+      filtered = filtered.filter((item) => {
+        const key7 = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
+        const keyEsr = `${item.scheme_id}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
+        return withWaterLocationKeys.has(key7) || withWaterLocationKeys.has(keyEsr);
+      });
+    } else {
+      // Default: connected (or all)
+      filtered = filtered.filter((item) => {
+        const key7 = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
+        const keyEsr = `${item.scheme_id}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
+        const commStatus = commStatusMap.get(key7) || commStatusMap.get(keyEsr);
+        return commStatus ? commStatus.chlorine_connected === "Connected" : true;
+      });
+      // Deduplicate to match calculateChlorineSensorStatus.connected count (324)
+      const seen = new Set<string>();
+      filtered = filtered.filter((item) => {
+        const key7 = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
+        if (seen.has(key7)) return false;
+        seen.add(key7);
+        return true;
+      });
+    }
+
     // Apply card-specific filter if selected (only affects table, not card values)
     if (selectedCardFilter && selectedCardFilter !== "all") {
       filtered = filtered.filter((item) => {
@@ -1326,9 +1424,9 @@ const ChlorineDashboard: React.FC = () => {
 
         switch (selectedCardFilter) {
           case "below_0.2":
-            // Only include sensors with valid values < 0.2 (matching card calculation)
+            // Only include sensors with valid values >= 0 and < 0.2 (matching card calculation)
             return (
-              latestValue !== null && !isNaN(latestValue) && latestValue < 0.2
+              latestValue !== null && !isNaN(latestValue) && latestValue < 0.2 && latestValue >= 0
             );
           case "between_0.2_0.5":
             return (
@@ -1378,67 +1476,6 @@ const ChlorineDashboard: React.FC = () => {
               parseFloat(String(item.chlorine_value_7 || 0)),
             ];
             return aboveValues.every((val) => val > 0.5);
-          default:
-            return true;
-        }
-      });
-    }
-
-    // Apply sensor status filter (only affects table, not card numbers)
-    if (sensorStatusFilter !== "all") {
-      const commStatusMap = new Map<string, CommunicationStatus>();
-      communicationStatusData?.forEach((status) => {
-        const key7 = `${status.region}|${status.circle}|${status.division}|${status.sub_division}|${status.block}|${status.village_name}|${status.esr_name}`.toLowerCase().trim();
-        commStatusMap.set(key7, status);
-        if (status.scheme_id && status.esr_name) {
-          commStatusMap.set(`${status.scheme_id}|${status.village_name}|${status.esr_name}`.toLowerCase().trim(), status);
-        }
-      });
-
-      const withWaterLocationKeys = new Set<string>();
-      if (withWaterSensorsData?.withWaterSensors) {
-        withWaterSensorsData.withWaterSensors.forEach((sensor: any) => {
-          const key7 = `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`.toLowerCase().trim();
-          withWaterLocationKeys.add(key7);
-          if (sensor.scheme_id && sensor.esr_name) {
-            withWaterLocationKeys.add(`${sensor.scheme_id}|${sensor.village_name}|${sensor.esr_name}`.toLowerCase().trim());
-          }
-        });
-      }
-
-      filtered = filtered.filter((item) => {
-        const key7 = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
-        const keyEsr = `${item.scheme_id}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
-        const commStatus = commStatusMap.get(key7) || commStatusMap.get(keyEsr);
-
-        switch (sensorStatusFilter) {
-          case "connected":
-            return commStatus ? commStatus.chlorine_connected === "Connected" : false;
-          case "online":
-            return commStatus
-              ? commStatus.chlorine_connected === "Connected" && commStatus.chlorine_status === "Online"
-              : false;
-          case "offline":
-            return commStatus
-              ? commStatus.chlorine_connected === "Connected" && commStatus.chlorine_status === "Offline"
-              : false;
-          case "noWater":
-            if (noWaterSensorsData?.noWaterSensors) {
-              return noWaterSensorsData.noWaterSensors.some(
-                (sensor) =>
-                  String(sensor.region).toLowerCase() === String(item.region).toLowerCase() &&
-                  String(sensor.circle).toLowerCase() === String(item.circle).toLowerCase() &&
-                  String(sensor.division).toLowerCase() === String(item.division).toLowerCase() &&
-                  String(sensor.sub_division).toLowerCase() === String(item.sub_division).toLowerCase() &&
-                  String(sensor.block).toLowerCase() === String(item.block).toLowerCase() &&
-                  String(sensor.scheme_id).toLowerCase() === String(item.scheme_id).toLowerCase() &&
-                  String(sensor.village_name).toLowerCase() === String(item.village_name).toLowerCase() &&
-                  String(sensor.esr_name).toLowerCase() === String(item.esr_name).toLowerCase(),
-              );
-            }
-            return false;
-          case "withWater":
-            return withWaterLocationKeys.has(key7) || withWaterLocationKeys.has(keyEsr);
           default:
             return true;
         }
@@ -1679,10 +1716,10 @@ const ChlorineDashboard: React.FC = () => {
   // Handler for "with water" section card clicks
   const handleWithWaterCardClick = (range: ChlorineRange) => {
     if (selectedWithWaterFilter === range) {
-      // If same filter is clicked, clear the filter
+      // If same filter is clicked, clear the filter and return to connected sensors view
       setSelectedWithWaterFilter("all");
       setSelectedCardFilter("all");
-      setSensorStatusFilter("all");
+      setSensorStatusFilter("connected");
     } else {
       // Apply the new filter
       setSelectedWithWaterFilter(range);
@@ -1742,8 +1779,8 @@ const ChlorineDashboard: React.FC = () => {
       selectedWithWaterFilter === "all" &&
       selectedWithoutWaterFilter === "all"
     ) {
-      // If same filter is clicked and no range selected, clear the filter
-      setSensorStatusFilter("all");
+      // If same filter is clicked and no range selected, clear the filter and return to connected
+      setSensorStatusFilter("connected");
       setSelectedCardFilter("all");
     } else {
       // Apply the new filter
@@ -2279,13 +2316,13 @@ const ChlorineDashboard: React.FC = () => {
             <span className="text-xs font-medium text-blue-800">
               The data corresponds to{" "}
               <span className="inline-flex items-center justify-center bg-blue-600 text-white font-bold text-xs px-2 py-0.5 rounded-full mx-0.5 shadow-sm">
-                {globalUniqueSchemes}
+                {calculateChlorineSensorStatus.connectedSchemes || globalUniqueSchemes}
               </span>{" "}
               schemes and{" "}
               <span className="inline-flex items-center justify-center bg-indigo-600 text-white font-bold text-xs px-2 py-0.5 rounded-full mx-0.5 shadow-sm">
-                {globalUniqueVillages}
+                {calculateChlorineSensorStatus.connectedVillages || globalUniqueVillages}
               </span>{" "}
-              villages ({globallyFilteredData.length.toLocaleString()} ESRs).
+              villages ({(calculateChlorineSensorStatus.connected || filteredData.length).toLocaleString()} ESRs).
             </span>
             {missingChlorineSchemes.length > 0 && (
               <Button

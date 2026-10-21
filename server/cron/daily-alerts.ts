@@ -390,6 +390,11 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
         LOWER(TRIM(COALESCE(c.village_name, ''))) = LOWER(TRIM(COALESCE(wc.village_name, ''))) AND
         LOWER(TRIM(COALESCE(c.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, '')))
       )
+      JOIN communication_status cs ON (
+        c.scheme_id = cs.scheme_id AND
+        LOWER(TRIM(COALESCE(c.village_name, ''))) = LOWER(TRIM(COALESCE(cs.village_name, ''))) AND
+        LOWER(TRIM(COALESCE(c.esr_name, ''))) = LOWER(TRIM(COALESCE(cs.esr_name, '')))
+      )
       WHERE c.chlorine_value_7 IS NOT NULL
         AND NULLIF(REGEXP_REPLACE(c.chlorine_value_7::text, '[^0-9.]', '', 'g'), '') IS NOT NULL
         AND (
@@ -399,6 +404,8 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
         AND wc.water_value_day7 IS NOT NULL 
         AND CAST(wc.water_value_day7 AS text) NOT IN ('0', '0.0', '0.00')
         AND wc.water_value_day7::numeric > 0
+        AND cs.chlorine_connected = 'Connected'
+        AND cs.chlorine_status = 'Online'
       ORDER BY c.scheme_id, LOWER(TRIM(COALESCE(c.village_name, ''))), LOWER(TRIM(COALESCE(c.esr_name, ''))), c.chlorine_date_day_7 DESC
     `);
     const chlorineIssues = chlorineIssuesRes.rows || chlorineIssuesRes || [];
