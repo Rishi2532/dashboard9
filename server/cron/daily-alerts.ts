@@ -652,19 +652,6 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
       console.warn("⚠️ Could not load last EE dispatch dates:", eeErr);
     }
 
-    // Query last Principal Secretary (PS - Level 5) dispatch date from database
-    let lastPsDispatchDate: string | null = null;
-    try {
-      const psRes: any = await db.execute(sql`
-        SELECT MAX(dispatch_date)::text as last_date
-        FROM consolidated_email_dispatches
-        WHERE engineer_role ILIKE '%Principal%' OR engineer_role ILIKE '%WSSD%';
-      `);
-      lastPsDispatchDate = psRes.rows?.[0]?.last_date || null;
-    } catch (psErr) {
-      console.warn("⚠️ Could not load last PS dispatch date:", psErr);
-    }
-
     const getAlertStreak = (alert: Alert): number => {
       if (alert.streak_days && alert.streak_days >= 1) {
         return alert.streak_days;
@@ -687,6 +674,56 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
     const istDayOfWeek = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", weekday: "long" }).format(now);
     console.log(`📅 Daily Alerts Dispatch Day (IST): ${istDayOfWeek} (${istDateStr} ${istTimeStr})`);
 
+    // Query last Member Secretary (MS - Level 4) dispatch date from database
+    let lastMsDispatchDate: string | null = null;
+    try {
+      const msRes: any = await db.execute(sql`
+        SELECT MAX(dispatch_date)::text as last_date
+        FROM (
+          SELECT dispatch_date FROM consolidated_email_dispatches WHERE engineer_role ILIKE '%Member Secretary%' OR engineer_role ILIKE '%MS%'
+          UNION ALL
+          SELECT sent_date as dispatch_date FROM email_alert_logs WHERE dispatch_type = 'escalation_level4' OR alert_type ILIKE '%MS%'
+        ) all_ms_dispatches;
+      `);
+      lastMsDispatchDate = msRes.rows?.[0]?.last_date || null;
+    } catch (msErr) {
+      console.warn("⚠️ Could not load last MS dispatch date:", msErr);
+    }
+
+    let daysSinceLastMs = 999;
+    if (lastMsDispatchDate) {
+      try {
+        const [ly, lm, ld] = lastMsDispatchDate.slice(0, 10).split('-').map(Number);
+        const [ty, tm, td] = istDateStr.slice(0, 10).split('-').map(Number);
+        const lastD = new Date(Date.UTC(ly, lm - 1, ld));
+        const todayD = new Date(Date.UTC(ty, tm - 1, td));
+        daysSinceLastMs = Math.round((todayD.getTime() - lastD.getTime()) / (1000 * 60 * 60 * 24));
+      } catch (e) {
+        daysSinceLastMs = 999;
+      }
+    }
+
+    // Level 4 (MS): Every 2 weeks (14 days) on Mondays, starting 2026-10-26
+    const isLevel4MsEligibleMonday = Boolean(
+      ist.isMonday && istDateStr >= '2026-10-26' && (daysSinceLastMs >= 13 || !lastMsDispatchDate)
+    );
+
+    // Query last Principal Secretary (PS - Level 5) dispatch date from database
+    let lastPsDispatchDate: string | null = null;
+    try {
+      const psRes: any = await db.execute(sql`
+        SELECT MAX(dispatch_date)::text as last_date
+        FROM (
+          SELECT dispatch_date FROM consolidated_email_dispatches WHERE engineer_role ILIKE '%Principal%' OR engineer_role ILIKE '%WSSD%'
+          UNION ALL
+          SELECT sent_date as dispatch_date FROM email_alert_logs WHERE dispatch_type = 'escalation_level5' OR alert_type ILIKE '%PS%'
+        ) all_ps_dispatches;
+      `);
+      lastPsDispatchDate = psRes.rows?.[0]?.last_date || null;
+    } catch (psErr) {
+      console.warn("⚠️ Could not load last PS dispatch date:", psErr);
+    }
+
     let daysSinceLastPs = 999;
     if (lastPsDispatchDate) {
       try {
@@ -700,9 +737,10 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
       }
     }
 
-    // Level 5 (PS): Sent every third Monday (two Mondays later, not the following Monday):
-    // Requires Monday AND at least 13 days since previous Level 5 dispatch (or never sent before)
-    const isLevel5PsEligibleMonday = Boolean(ist.isMonday && daysSinceLastPs >= 13);
+    // Level 5 (PS): Sent every 21 days (3 weeks) on Mondays, starting 2026-11-02 (the Monday after MS)
+    const isLevel5PsEligibleMonday = Boolean(
+      ist.isMonday && istDateStr >= '2026-11-02' && (daysSinceLastPs >= 20 || !lastPsDispatchDate)
+    );
 
     allEngineerDetails.forEach((engineer) => {
       let schemeAlerts: Alert[] = [];
@@ -838,13 +876,13 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
           ? schemeAlerts.filter(a => (a.streak_days || 1) >= 7)
           : [];
 
-        // 4. Member Secretary (MS): 1st & 3rd MONDAY of the month (streak >= 15 days)
-        const isMsDay = Boolean(options?.forceAllTiers || ist.is1stOr3rdMonday);
+        // 4. Member Secretary (MS): Every 2 Weeks (14 Days) starting from Oct 26, 2026 (streak >= 15 days)
+        const isMsDay = Boolean(options?.forceAllTiers || isLevel4MsEligibleMonday);
         const msAlerts = isMsDay
           ? schemeAlerts.filter(a => (a.streak_days || 1) >= 15)
           : [];
 
-        // 5. Principal Secretary (PS): Dispatched every third Monday (two Mondays later, streak >= 20 days)
+        // 5. Principal Secretary (PS): Every 21 Days (3 Weeks) starting from Nov 2, 2026 (streak >= 20 days)
         const isPsDay = Boolean(options?.forceAllTiers || isLevel5PsEligibleMonday);
         const psAlerts = isPsDay
           ? schemeAlerts.filter(a => (a.streak_days || 1) >= 20)

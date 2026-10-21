@@ -1974,15 +1974,51 @@ export async function executeEscalationDispatch(options: {
   const is3rdMonday = isMonday && dayOfMonth >= 15 && dayOfMonth <= 21;
   const is1stOr3rdMonday = is1stMonday || is3rdMonday;
 
-  // Check last PS dispatch date for alternate Monday interval (every 14 days / skipping following Monday)
-  let lastPsDispatchDate: string | null = null;
   const db = await getDB();
   const todayStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(now);
+
+  // Check last MS dispatch date (every 14 days / 2 weeks on Monday, starting 2026-10-26)
+  let lastMsDispatchDate: string | null = null;
+  try {
+    const msRes: any = await db.execute(sql`
+      SELECT MAX(dispatch_date)::text as last_date
+      FROM (
+        SELECT dispatch_date FROM consolidated_email_dispatches WHERE engineer_role ILIKE '%Member Secretary%' OR engineer_role ILIKE '%MS%'
+        UNION ALL
+        SELECT sent_date as dispatch_date FROM email_alert_logs WHERE dispatch_type = 'escalation_level4' OR alert_type ILIKE '%MS%'
+      ) all_ms_dispatches;
+    `);
+    lastMsDispatchDate = msRes.rows?.[0]?.last_date || null;
+  } catch (msErr) {
+    console.warn("⚠️ Could not load last MS dispatch date:", msErr);
+  }
+
+  let daysSinceLastMs = 999;
+  if (lastMsDispatchDate) {
+    try {
+      const [ly, lm, ld] = lastMsDispatchDate.slice(0, 10).split('-').map(Number);
+      const [ty, tm, td] = todayStr.slice(0, 10).split('-').map(Number);
+      const lastD = new Date(Date.UTC(ly, lm - 1, ld));
+      const todayD = new Date(Date.UTC(ty, tm - 1, td));
+      daysSinceLastMs = Math.round((todayD.getTime() - lastD.getTime()) / (1000 * 60 * 60 * 24));
+    } catch (e) {
+      daysSinceLastMs = 999;
+    }
+  }
+
+  // Level 4 (MS): Every 2 weeks (14 days) on Mondays, starting 2026-10-26
+  const isLevel4MsMonday = Boolean(isMonday && todayStr >= '2026-10-26' && (daysSinceLastMs >= 13 || !lastMsDispatchDate));
+
+  // Check last PS dispatch date (every 21 days on Monday, starting 2026-11-02)
+  let lastPsDispatchDate: string | null = null;
   try {
     const psRes: any = await db.execute(sql`
       SELECT MAX(dispatch_date)::text as last_date
-      FROM consolidated_email_dispatches
-      WHERE engineer_role ILIKE '%Principal%' OR engineer_role ILIKE '%WSSD%';
+      FROM (
+        SELECT dispatch_date FROM consolidated_email_dispatches WHERE engineer_role ILIKE '%Principal%' OR engineer_role ILIKE '%WSSD%'
+        UNION ALL
+        SELECT sent_date as dispatch_date FROM email_alert_logs WHERE dispatch_type = 'escalation_level5' OR alert_type ILIKE '%PS%'
+      ) all_ps_dispatches;
     `);
     lastPsDispatchDate = psRes.rows?.[0]?.last_date || null;
   } catch (psErr) {
@@ -2002,16 +2038,15 @@ export async function executeEscalationDispatch(options: {
     }
   }
 
-  // Level 5 (PS): Sent every third Monday (two Mondays later, not the following Monday):
-  // Requires Monday AND at least 13 days since previous Level 5 dispatch (or never sent before)
-  const isLevel5PsMonday = Boolean(isMonday && daysSinceLastPs >= 13);
+  // Level 5 (PS): Sent every 21 days (3 weeks) on Mondays, starting 2026-11-02 (the Monday after MS)
+  const isLevel5PsMonday = Boolean(isMonday && todayStr >= '2026-11-02' && (daysSinceLastPs >= 20 || !lastPsDispatchDate));
 
   // Filter if single scheme requested
   const targetSchemes = options.schemeId
     ? schemes.filter(s => s.scheme_id === options.schemeId)
     : schemes;
 
-  logs.push(`🔍 Evaluating ${targetSchemes.length} schemes for escalation dispatch (Mode: ${dryRun ? 'PREVIEW / DRY RUN' : 'LIVE DISPATCH'}, Monday: ${isMonday}, 1st/3rd Mon: ${is1stOr3rdMonday}, Level 5 Mon: ${isLevel5PsMonday})...`);
+  logs.push(`🔍 Evaluating ${targetSchemes.length} schemes for escalation dispatch (Mode: ${dryRun ? 'PREVIEW / DRY RUN' : 'LIVE DISPATCH'}, Monday: ${isMonday}, Level 4 MS Mon: ${isLevel4MsMonday}, Level 5 PS Mon: ${isLevel5PsMonday})...`);
 
   // --- 1. Level 2 Escalations to EE (Civil) (Every 3rd day if streak >= 3 days) ---
   const level2Schemes = options.schemeId
@@ -2190,11 +2225,11 @@ export async function executeEscalationDispatch(options: {
     }
   }
 
-  // --- 3. Level 4 Escalations to Member Secretary (MS) (1st & 3rd Monday for streak >= 15 days) ---
+  // --- 3. Level 4 Escalations to Member Secretary (MS) (Every 2 weeks / 14 days on Monday for streak >= 15 days) ---
   const level4Schemes = options.schemeId
     ? targetSchemes.filter(s => s.max_streak_days >= 15)
-    : (is1stOr3rdMonday ? targetSchemes.filter(s => s.max_streak_days >= 15) : []);
-  logs.push(`📊 Found ${level4Schemes.length} schemes for Member Secretary (MS) Escalation (1st & 3rd Monday, streak >= 15 days; Today: ${is1stOr3rdMonday}).`);
+    : (isLevel4MsMonday ? targetSchemes.filter(s => s.max_streak_days >= 15) : []);
+  logs.push(`📊 Found ${level4Schemes.length} schemes for Member Secretary (MS) Escalation (Every 2 weeks on Monday, streak >= 15 days; Today: ${isLevel4MsMonday}).`);
 
   if (level4Schemes.length > 0) {
     const msEmail = execContacts.ms.email;
@@ -2278,11 +2313,11 @@ export async function executeEscalationDispatch(options: {
     }
   }
 
-  // --- 4. Level 5 Escalations to Principal Secretary (PS) (Sent every third Monday / alternate Monday for streak >= 20 days) ---
+  // --- 4. Level 5 Escalations to Principal Secretary (PS) (Every 21 days on Monday for streak >= 20 days) ---
   const level5Schemes = options.schemeId
     ? targetSchemes.filter(s => s.max_streak_days >= 20)
     : (isLevel5PsMonday ? targetSchemes.filter(s => s.max_streak_days >= 20) : []);
-  logs.push(`📊 Found ${level5Schemes.length} schemes for Principal Secretary (PS) Escalation (Alternate Mondays, streak >= 20 days; Today eligible: ${isLevel5PsMonday}).`);
+  logs.push(`📊 Found ${level5Schemes.length} schemes for Principal Secretary (PS) Escalation (Every 21 days on Monday, streak >= 20 days; Today eligible: ${isLevel5PsMonday}).`);
 
   if (level5Schemes.length > 0) {
     const psEmail = execContacts.ps.email;

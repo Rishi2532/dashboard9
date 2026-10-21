@@ -1067,7 +1067,7 @@ export default function Level5SummaryPage() {
                   ? "bg-white text-orange-700 shadow-sm font-bold border border-orange-200"
                   : "text-slate-600 hover:text-slate-900"
                   }`}
-                title="Level 4: Member Secretary Notice (1st & 3rd Monday, Streak ≥ 15 Days)"
+                title="Level 4: Member Secretary Notice (Every 2 Weeks on Monday, Streak ≥ 15 Days)"
               >
                 <span>15+ Days</span>
                 <span className="text-[10px] bg-orange-100 text-orange-800 px-1.5 py-0.2 rounded font-normal hidden md:inline">
@@ -1084,7 +1084,7 @@ export default function Level5SummaryPage() {
                   ? "bg-white text-rose-700 shadow-sm font-bold border border-rose-200"
                   : "text-slate-600 hover:text-slate-900"
                   }`}
-                title="Level 5: Principal Secretary Notice (1st & 3rd Monday, Streak ≥ 20 Days)"
+                title="Level 5: Principal Secretary Notice (Every 21 Days on Monday, Streak ≥ 20 Days)"
               >
                 <span>20+ Days</span>
                 <span className="text-[10px] bg-rose-100 text-rose-800 px-1.5 py-0.2 rounded font-normal hidden md:inline">
@@ -1599,8 +1599,8 @@ export default function Level5SummaryPage() {
                       ? streakDays <= 7
                         ? "Emails for Chief Engineer & Superintending Engineer (Level 3) are dispatched weekly on Mondays."
                         : streakDays <= 15
-                        ? "Emails for Member Secretary (Level 4) are scheduled for 1st & 3rd Mondays for schemes with ≥ 15 consecutive days unresolved. No emails were scheduled/dispatched on this date."
-                        : "Emails for Principal Secretary (Level 5) are scheduled every third Monday (alternate Mondays) for persistent schemes with ≥ 20 consecutive days unresolved. No emails were scheduled/dispatched on this date."
+                        ? "Emails for Member Secretary (Level 4) are scheduled every 2 weeks on Mondays for schemes with ≥ 15 consecutive days unresolved. No emails were scheduled/dispatched on this date."
+                        : "Emails for Principal Secretary (Level 5) are scheduled every 21 days on Mondays for persistent schemes with ≥ 20 consecutive days unresolved. No emails were scheduled/dispatched on this date."
                       : `No data found for ${streakDays}+ days streak in ${selectedRegion} region.`}
                   </p>
                 </div>

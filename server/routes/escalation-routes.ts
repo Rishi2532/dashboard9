@@ -811,14 +811,14 @@ function getLevelTitle(level: number): { title: string; sheetName: string; autho
         title: "Level 5: Principal Secretary (PS)",
         sheetName: "Level 5 - PS",
         authority: "Principal Secretary (Head - WSSD)",
-        cadence: "Alternate Mondays / Every 2nd Monday (Streak ≥ 20 Days)",
+        cadence: "Every 21 Days on Monday (Streak ≥ 20 Days)",
       };
     case 4:
       return {
         title: "Level 4: Member Secretary (MS)",
         sheetName: "Level 4 - MS",
         authority: "Member Secretary (Head - MJP)",
-        cadence: "1st & 3rd Monday (Streak ≥ 15 Days)",
+        cadence: "Every 2 Weeks / 14 Days on Monday (Streak ≥ 15 Days)",
       };
     case 3:
       return {
