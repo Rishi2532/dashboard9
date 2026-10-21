@@ -186,8 +186,15 @@ export async function calculateAllAlertStreaksFromHistory(
           c.scheme_id, c.scheme_name, c.region, c.village_name, c.esr_name, c.chlorine_date, c.chlorine_value,
           c.uploaded_at, c.id
         FROM chlorine_history c
+        JOIN communication_status cs ON (
+          c.scheme_id = cs.scheme_id AND
+          LOWER(TRIM(COALESCE(c.village_name, ''))) = LOWER(TRIM(COALESCE(cs.village_name, ''))) AND
+          LOWER(TRIM(COALESCE(c.esr_name, ''))) = LOWER(TRIM(COALESCE(cs.esr_name, '')))
+        )
         WHERE c.scheme_id IN (${sqlOpIds})
           AND c.chlorine_date IN (${sqlDateList})
+          AND cs.chlorine_connected = 'Connected'
+          AND cs.chlorine_status = 'Online'
         ORDER BY c.scheme_id, LOWER(TRIM(COALESCE(c.village_name, ''))), LOWER(TRIM(COALESCE(c.esr_name, ''))), c.chlorine_date, c.uploaded_at DESC, c.id DESC
       ),
       dedup_wc AS (
