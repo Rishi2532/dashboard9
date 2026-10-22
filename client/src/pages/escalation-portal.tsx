@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Search,
@@ -596,6 +596,16 @@ export default function EscalationPortalPage() {
     return map;
   }, [allSchemesData, rawSchemes]);
 
+  // Fast O(1) Set of scheme IDs belonging to the selected region
+  const selectedRegionSchemeIdSet = useMemo(() => {
+    if (!selectedRegion || selectedRegion === "All") return null;
+    const set = new Set<string>();
+    (schemes || []).forEach((s: any) => {
+      if (s?.scheme_id) set.add(String(s.scheme_id).trim());
+    });
+    return set;
+  }, [schemes, selectedRegion]);
+
   const isAlertInSelectedRegion = useCallback((a: any) => {
     if (!a) return false;
     if (!selectedRegion || selectedRegion === "All") return true;
@@ -606,14 +616,14 @@ export default function EscalationPortalPage() {
       if (alertRegion && (alertRegion === target || alertRegion.includes(target) || target.includes(alertRegion))) {
         return true;
       }
-      if (sid && Array.isArray(schemes) && schemes.some((s: any) => s && String(s.scheme_id || "").trim() === sid)) {
+      if (sid && selectedRegionSchemeIdSet && selectedRegionSchemeIdSet.has(sid)) {
         return true;
       }
     } catch {
       return false;
     }
     return false;
-  }, [selectedRegion, schemeRegionMap, schemes]);
+  }, [selectedRegion, schemeRegionMap, selectedRegionSchemeIdSet]);
 
   // Vendor emails latest dispatch info for top right summary and logs (strictly for the latest dispatch date and selected region)
   const vendorLatestInfo = useMemo(() => {
