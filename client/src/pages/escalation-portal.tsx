@@ -577,104 +577,138 @@ export default function EscalationPortalPage() {
   // Mapping of scheme_id to region for quick lookup
   const schemeRegionMap = useMemo(() => {
     const map = new Map<string, string>();
-    (allSchemesData || []).forEach((s: any) => {
-      if (s.scheme_id && s.region) {
-        map.set(String(s.scheme_id).trim(), s.region);
-      }
-    });
-    (rawSchemes || []).forEach((s: any) => {
-      if (s.scheme_id && s.region) {
-        map.set(String(s.scheme_id).trim(), s.region);
-      }
-    });
+    try {
+      const arr1 = Array.isArray(allSchemesData) ? allSchemesData : [];
+      arr1.forEach((s: any) => {
+        if (s?.scheme_id && s?.region) {
+          map.set(String(s.scheme_id).trim(), String(s.region).trim());
+        }
+      });
+      const arr2 = Array.isArray(rawSchemes) ? rawSchemes : [];
+      arr2.forEach((s: any) => {
+        if (s?.scheme_id && s?.region) {
+          map.set(String(s.scheme_id).trim(), String(s.region).trim());
+        }
+      });
+    } catch (e) {
+      console.error("Error creating schemeRegionMap:", e);
+    }
     return map;
   }, [allSchemesData, rawSchemes]);
 
   const isAlertInSelectedRegion = useCallback((a: any) => {
+    if (!a) return false;
     if (!selectedRegion || selectedRegion === "All") return true;
-    const target = selectedRegion.toLowerCase().trim();
-    const alertRegion = (a.region || schemeRegionMap.get(String(a.scheme_id || "").trim()) || "").toLowerCase().trim();
-    if (alertRegion && (alertRegion === target || alertRegion.includes(target) || target.includes(alertRegion))) {
-      return true;
-    }
-    if (a.scheme_id && schemes.some((s: any) => String(s.scheme_id).trim() === String(a.scheme_id).trim())) {
-      return true;
+    try {
+      const target = selectedRegion.toLowerCase().trim();
+      const sid = String(a.scheme_id || "").trim();
+      const alertRegion = String(a.region || (sid ? schemeRegionMap.get(sid) : "") || "").toLowerCase().trim();
+      if (alertRegion && (alertRegion === target || alertRegion.includes(target) || target.includes(alertRegion))) {
+        return true;
+      }
+      if (sid && Array.isArray(schemes) && schemes.some((s: any) => s && String(s.scheme_id || "").trim() === sid)) {
+        return true;
+      }
+    } catch {
+      return false;
     }
     return false;
   }, [selectedRegion, schemeRegionMap, schemes]);
 
   // Vendor emails latest dispatch info for top right summary and logs (strictly for the latest dispatch date and selected region)
   const vendorLatestInfo = useMemo(() => {
-    const vendorAlerts = (sentAlertsData?.alerts || []).filter(
-      (a: any) =>
-        a.channel === "email" &&
-        (Number(a.tier) === 0 || (a.recipient_role && a.recipient_role.toLowerCase().includes("vendor"))) &&
-        isAlertInSelectedRegion(a)
-    );
-    if (vendorAlerts.length === 0) {
-      return { hasEmails: false, count: 0, latestDateStr: null, recipientCount: 0 };
-    }
-    
-    // Find latest dispatch date among vendor alerts
-    let maxDate: Date | null = null;
-    let maxDateRawStr: string | null = null;
-    vendorAlerts.forEach((a: any) => {
-      const raw = a.sent_date || a.created_at;
-      if (raw) {
-        let d: Date;
-        if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) {
-          const [y, m, day] = raw.trim().split("-").map(Number);
-          d = new Date(y, m - 1, day);
-        } else {
-          d = new Date(raw);
-        }
-        if (!isNaN(d.getTime())) {
-          if (!maxDate || d > maxDate) {
-            maxDate = d;
-            maxDateRawStr = typeof raw === "string" ? raw.trim().slice(0, 10) : d.toISOString().slice(0, 10);
+    try {
+      const vendorAlerts = (sentAlertsData?.alerts || []).filter(
+        (a: any) =>
+          a &&
+          a.channel === "email" &&
+          (Number(a.tier) === 0 || (a.recipient_role && typeof a.recipient_role === "string" && a.recipient_role.toLowerCase().includes("vendor"))) &&
+          isAlertInSelectedRegion(a)
+      );
+      if (vendorAlerts.length === 0) {
+        return { hasEmails: false, count: 0, latestDateStr: null, recipientCount: 0 };
+      }
+      
+      // Find latest dispatch date among vendor alerts
+      let maxDate: Date | null = null;
+      let maxDateRawStr: string | null = null;
+      vendorAlerts.forEach((a: any) => {
+        const raw = a.sent_date || a.created_at;
+        if (raw) {
+          let d: Date | null = null;
+          if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}/.test(raw.trim())) {
+            const [y, m, day] = raw.trim().slice(0, 10).split("-").map(Number);
+            d = new Date(y, m - 1, day);
+          } else {
+            d = new Date(raw);
+          }
+          if (d && !isNaN(d.getTime())) {
+            if (!maxDate || d > maxDate) {
+              maxDate = d;
+              maxDateRawStr = typeof raw === "string" ? raw.trim().slice(0, 10) : d.toISOString().slice(0, 10);
+            }
           }
         }
-      }
-    });
+      });
 
-    const latestDateStr = maxDate
-      ? maxDate.toLocaleDateString("en-GB", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        })
-      : null;
+      const latestDateStr = maxDate
+        ? maxDate.toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })
+        : null;
 
-    // Count dispatches and unique recipients strictly on the latest dispatch date
-    const uniqueDispatches = new Set<string>();
-    const uniqueRecipients = new Set<string>();
+      // Count dispatches and unique recipients strictly on the latest dispatch date
+      const uniqueDispatches = new Set<string>();
+      const uniqueRecipients = new Set<string>();
 
-    const latestAlerts = maxDateRawStr
-      ? vendorAlerts.filter((a: any) => {
-          const raw = a.sent_date || a.created_at;
-          const s = raw ? (typeof raw === "string" ? raw.trim().slice(0, 10) : new Date(raw).toISOString().slice(0, 10)) : "";
-          return s === maxDateRawStr;
-        })
-      : vendorAlerts;
+      const latestAlerts = maxDateRawStr
+        ? vendorAlerts.filter((a: any) => {
+            const raw = a.sent_date || a.created_at;
+            const s = raw ? (typeof raw === "string" ? raw.trim().slice(0, 10) : "") : "";
+            return s === maxDateRawStr;
+          })
+        : vendorAlerts;
 
-    latestAlerts.forEach((a: any) => {
-      const dispId = String(a.id || "").split("-")[0];
-      if (dispId) uniqueDispatches.add(dispId);
-      if (a.recipient_email) uniqueRecipients.add(a.recipient_email.toLowerCase().trim());
-    });
+      latestAlerts.forEach((a: any) => {
+        if (!a) return;
+        const dispId = String(a.id || "").split("-")[0];
+        if (dispId) uniqueDispatches.add(dispId);
+        if (a.recipient_email && typeof a.recipient_email === "string") {
+          uniqueRecipients.add(a.recipient_email.toLowerCase().trim());
+        }
+      });
 
-    const count = uniqueDispatches.size > 0 ? uniqueDispatches.size : (uniqueRecipients.size > 0 ? uniqueRecipients.size : latestAlerts.length);
+      const count = uniqueDispatches.size > 0 ? uniqueDispatches.size : (uniqueRecipients.size > 0 ? uniqueRecipients.size : latestAlerts.length);
 
-    return {
-      hasEmails: count > 0,
-      count,
-      recipientCount: uniqueRecipients.size || count,
-      latestDateStr,
-    };
+      return {
+        hasEmails: count > 0,
+        count,
+        recipientCount: uniqueRecipients.size || count,
+        latestDateStr,
+      };
+    } catch (e) {
+      console.error("Error computing vendorLatestInfo:", e);
+      return { hasEmails: false, count: 0, latestDateStr: null, recipientCount: 0 };
+    }
   }, [sentAlertsData, isAlertInSelectedRegion]);
 
   // Latest email & sms dispatch batch per tier (Tier 1..5) calculated strictly for the date on which emails were sent and filtered by selected region
   const tierLatestInfo = useMemo(() => {
+    const makeDefaultTier = (tier: number) => ({
+      hasEmails: false,
+      latestDate: null as Date | null,
+      latestDateStr: null as string | null,
+      emailCount: 0,
+      seEmailCount: tier === 3 ? 0 : undefined,
+      ceEmailCount: tier === 3 ? 0 : undefined,
+      schemeIds: new Set<string>(),
+      categoryEmails: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 },
+      categorySchemes: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 },
+      sms: { count: 0, delivered: 0, failed: 0, latestDateStr: null as string | null, hasSms: false },
+    });
+
     const info: Record<number, {
       hasEmails: boolean;
       latestDate: Date | null;
@@ -686,158 +720,177 @@ export default function EscalationPortalPage() {
       categoryEmails: { lpcd: number; chlorine: number; pressure: number; offline: number };
       categorySchemes: { lpcd: number; chlorine: number; pressure: number; offline: number };
       sms: { count: number; delivered: number; failed: number; latestDateStr: string | null; hasSms: boolean };
-    }> = {};
+    }> = {
+      1: makeDefaultTier(1),
+      2: makeDefaultTier(2),
+      3: makeDefaultTier(3),
+      4: makeDefaultTier(4),
+      5: makeDefaultTier(5),
+    };
 
     [1, 2, 3, 4, 5].forEach((tierNum) => {
-      // 1. Emails for this tier filtered by selected region
-      const emailAlerts = (sentAlertsData?.alerts || []).filter(
-        (a: any) => a.channel === "email" && Number(a.tier) === tierNum && isAlertInSelectedRegion(a)
-      );
+      try {
+        // 1. Emails for this tier filtered by selected region
+        const emailAlerts = (sentAlertsData?.alerts || []).filter(
+          (a: any) => a && a.channel === "email" && Number(a.tier) === tierNum && isAlertInSelectedRegion(a)
+        );
 
-      // 2. SMS for this tier filtered by selected region
-      const smsAlerts = (sentAlertsData?.alerts || []).filter(
-        (a: any) => a.channel === "sms" && Number(a.tier) === tierNum && isAlertInSelectedRegion(a)
-      );
+        // 2. SMS for this tier filtered by selected region
+        const smsAlerts = (sentAlertsData?.alerts || []).filter(
+          (a: any) => a && a.channel === "sms" && Number(a.tier) === tierNum && isAlertInSelectedRegion(a)
+        );
 
-      let smsMaxDate: Date | null = null;
-      let smsMaxDateRawStr: string | null = null;
-      smsAlerts.forEach((a: any) => {
-        const raw = a.sent_date || a.created_at;
-        if (raw) {
-          const d = new Date(raw);
-          if (!isNaN(d.getTime())) {
-            if (!smsMaxDate || d > smsMaxDate) {
-              smsMaxDate = d;
-              smsMaxDateRawStr = typeof raw === "string" ? raw.trim().slice(0, 10) : d.toISOString().slice(0, 10);
+        let smsMaxDate: Date | null = null;
+        let smsMaxDateRawStr: string | null = null;
+        smsAlerts.forEach((a: any) => {
+          const raw = a.sent_date || a.created_at;
+          if (raw) {
+            let d: Date | null = null;
+            if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}/.test(raw.trim())) {
+              const [y, m, day] = raw.trim().slice(0, 10).split("-").map(Number);
+              d = new Date(y, m - 1, day);
+            } else {
+              d = new Date(raw);
+            }
+            if (d && !isNaN(d.getTime())) {
+              if (!smsMaxDate || d > smsMaxDate) {
+                smsMaxDate = d;
+                smsMaxDateRawStr = typeof raw === "string" ? raw.trim().slice(0, 10) : d.toISOString().slice(0, 10);
+              }
             }
           }
+        });
+        const smsDateStr = smsMaxDate
+          ? smsMaxDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+          : null;
+
+        const latestSms = smsMaxDateRawStr
+          ? smsAlerts.filter((a: any) => {
+              const raw = a.sent_date || a.created_at;
+              const s = raw ? (typeof raw === "string" ? raw.trim().slice(0, 10) : "") : "";
+              return s === smsMaxDateRawStr;
+            })
+          : smsAlerts;
+
+        const smsDelivered = latestSms.filter((a: any) => a.status === "DELIVERED" || a.is_success === true).length;
+        const smsFailed = latestSms.filter((a: any) => a.status === "FAILED" || a.is_success === false || (a.gateway_status && Number(a.gateway_status) >= 400)).length;
+        const smsMeta = {
+          count: latestSms.length,
+          delivered: smsDelivered,
+          failed: smsFailed,
+          latestDateStr: smsDateStr,
+          hasSms: latestSms.length > 0,
+        };
+
+        if (emailAlerts.length === 0) {
+          info[tierNum] = {
+            hasEmails: false,
+            latestDate: null,
+            latestDateStr: null,
+            emailCount: 0,
+            seEmailCount: tierNum === 3 ? 0 : undefined,
+            ceEmailCount: tierNum === 3 ? 0 : undefined,
+            schemeIds: new Set<string>(),
+            categoryEmails: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 },
+            categorySchemes: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 },
+            sms: smsMeta,
+          };
+          return;
         }
-      });
-      const smsDateStr = smsMaxDate
-        ? smsMaxDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
-        : null;
 
-      const latestSms = smsMaxDateRawStr
-        ? smsAlerts.filter((a: any) => {
-            const raw = a.sent_date || a.created_at;
-            const s = raw ? (typeof raw === "string" ? raw.trim().slice(0, 10) : new Date(raw).toISOString().slice(0, 10)) : "";
-            return s === smsMaxDateRawStr;
-          })
-        : smsAlerts;
+        // Find max date for email
+        let maxDate: Date | null = null;
+        let maxDateRawStr: string | null = null;
+        emailAlerts.forEach((a: any) => {
+          const raw = a.sent_date || a.created_at;
+          if (raw) {
+            let d: Date | null = null;
+            if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}/.test(raw.trim())) {
+              const [y, m, day] = raw.trim().slice(0, 10).split("-").map(Number);
+              d = new Date(y, m - 1, day);
+            } else {
+              d = new Date(raw);
+            }
+            if (d && !isNaN(d.getTime())) {
+              if (!maxDate || d > maxDate) {
+                maxDate = d;
+                maxDateRawStr = typeof raw === "string" ? raw.trim().slice(0, 10) : d.toISOString().slice(0, 10);
+              }
+            }
+          }
+        });
 
-      const smsDelivered = latestSms.filter((a: any) => a.status === "DELIVERED" || a.is_success === true).length;
-      const smsFailed = latestSms.filter((a: any) => a.status === "FAILED" || a.is_success === false || (a.gateway_status && Number(a.gateway_status) >= 400)).length;
-      const smsMeta = {
-        count: latestSms.length,
-        delivered: smsDelivered,
-        failed: smsFailed,
-        latestDateStr: smsDateStr,
-        hasSms: latestSms.length > 0,
-      };
+        const latestDateStr = maxDate
+          ? maxDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+          : null;
 
-      if (emailAlerts.length === 0) {
+        // Filter email alerts strictly to that dispatch date
+        const latestEmailAlerts = maxDateRawStr
+          ? emailAlerts.filter((a: any) => {
+              const raw = a.sent_date || a.created_at;
+              const s = raw ? (typeof raw === "string" ? raw.trim().slice(0, 10) : "") : "";
+              return s === maxDateRawStr;
+            })
+          : emailAlerts;
+
+        const schemeIds = new Set<string>();
+        latestEmailAlerts.forEach((a: any) => {
+          const sid = String(a?.scheme_id || "").trim();
+          if (sid) schemeIds.add(sid);
+        });
+
+        const lpcdSchemes = new Set<string>();
+        const chlorineSchemes = new Set<string>();
+        const pressureSchemes = new Set<string>();
+        const offlineSchemes = new Set<string>();
+
+        latestEmailAlerts.forEach((a: any) => {
+          const sid = String(a?.scheme_id || "").trim();
+          if (!sid) return;
+          const cats = Array.isArray(a.categories) ? a.categories : (typeof a.categories === "string" ? [a.categories] : []);
+          if (a.is_lpcd || cats.includes("lpcd")) lpcdSchemes.add(sid);
+          if (a.is_chlorine || cats.includes("chlorine")) chlorineSchemes.add(sid);
+          if (a.is_pressure || cats.includes("pressure")) pressureSchemes.add(sid);
+          if (a.is_offline || cats.includes("offline")) offlineSchemes.add(sid);
+        });
+
+        let emailCount = schemeIds.size;
+        let seEmailCount: number | undefined = undefined;
+        let ceEmailCount: number | undefined = undefined;
+
+        if (tierNum === 3) {
+          const seAlerts = latestEmailAlerts.filter((a: any) => a && typeof a.recipient_role === "string" && (a.recipient_role.toLowerCase().includes("superintending") || a.recipient_role.toLowerCase().includes("se")));
+          const ceAlerts = latestEmailAlerts.filter((a: any) => a && typeof a.recipient_role === "string" && (a.recipient_role.toLowerCase().includes("chief") || a.recipient_role.toLowerCase().includes("ce")));
+          seEmailCount = new Set(seAlerts.map((a: any) => String(a.id || "").split("-")[0])).size || schemeIds.size;
+          ceEmailCount = new Set(ceAlerts.map((a: any) => String(a.id || "").split("-")[0])).size || schemeIds.size;
+          emailCount = seEmailCount + ceEmailCount;
+        }
+
         info[tierNum] = {
-          hasEmails: false,
-          latestDate: null,
-          latestDateStr: null,
-          emailCount: 0,
-          schemeIds: new Set<string>(),
-          categoryEmails: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 },
-          categorySchemes: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 },
+          hasEmails: schemeIds.size > 0,
+          latestDate: maxDate,
+          latestDateStr,
+          emailCount,
+          seEmailCount,
+          ceEmailCount,
+          schemeIds,
+          categoryEmails: {
+            lpcd: tierNum === 3 ? lpcdSchemes.size * 2 : lpcdSchemes.size,
+            chlorine: tierNum === 3 ? chlorineSchemes.size * 2 : chlorineSchemes.size,
+            pressure: tierNum === 3 ? pressureSchemes.size * 2 : pressureSchemes.size,
+            offline: tierNum === 3 ? offlineSchemes.size * 2 : offlineSchemes.size,
+          },
+          categorySchemes: {
+            lpcd: lpcdSchemes.size,
+            chlorine: chlorineSchemes.size,
+            pressure: pressureSchemes.size,
+            offline: offlineSchemes.size,
+          },
           sms: smsMeta,
         };
-        return;
+      } catch (err) {
+        console.error(`Error calculating tierLatestInfo for tier ${tierNum}:`, err);
       }
-
-      // Find max date for email
-      let maxDate: Date | null = null;
-      let maxDateRawStr: string | null = null;
-      emailAlerts.forEach((a: any) => {
-        const raw = a.sent_date || a.created_at;
-        if (raw) {
-          let d: Date;
-          if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) {
-            const [y, m, day] = raw.trim().split("-").map(Number);
-            d = new Date(y, m - 1, day);
-          } else {
-            d = new Date(raw);
-          }
-          if (!isNaN(d.getTime())) {
-            if (!maxDate || d > maxDate) {
-              maxDate = d;
-              maxDateRawStr = typeof raw === "string" ? raw.trim().slice(0, 10) : d.toISOString().slice(0, 10);
-            }
-          }
-        }
-      });
-
-      const latestDateStr = maxDate
-        ? maxDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
-        : null;
-
-      // Filter email alerts strictly to that dispatch date
-      const latestEmailAlerts = maxDateRawStr
-        ? emailAlerts.filter((a: any) => {
-            const raw = a.sent_date || a.created_at;
-            const s = raw ? (typeof raw === "string" ? raw.trim().slice(0, 10) : new Date(raw).toISOString().slice(0, 10)) : "";
-            return s === maxDateRawStr;
-          })
-        : emailAlerts;
-
-      const schemeIds = new Set<string>();
-      latestEmailAlerts.forEach((a: any) => {
-        const sid = String(a.scheme_id || "").trim();
-        if (sid) schemeIds.add(sid);
-      });
-
-      const lpcdSchemes = new Set<string>();
-      const chlorineSchemes = new Set<string>();
-      const pressureSchemes = new Set<string>();
-      const offlineSchemes = new Set<string>();
-
-      latestEmailAlerts.forEach((a: any) => {
-        const sid = String(a.scheme_id || "").trim();
-        if (!sid) return;
-        if (a.is_lpcd || (a.categories && a.categories.includes("lpcd"))) lpcdSchemes.add(sid);
-        if (a.is_chlorine || (a.categories && a.categories.includes("chlorine"))) chlorineSchemes.add(sid);
-        if (a.is_pressure || (a.categories && a.categories.includes("pressure"))) pressureSchemes.add(sid);
-        if (a.is_offline || (a.categories && a.categories.includes("offline"))) offlineSchemes.add(sid);
-      });
-
-      let emailCount = schemeIds.size;
-      let seEmailCount: number | undefined = undefined;
-      let ceEmailCount: number | undefined = undefined;
-
-      if (tierNum === 3) {
-        const seAlerts = latestEmailAlerts.filter((a: any) => a.recipient_role && (a.recipient_role.toLowerCase().includes("superintending") || a.recipient_role.toLowerCase().includes("se")));
-        const ceAlerts = latestEmailAlerts.filter((a: any) => a.recipient_role && (a.recipient_role.toLowerCase().includes("chief") || a.recipient_role.toLowerCase().includes("ce")));
-        seEmailCount = new Set(seAlerts.map((a: any) => String(a.id || "").split("-")[0])).size || schemeIds.size;
-        ceEmailCount = new Set(ceAlerts.map((a: any) => String(a.id || "").split("-")[0])).size || schemeIds.size;
-        emailCount = seEmailCount + ceEmailCount;
-      }
-
-      info[tierNum] = {
-        hasEmails: schemeIds.size > 0,
-        latestDate: maxDate,
-        latestDateStr,
-        emailCount,
-        seEmailCount,
-        ceEmailCount,
-        schemeIds,
-        categoryEmails: {
-          lpcd: tierNum === 3 ? lpcdSchemes.size * 2 : lpcdSchemes.size,
-          chlorine: tierNum === 3 ? chlorineSchemes.size * 2 : chlorineSchemes.size,
-          pressure: tierNum === 3 ? pressureSchemes.size * 2 : pressureSchemes.size,
-          offline: tierNum === 3 ? offlineSchemes.size * 2 : offlineSchemes.size,
-        },
-        categorySchemes: {
-          lpcd: lpcdSchemes.size,
-          chlorine: chlorineSchemes.size,
-          pressure: pressureSchemes.size,
-          offline: offlineSchemes.size,
-        },
-        sms: smsMeta,
-      };
     });
 
     return info;
@@ -849,12 +902,12 @@ export default function EscalationPortalPage() {
       return dispatches?.today?.total_emails ?? sentAlertsData?.summary?.email_sent ?? 0;
     }
     return (
-      (tierLatestInfo[1]?.hasEmails ? tierLatestInfo[1].emailCount : 0) +
-      (tierLatestInfo[2]?.hasEmails ? tierLatestInfo[2].emailCount : 0) +
-      (tierLatestInfo[3]?.hasEmails ? tierLatestInfo[3].emailCount : 0) +
-      (tierLatestInfo[4]?.hasEmails ? tierLatestInfo[4].emailCount : 0) +
-      (tierLatestInfo[5]?.hasEmails ? tierLatestInfo[5].emailCount : 0) +
-      (vendorLatestInfo.hasEmails ? vendorLatestInfo.count : 0)
+      (tierLatestInfo[1]?.hasEmails ? (tierLatestInfo[1].emailCount || 0) : 0) +
+      (tierLatestInfo[2]?.hasEmails ? (tierLatestInfo[2].emailCount || 0) : 0) +
+      (tierLatestInfo[3]?.hasEmails ? (tierLatestInfo[3].emailCount || 0) : 0) +
+      (tierLatestInfo[4]?.hasEmails ? (tierLatestInfo[4].emailCount || 0) : 0) +
+      (tierLatestInfo[5]?.hasEmails ? (tierLatestInfo[5].emailCount || 0) : 0) +
+      (vendorLatestInfo?.hasEmails ? (vendorLatestInfo.count || 0) : 0)
     );
   }, [selectedRegion, dispatches, sentAlertsData, tierLatestInfo, vendorLatestInfo]);
 
@@ -966,11 +1019,11 @@ export default function EscalationPortalPage() {
   // Actual dispatch date for each level/tier (strictly null if no email was sent)
   const tierDispatchedDates = useMemo(() => {
     const dates: Record<number, string | null> = {
-      1: tierLatestInfo[1].latestDateStr,
-      2: tierLatestInfo[2].latestDateStr,
-      3: tierLatestInfo[3].latestDateStr,
-      4: tierLatestInfo[4].latestDateStr,
-      5: tierLatestInfo[5].latestDateStr,
+      1: tierLatestInfo[1]?.latestDateStr ?? null,
+      2: tierLatestInfo[2]?.latestDateStr ?? null,
+      3: tierLatestInfo[3]?.latestDateStr ?? null,
+      4: tierLatestInfo[4]?.latestDateStr ?? null,
+      5: tierLatestInfo[5]?.latestDateStr ?? null,
     };
     return dates;
   }, [tierLatestInfo]);
@@ -2045,7 +2098,7 @@ export default function EscalationPortalPage() {
                 title="View IoT Vendor alert digest emails dispatched for telemetry outages"
               >
                 <Mail className="w-3.5 h-3.5 mr-1.5 text-emerald-700" />
-                Vendor: {vendorLatestInfo.hasEmails ? `${vendorLatestInfo.count} Emails (${vendorLatestInfo.latestDateStr})` : "0 Emails"}
+                Vendor: {vendorLatestInfo?.hasEmails ? `${vendorLatestInfo.count} Emails (${vendorLatestInfo.latestDateStr})` : "0 Emails"}
               </Button>
 
               <Link href="/level5-summary">
@@ -2192,7 +2245,7 @@ export default function EscalationPortalPage() {
                   className="bg-emerald-50 text-emerald-850 px-1.5 py-0.5 rounded border border-emerald-300 font-semibold cursor-pointer hover:bg-emerald-100 transition-colors"
                   title="Click to view IoT Vendor email dispatches"
                 >
-                  Vendor: {vendorLatestInfo.hasEmails ? `${vendorLatestInfo.count} Emails (${vendorLatestInfo.latestDateStr})` : "0 (No Email Sent)"}
+                  Vendor: {vendorLatestInfo?.hasEmails ? `${vendorLatestInfo.count} Emails (${vendorLatestInfo.latestDateStr})` : "0 (No Email Sent)"}
                 </span>
               </div>
             </div>
@@ -2235,10 +2288,10 @@ export default function EscalationPortalPage() {
                       Emails:
                     </span>
                     <span className="font-semibold text-blue-900">
-                      {tierLatestInfo[1].hasEmails ? `${tierLatestInfo[1].emailCount} Sent (${tierLatestInfo[1].schemeIds.size} Schemes)` : "0 Sent"}
+                      {tierLatestInfo[1]?.hasEmails ? `${tierLatestInfo[1]?.emailCount ?? 0} Sent (${tierLatestInfo[1]?.schemeIds?.size ?? 0} Schemes)` : "0 Sent"}
                     </span>
                   </div>
-                  {tierLatestInfo[1].latestDateStr ? (
+                  {tierLatestInfo[1]?.latestDateStr ? (
                     <div className="text-[10px] text-blue-700 font-sans font-medium flex items-center justify-between">
                       <span>Date Sent:</span>
                       <span className="font-semibold">{tierLatestInfo[1].latestDateStr}</span>
@@ -2309,10 +2362,10 @@ export default function EscalationPortalPage() {
                       Emails:
                     </span>
                     <span className="font-semibold text-amber-900">
-                      {tierLatestInfo[2].hasEmails ? `${tierLatestInfo[2].emailCount} Sent (${tierLatestInfo[2].schemeIds.size} Schemes)` : "0 Sent"}
+                      {tierLatestInfo[2]?.hasEmails ? `${tierLatestInfo[2]?.emailCount ?? 0} Sent (${tierLatestInfo[2]?.schemeIds?.size ?? 0} Schemes)` : "0 Sent"}
                     </span>
                   </div>
-                  {tierLatestInfo[2].latestDateStr ? (
+                  {tierLatestInfo[2]?.latestDateStr ? (
                     <div className="text-[10px] text-amber-800 font-sans font-medium flex items-center justify-between">
                       <span>Date Sent:</span>
                       <span className="font-semibold">{tierLatestInfo[2].latestDateStr}</span>
@@ -2383,22 +2436,22 @@ export default function EscalationPortalPage() {
                       Emails:
                     </span>
                     <span className="font-semibold text-blue-900">
-                      {tierLatestInfo[3].hasEmails ? `${tierLatestInfo[3].emailCount} Sent (${tierLatestInfo[3].schemeIds.size} Schemes)` : "0 Sent"}
+                      {tierLatestInfo[3]?.hasEmails ? `${tierLatestInfo[3]?.emailCount ?? 0} Sent (${tierLatestInfo[3]?.schemeIds?.size ?? 0} Schemes)` : "0 Sent"}
                     </span>
                   </div>
-                  {tierLatestInfo[3].hasEmails && (
+                  {tierLatestInfo[3]?.hasEmails && (
                     <div className="grid grid-cols-2 gap-1 my-1 pt-1 border-t border-slate-200 font-sans text-[10px]">
                       <div className="bg-indigo-50 text-indigo-900 px-1.5 py-0.5 rounded flex justify-between items-center font-medium border border-indigo-200">
                         <span>SE:</span>
-                        <span className="font-bold">{tierLatestInfo[3].seEmailCount ?? 37} Mails</span>
+                        <span className="font-bold">{tierLatestInfo[3]?.seEmailCount ?? 37} Mails</span>
                       </div>
                       <div className="bg-sky-50 text-sky-900 px-1.5 py-0.5 rounded flex justify-between items-center font-medium border border-sky-200">
                         <span>CE:</span>
-                        <span className="font-bold">{tierLatestInfo[3].ceEmailCount ?? 37} Mails</span>
+                        <span className="font-bold">{tierLatestInfo[3]?.ceEmailCount ?? 37} Mails</span>
                       </div>
                     </div>
                   )}
-                  {tierLatestInfo[3].latestDateStr ? (
+                  {tierLatestInfo[3]?.latestDateStr ? (
                     <div className="text-[10px] text-slate-700 font-sans font-medium flex items-center justify-between">
                       <span>Date Sent:</span>
                       <span className="font-semibold">{tierLatestInfo[3].latestDateStr}</span>
@@ -2469,10 +2522,10 @@ export default function EscalationPortalPage() {
                       Emails:
                     </span>
                     <span className="font-semibold text-purple-900">
-                      {tierLatestInfo[4].hasEmails ? `${tierLatestInfo[4].emailCount} Sent` : "0 Sent"}
+                      {tierLatestInfo[4]?.hasEmails ? `${tierLatestInfo[4]?.emailCount ?? 0} Sent` : "0 Sent"}
                     </span>
                   </div>
-                  {tierLatestInfo[4].latestDateStr ? (
+                  {tierLatestInfo[4]?.latestDateStr ? (
                     <div className="text-[10px] text-purple-800 font-sans font-medium flex items-center justify-between">
                       <span>Date Sent:</span>
                       <span className="font-semibold">{tierLatestInfo[4].latestDateStr}</span>
@@ -2543,10 +2596,10 @@ export default function EscalationPortalPage() {
                       Emails:
                     </span>
                     <span className="font-semibold text-indigo-900">
-                      {tierLatestInfo[5].hasEmails ? `${tierLatestInfo[5].emailCount} Sent` : "0 Sent"}
+                      {tierLatestInfo[5]?.hasEmails ? `${tierLatestInfo[5]?.emailCount ?? 0} Sent` : "0 Sent"}
                     </span>
                   </div>
-                  {tierLatestInfo[5].latestDateStr ? (
+                  {tierLatestInfo[5]?.latestDateStr ? (
                     <div className="text-[10px] text-indigo-800 font-sans font-medium flex items-center justify-between">
                       <span>Date Sent:</span>
                       <span className="font-semibold">{tierLatestInfo[5].latestDateStr}</span>
