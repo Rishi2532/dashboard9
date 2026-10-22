@@ -619,68 +619,54 @@ export default function Level5SummaryPage() {
       title: `Dispatched Escalation Emails - Low LPCD In Schemes (${streakDays}+ Days - ${alerts.escalationRole})`,
       section: "Dispatched Emails",
       columns: [
-        { key: "engineerName", label: "Recipient Name" },
-        { key: "engineerEmail", label: "Recipient Email" },
-        { key: "engineerRole", label: "Designation" },
-        { key: "scheme_name", label: "Scheme Name" },
         { key: "scheme_id", label: "Scheme ID" },
+        { key: "scheme_name", label: "Scheme Name" },
         { key: "region", label: "Region" },
-        { key: "dispatchDate", label: "Date" },
-        { key: "sentTime", label: "Time (IST)" },
-        { key: "lpcdAlertsCount", label: "LPCD Alerts" },
-        { key: "totalAlertsCount", label: "Total Alerts" },
-        { key: "status", label: "Status" },
+        { key: "district", label: "District" },
+        { key: "parameter_value", label: "LPCD Value" },
+        { key: "officer_name", label: "Assigned Officer" },
+        { key: "email_status", label: "Email Status" },
       ],
     },
     emailsLowLpcdVillages: {
       title: `Dispatched Escalation Emails - Low LPCD In Villages (${streakDays}+ Days - ${alerts.escalationRole})`,
       section: "Dispatched Emails",
       columns: [
-        { key: "engineerName", label: "Recipient Name" },
-        { key: "engineerEmail", label: "Recipient Email" },
-        { key: "engineerRole", label: "Designation" },
-        { key: "scheme_name", label: "Scheme Name" },
         { key: "scheme_id", label: "Scheme ID" },
+        { key: "scheme_name", label: "Scheme Name" },
+        { key: "village_name", label: "Village Name" },
         { key: "region", label: "Region" },
-        { key: "dispatchDate", label: "Date" },
-        { key: "sentTime", label: "Time (IST)" },
-        { key: "lpcdAlertsCount", label: "LPCD Alerts" },
-        { key: "totalAlertsCount", label: "Total Alerts" },
-        { key: "status", label: "Status" },
+        { key: "parameter_value", label: "LPCD Value" },
+        { key: "officer_name", label: "Assigned Officer" },
+        { key: "email_status", label: "Email Status" },
       ],
     },
     emailsLowPressureEsrs: {
       title: `Dispatched Escalation Emails - Low Pressure In ESR (${streakDays}+ Days - ${alerts.escalationRole})`,
       section: "Dispatched Emails",
       columns: [
-        { key: "engineerName", label: "Recipient Name" },
-        { key: "engineerEmail", label: "Recipient Email" },
-        { key: "engineerRole", label: "Designation" },
-        { key: "scheme_name", label: "Scheme Name" },
         { key: "scheme_id", label: "Scheme ID" },
+        { key: "scheme_name", label: "Scheme Name" },
+        { key: "village_name", label: "Village Name" },
+        { key: "esr_name", label: "ESR Name" },
         { key: "region", label: "Region" },
-        { key: "dispatchDate", label: "Date" },
-        { key: "sentTime", label: "Time (IST)" },
-        { key: "pressureAlertsCount", label: "Pressure Alerts" },
-        { key: "totalAlertsCount", label: "Total Alerts" },
-        { key: "status", label: "Status" },
+        { key: "parameter_value", label: "Pressure Value (Bar)" },
+        { key: "officer_name", label: "Assigned Officer" },
+        { key: "email_status", label: "Email Status" },
       ],
     },
     emailsResidualChlorine: {
       title: `Dispatched Escalation Emails - Residual Chlorine Out Of Range (${streakDays}+ Days - ${alerts.escalationRole})`,
       section: "Dispatched Emails",
       columns: [
-        { key: "engineerName", label: "Recipient Name" },
-        { key: "engineerEmail", label: "Recipient Email" },
-        { key: "engineerRole", label: "Designation" },
-        { key: "scheme_name", label: "Scheme Name" },
         { key: "scheme_id", label: "Scheme ID" },
+        { key: "scheme_name", label: "Scheme Name" },
+        { key: "village_name", label: "Village Name" },
+        { key: "esr_name", label: "ESR Name" },
         { key: "region", label: "Region" },
-        { key: "dispatchDate", label: "Date" },
-        { key: "sentTime", label: "Time (IST)" },
-        { key: "chlorineAlertsCount", label: "Chlorine Alerts" },
-        { key: "totalAlertsCount", label: "Total Alerts" },
-        { key: "status", label: "Status" },
+        { key: "parameter_value", label: "Chlorine Value (mg/L)" },
+        { key: "officer_name", label: "Assigned Officer" },
+        { key: "email_status", label: "Email Status" },
       ],
     },
     smsTotal: {
@@ -701,48 +687,54 @@ export default function Level5SummaryPage() {
       title: `Dispatched Escalation SMS - Low LPCD In Schemes (${streakDays}+ Days - ${alerts.escalationRole})`,
       section: "Dispatched SMS",
       columns: [
-        { key: "engineer_name", label: "Recipient Name" },
-        { key: "mobile", label: "Mobile" },
-        { key: "scheme_name", label: "Scheme Name" },
         { key: "scheme_id", label: "Scheme ID" },
-        { key: "template_name", label: "Template" },
-        { key: "status", label: "Status" },
+        { key: "scheme_name", label: "Scheme Name" },
+        { key: "region", label: "Region" },
+        { key: "district", label: "District" },
+        { key: "parameter_value", label: "LPCD Value" },
+        { key: "officer_name", label: "Recipient Officer" },
+        { key: "sms_status", label: "SMS Status" },
       ],
     },
     smsLowLpcdVillages: {
       title: `Dispatched Escalation SMS - Low LPCD In Villages (${streakDays}+ Days - ${alerts.escalationRole})`,
       section: "Dispatched SMS",
       columns: [
-        { key: "engineer_name", label: "Recipient Name" },
-        { key: "mobile", label: "Mobile" },
-        { key: "scheme_name", label: "Scheme Name" },
         { key: "scheme_id", label: "Scheme ID" },
-        { key: "template_name", label: "Template" },
-        { key: "status", label: "Status" },
+        { key: "scheme_name", label: "Scheme Name" },
+        { key: "village_name", label: "Village Name" },
+        { key: "region", label: "Region" },
+        { key: "parameter_value", label: "LPCD Value" },
+        { key: "officer_name", label: "Recipient Officer" },
+        { key: "sms_status", label: "SMS Status" },
       ],
     },
     smsLowPressureEsrs: {
       title: `Dispatched Escalation SMS - Low Pressure In ESR (${streakDays}+ Days - ${alerts.escalationRole})`,
       section: "Dispatched SMS",
       columns: [
-        { key: "engineer_name", label: "Recipient Name" },
-        { key: "mobile", label: "Mobile" },
-        { key: "scheme_name", label: "Scheme Name" },
         { key: "scheme_id", label: "Scheme ID" },
-        { key: "template_name", label: "Template" },
-        { key: "status", label: "Status" },
+        { key: "scheme_name", label: "Scheme Name" },
+        { key: "village_name", label: "Village Name" },
+        { key: "esr_name", label: "ESR Name" },
+        { key: "region", label: "Region" },
+        { key: "parameter_value", label: "Pressure Value (Bar)" },
+        { key: "officer_name", label: "Recipient Officer" },
+        { key: "sms_status", label: "SMS Status" },
       ],
     },
     smsResidualChlorine: {
       title: `Dispatched Escalation SMS - Residual Chlorine Out Of Range (${streakDays}+ Days - ${alerts.escalationRole})`,
       section: "Dispatched SMS",
       columns: [
-        { key: "engineer_name", label: "Recipient Name" },
-        { key: "mobile", label: "Mobile" },
-        { key: "scheme_name", label: "Scheme Name" },
         { key: "scheme_id", label: "Scheme ID" },
-        { key: "template_name", label: "Template" },
-        { key: "status", label: "Status" },
+        { key: "scheme_name", label: "Scheme Name" },
+        { key: "village_name", label: "Village Name" },
+        { key: "esr_name", label: "ESR Name" },
+        { key: "region", label: "Region" },
+        { key: "parameter_value", label: "Chlorine Value (mg/L)" },
+        { key: "officer_name", label: "Recipient Officer" },
+        { key: "sms_status", label: "SMS Status" },
       ],
     },
   }), [streakDays, alerts.escalationRole]);
@@ -880,26 +872,32 @@ export default function Level5SummaryPage() {
     if (selectedMetric === "emailsTotal") {
       return normalizedEmails;
     }
-    if (selectedMetric === "emailsLowLpcdSchemes" || selectedMetric === "emailsLowLpcdVillages") {
-      return normalizedEmails.filter((r: any) => (r.lpcdAlertsCount || 0) > 0);
+    if (selectedMetric === "emailsLowLpcdSchemes") {
+      return (data.details as any)?.lowLpcdSchemes || [];
+    }
+    if (selectedMetric === "emailsLowLpcdVillages") {
+      return (data.details as any)?.lowLpcdVillages || [];
     }
     if (selectedMetric === "emailsLowPressureEsrs") {
-      return normalizedEmails.filter((r: any) => (r.pressureAlertsCount || 0) > 0);
+      return (data.details as any)?.lowPressureEsrs || [];
     }
     if (selectedMetric === "emailsResidualChlorine") {
-      return normalizedEmails.filter((r: any) => (r.chlorineAlertsCount || 0) > 0);
+      return (data.details as any)?.residualChlorineOutOfRange || [];
     }
     if (selectedMetric === "smsTotal") {
       return (data.details as any)?.smsDispatches || [];
     }
-    if (selectedMetric === "smsLowLpcdSchemes" || selectedMetric === "smsLowLpcdVillages") {
-      return ((data.details as any)?.smsDispatches || []).filter((s: any) => s.template_name?.toLowerCase().includes("lpcd"));
+    if (selectedMetric === "smsLowLpcdSchemes") {
+      return (data.details as any)?.lowLpcdSchemes || [];
+    }
+    if (selectedMetric === "smsLowLpcdVillages") {
+      return (data.details as any)?.lowLpcdVillages || [];
     }
     if (selectedMetric === "smsLowPressureEsrs") {
-      return ((data.details as any)?.smsDispatches || []).filter((s: any) => s.template_name?.toLowerCase().includes("pressure"));
+      return (data.details as any)?.lowPressureEsrs || [];
     }
     if (selectedMetric === "smsResidualChlorine") {
-      return ((data.details as any)?.smsDispatches || []).filter((s: any) => s.template_name?.toLowerCase().includes("chlorine"));
+      return (data.details as any)?.residualChlorineOutOfRange || [];
     }
     return (data.details as any)?.[selectedMetric] || [];
   }, [selectedMetric, data]);
@@ -941,6 +939,14 @@ export default function Level5SummaryPage() {
     return filteredItems.slice(start, start + pageSize);
   }, [filteredItems, currentPage, pageSize]);
 
+  const isLowLpcdSchemesMetric = useMemo(() => {
+    return (
+      selectedMetric === "lowLpcdSchemes" ||
+      selectedMetric === "emailsLowLpcdSchemes" ||
+      selectedMetric === "smsLowLpcdSchemes"
+    );
+  }, [selectedMetric]);
+
   const isEscalationTable = useMemo(() => {
     if (!selectedMetric) return false;
     return (
@@ -948,8 +954,14 @@ export default function Level5SummaryPage() {
       selectedMetric === "lowLpcdVillages" ||
       selectedMetric === "lowPressureEsrs" ||
       selectedMetric === "residualChlorineOutOfRange" ||
-      selectedMetric.startsWith("emails") ||
-      selectedMetric.startsWith("sms")
+      selectedMetric === "emailsLowLpcdSchemes" ||
+      selectedMetric === "emailsLowLpcdVillages" ||
+      selectedMetric === "emailsLowPressureEsrs" ||
+      selectedMetric === "emailsResidualChlorine" ||
+      selectedMetric === "smsLowLpcdSchemes" ||
+      selectedMetric === "smsLowLpcdVillages" ||
+      selectedMetric === "smsLowPressureEsrs" ||
+      selectedMetric === "smsResidualChlorine"
     );
   }, [selectedMetric]);
 
@@ -1594,7 +1606,7 @@ export default function Level5SummaryPage() {
                       <th className="py-2.5 px-3">Scheme & Region</th>
                       <th className="py-2.5 px-3">Location (Village / Sensor)</th>
                       <th className="py-2.5 px-3">Alert & Value</th>
-                      {selectedMetric !== "lowLpcdSchemes" && (
+                      {!isLowLpcdSchemesMetric && (
                         <th className="py-2.5 px-3 text-center">Persistence & Trend</th>
                       )}
                       <th className="py-2.5 px-3 text-center border-l border-slate-200">Email Sent</th>
@@ -1612,11 +1624,18 @@ export default function Level5SummaryPage() {
                       const dist = item.district || "";
                       const vName = item.village_name || item.villageName || "";
                       const eName = item.esr_name || item.esrName || "";
-                      const cat = item.category || (item.template_name?.toLowerCase().includes("lpcd") ? "lpcd" : item.template_name?.toLowerCase().includes("chlorine") ? "chlorine" : item.template_name?.toLowerCase().includes("pressure") ? "pressure" : "lpcd");
+                      const metricCat =
+                        selectedMetric === "residualChlorineOutOfRange" || selectedMetric === "emailsResidualChlorine" || selectedMetric === "smsResidualChlorine"
+                          ? "chlorine"
+                          : selectedMetric === "lowPressureEsrs" || selectedMetric === "emailsLowPressureEsrs" || selectedMetric === "smsLowPressureEsrs"
+                          ? "pressure"
+                          : "lpcd";
+                      const cat = item.category || metricCat || (item.template_name?.toLowerCase().includes("chlorine") ? "chlorine" : item.template_name?.toLowerCase().includes("pressure") ? "pressure" : "lpcd");
                       const pVal = item.parameter_value || (cat === "lpcd" ? "< 55 LPCD" : cat === "chlorine" ? "< 0.20 mg/L" : "< 0.20 Bar");
-                      const hasEmail = Boolean(data?.alertsLevel?.hasEmails || (data?.emailDispatches?.total || 0) > 0);
+                      const alertTitle = item.alert_title || (cat === "lpcd" ? "Low LPCD Notice" : cat === "chlorine" ? "Residual Chlorine Out Of Range" : "Terminal Low Pressure");
+                      const hasEmail = Boolean(item.email_status ? (item.email_status.includes("Dispatched") || item.email_status.includes("Success")) : (data?.alertsLevel?.hasEmails || (data?.emailDispatches?.total || 0) > 0));
                       const emailDateStr = data?.emailDispatches?.dispatchDate || "19 Oct 2026";
-                      const smsFailed = Boolean(item.sms_status?.includes("Failed") || (data?.smsDispatches?.failed || 0) > 0 || item.gateway_status >= 400 || item.is_success === false);
+                      const smsFailed = Boolean(item.sms_status ? (item.sms_status.includes("Failed") || item.sms_status.includes("0 SMS")) : (data?.smsDispatches?.failed || 0) > 0 || item.gateway_status >= 400 || item.is_success === false);
                       const remarksList = Array.isArray(item.remarks) ? item.remarks : [];
 
                       return (
@@ -1654,7 +1673,7 @@ export default function Level5SummaryPage() {
                           <td className="py-3 px-3">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="font-semibold text-slate-900 text-xs">
-                                {item.alert_title || (cat === "lpcd" ? "Low LPCD Notice" : cat === "chlorine" ? "Residual Chlorine Out Of Range" : "Terminal Low Pressure")}
+                                {alertTitle}
                               </span>
                               <Badge
                                 variant="outline"
@@ -1675,7 +1694,7 @@ export default function Level5SummaryPage() {
                               Value: {pVal}
                             </div>
                           </td>
-                          {selectedMetric !== "lowLpcdSchemes" && (
+                          {!isLowLpcdSchemesMetric && (
                             <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
                               <div className="flex flex-col items-center justify-center gap-1">
                                 <button
