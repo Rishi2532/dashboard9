@@ -371,7 +371,7 @@ export default function EscalationPortalPage() {
     summary: any;
     alerts: any[];
   }>({
-    queryKey: ["/api/escalation/sent-alerts", "email", emailLogsTimeRange, emailLogsFilterTier, emailLogsFilterCategory],
+    queryKey: ["/api/escalation/sent-alerts", "email", emailLogsTimeRange, emailLogsFilterTier, emailLogsFilterCategory, selectedRegion],
     queryFn: async () => {
       const params = new URLSearchParams({
         channel: "email",
@@ -380,6 +380,9 @@ export default function EscalationPortalPage() {
         category: emailLogsFilterCategory,
         limit: "500",
       });
+      if (selectedRegion && selectedRegion !== "All") {
+        params.append("region", selectedRegion);
+      }
       const res = await fetch(`/api/escalation/sent-alerts?${params.toString()}`);
       if (!res.ok) return { summary: {}, alerts: [] };
       return res.json();
@@ -430,78 +433,16 @@ export default function EscalationPortalPage() {
     return { emailsByScheme: emailMap, smsByScheme: smsMap };
   }, [sentAlertsData]);
 
-  // Vendor emails latest dispatch info for top right summary and logs (strictly for the latest dispatch date)
-  const vendorLatestInfo = useMemo(() => {
-    const vendorAlerts = (sentAlertsData?.alerts || []).filter(
-      (a: any) =>
-        a.channel === "email" &&
-        (Number(a.tier) === 0 || (a.recipient_role && a.recipient_role.toLowerCase().includes("vendor")))
-    );
-    if (vendorAlerts.length === 0) {
-      return { hasEmails: false, count: 0, latestDateStr: null, recipientCount: 0 };
-    }
-    
-    // Find latest dispatch date among vendor alerts
-    let maxDate: Date | null = null;
-    let maxDateRawStr: string | null = null;
-    vendorAlerts.forEach((a: any) => {
-      const raw = a.sent_date || a.created_at;
-      if (raw) {
-        let d: Date;
-        if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) {
-          const [y, m, day] = raw.trim().split("-").map(Number);
-          d = new Date(y, m - 1, day);
-        } else {
-          d = new Date(raw);
-        }
-        if (!isNaN(d.getTime())) {
-          if (!maxDate || d > maxDate) {
-            maxDate = d;
-            maxDateRawStr = typeof raw === "string" ? raw.trim().slice(0, 10) : d.toISOString().slice(0, 10);
-          }
-        }
-      }
-    });
-
-    const latestDateStr = maxDate
-      ? maxDate.toLocaleDateString("en-GB", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        })
-      : null;
-
-    // Count dispatches and unique recipients strictly on the latest dispatch date
-    const uniqueDispatches = new Set<string>();
-    const uniqueRecipients = new Set<string>();
-
-    const latestAlerts = maxDateRawStr
-      ? vendorAlerts.filter((a: any) => {
-          const raw = a.sent_date || a.created_at;
-          const s = raw ? (typeof raw === "string" ? raw.trim().slice(0, 10) : new Date(raw).toISOString().slice(0, 10)) : "";
-          return s === maxDateRawStr;
-        })
-      : vendorAlerts;
-
-    latestAlerts.forEach((a: any) => {
-      const dispId = String(a.id || "").split("-")[0];
-      if (dispId) uniqueDispatches.add(dispId);
-      if (a.recipient_email) uniqueRecipients.add(a.recipient_email.toLowerCase().trim());
-    });
-
-    const count = uniqueDispatches.size > 0 ? uniqueDispatches.size : (uniqueRecipients.size > 0 ? uniqueRecipients.size : latestAlerts.length);
-
-    return {
-      hasEmails: count > 0,
-      count,
-      recipientCount: uniqueRecipients.size || count,
-      latestDateStr,
-    };
-  }, [sentAlertsData]);
-
   // Filtered actual email dispatches for the email logs modal
   const filteredEmailLogs = useMemo(() => {
     let list = emailLogsData?.alerts || [];
+    if (selectedRegion && selectedRegion !== "All") {
+      const target = selectedRegion.toLowerCase().trim();
+      list = list.filter((a: any) => {
+        const r = (a.region || "").toLowerCase().trim();
+        return r === target || r.includes(target) || target.includes(r);
+      });
+    }
     if (emailLogsFilterTier !== "all") {
       if (emailLogsFilterTier === "vendor") {
         list = list.filter((a: any) => a.tier === 0 || (a.recipient_role && a.recipient_role.toLowerCase().includes("vendor")));
@@ -633,7 +574,106 @@ export default function EscalationPortalPage() {
   }, [rawLayer1Schemes, selectedRegion]);
   const dispatches = data?.summary?.dispatches || data?.dispatches;
 
-  // Latest email & sms dispatch batch per tier (Tier 1..5) calculated strictly for the date on which emails were sent
+  // Mapping of scheme_id to region for quick lookup
+  const schemeRegionMap = useMemo(() => {
+    const map = new Map<string, string>();
+    (allSchemesData || []).forEach((s: any) => {
+      if (s.scheme_id && s.region) {
+        map.set(String(s.scheme_id).trim(), s.region);
+      }
+    });
+    (rawSchemes || []).forEach((s: any) => {
+      if (s.scheme_id && s.region) {
+        map.set(String(s.scheme_id).trim(), s.region);
+      }
+    });
+    return map;
+  }, [allSchemesData, rawSchemes]);
+
+  const isAlertInSelectedRegion = useCallback((a: any) => {
+    if (!selectedRegion || selectedRegion === "All") return true;
+    const target = selectedRegion.toLowerCase().trim();
+    const alertRegion = (a.region || schemeRegionMap.get(String(a.scheme_id || "").trim()) || "").toLowerCase().trim();
+    if (alertRegion && (alertRegion === target || alertRegion.includes(target) || target.includes(alertRegion))) {
+      return true;
+    }
+    if (a.scheme_id && schemes.some((s: any) => String(s.scheme_id).trim() === String(a.scheme_id).trim())) {
+      return true;
+    }
+    return false;
+  }, [selectedRegion, schemeRegionMap, schemes]);
+
+  // Vendor emails latest dispatch info for top right summary and logs (strictly for the latest dispatch date and selected region)
+  const vendorLatestInfo = useMemo(() => {
+    const vendorAlerts = (sentAlertsData?.alerts || []).filter(
+      (a: any) =>
+        a.channel === "email" &&
+        (Number(a.tier) === 0 || (a.recipient_role && a.recipient_role.toLowerCase().includes("vendor"))) &&
+        isAlertInSelectedRegion(a)
+    );
+    if (vendorAlerts.length === 0) {
+      return { hasEmails: false, count: 0, latestDateStr: null, recipientCount: 0 };
+    }
+    
+    // Find latest dispatch date among vendor alerts
+    let maxDate: Date | null = null;
+    let maxDateRawStr: string | null = null;
+    vendorAlerts.forEach((a: any) => {
+      const raw = a.sent_date || a.created_at;
+      if (raw) {
+        let d: Date;
+        if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) {
+          const [y, m, day] = raw.trim().split("-").map(Number);
+          d = new Date(y, m - 1, day);
+        } else {
+          d = new Date(raw);
+        }
+        if (!isNaN(d.getTime())) {
+          if (!maxDate || d > maxDate) {
+            maxDate = d;
+            maxDateRawStr = typeof raw === "string" ? raw.trim().slice(0, 10) : d.toISOString().slice(0, 10);
+          }
+        }
+      }
+    });
+
+    const latestDateStr = maxDate
+      ? maxDate.toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : null;
+
+    // Count dispatches and unique recipients strictly on the latest dispatch date
+    const uniqueDispatches = new Set<string>();
+    const uniqueRecipients = new Set<string>();
+
+    const latestAlerts = maxDateRawStr
+      ? vendorAlerts.filter((a: any) => {
+          const raw = a.sent_date || a.created_at;
+          const s = raw ? (typeof raw === "string" ? raw.trim().slice(0, 10) : new Date(raw).toISOString().slice(0, 10)) : "";
+          return s === maxDateRawStr;
+        })
+      : vendorAlerts;
+
+    latestAlerts.forEach((a: any) => {
+      const dispId = String(a.id || "").split("-")[0];
+      if (dispId) uniqueDispatches.add(dispId);
+      if (a.recipient_email) uniqueRecipients.add(a.recipient_email.toLowerCase().trim());
+    });
+
+    const count = uniqueDispatches.size > 0 ? uniqueDispatches.size : (uniqueRecipients.size > 0 ? uniqueRecipients.size : latestAlerts.length);
+
+    return {
+      hasEmails: count > 0,
+      count,
+      recipientCount: uniqueRecipients.size || count,
+      latestDateStr,
+    };
+  }, [sentAlertsData, isAlertInSelectedRegion]);
+
+  // Latest email & sms dispatch batch per tier (Tier 1..5) calculated strictly for the date on which emails were sent and filtered by selected region
   const tierLatestInfo = useMemo(() => {
     const info: Record<number, {
       hasEmails: boolean;
@@ -649,14 +689,14 @@ export default function EscalationPortalPage() {
     }> = {};
 
     [1, 2, 3, 4, 5].forEach((tierNum) => {
-      // 1. Emails for this tier
+      // 1. Emails for this tier filtered by selected region
       const emailAlerts = (sentAlertsData?.alerts || []).filter(
-        (a: any) => a.channel === "email" && Number(a.tier) === tierNum
+        (a: any) => a.channel === "email" && Number(a.tier) === tierNum && isAlertInSelectedRegion(a)
       );
 
-      // 2. SMS for this tier
+      // 2. SMS for this tier filtered by selected region
       const smsAlerts = (sentAlertsData?.alerts || []).filter(
-        (a: any) => a.channel === "sms" && Number(a.tier) === tierNum
+        (a: any) => a.channel === "sms" && Number(a.tier) === tierNum && isAlertInSelectedRegion(a)
       );
 
       let smsMaxDate: Date | null = null;
@@ -801,7 +841,22 @@ export default function EscalationPortalPage() {
     });
 
     return info;
-  }, [sentAlertsData]);
+  }, [sentAlertsData, isAlertInSelectedRegion]);
+
+  // Total emails sent strictly for the selected region
+  const totalEmailsSentForRegion = useMemo(() => {
+    if (!selectedRegion || selectedRegion === "All") {
+      return dispatches?.today?.total_emails ?? sentAlertsData?.summary?.email_sent ?? 0;
+    }
+    return (
+      (tierLatestInfo[1]?.hasEmails ? tierLatestInfo[1].emailCount : 0) +
+      (tierLatestInfo[2]?.hasEmails ? tierLatestInfo[2].emailCount : 0) +
+      (tierLatestInfo[3]?.hasEmails ? tierLatestInfo[3].emailCount : 0) +
+      (tierLatestInfo[4]?.hasEmails ? tierLatestInfo[4].emailCount : 0) +
+      (tierLatestInfo[5]?.hasEmails ? tierLatestInfo[5].emailCount : 0) +
+      (vendorLatestInfo.hasEmails ? vendorLatestInfo.count : 0)
+    );
+  }, [selectedRegion, dispatches, sentAlertsData, tierLatestInfo, vendorLatestInfo]);
 
   // Schemes strictly for the date emails were sent for each tier
   // Layer 1: DE / AE Civil (Daily Notice) -> schemes from latest dispatch date (20-Oct telemetry for 21-Oct dispatch)
@@ -963,7 +1018,7 @@ export default function EscalationPortalPage() {
 
     const alerts = sentAlertsData?.alerts || [];
     alerts.forEach((a: any) => {
-      if (a.channel === "sms" && Number(a.tier) === activeTierNumber) {
+      if (a.channel === "sms" && Number(a.tier) === activeTierNumber && isAlertInSelectedRegion(a)) {
         const isDelivered = a.status === "DELIVERED" || a.status === "SUCCESS";
         if (isDelivered) {
           if (a.is_lpcd || (a.categories && a.categories.includes("lpcd"))) lpcdSms++;
@@ -996,7 +1051,7 @@ export default function EscalationPortalPage() {
         sms: offlineSms,
       },
     };
-  }, [tierLatestInfo, activeTierNumber, sentAlertsData]);
+  }, [tierLatestInfo, activeTierNumber, sentAlertsData, isAlertInSelectedRegion]);
 
 
   // Minimum streak threshold for the active escalation level
@@ -2110,7 +2165,7 @@ export default function EscalationPortalPage() {
                 </div>
               </div>
               <div className="text-sm font-bold font-mono text-slate-900 mt-1 flex items-baseline gap-2">
-                <span>Today: <span className="text-blue-900 font-extrabold text-base">{dispatches?.today?.total_emails ?? sentAlertsData?.summary?.email_sent ?? 0}</span> Emails Sent</span>
+                <span>Today: <span className="text-blue-900 font-extrabold text-base">{totalEmailsSentForRegion}</span> Emails Sent</span>
                 {/* <span className="text-[11px] text-slate-500 font-mono font-normal">| 7 Days: {dispatches?.last_7_days?.total_emails ?? 0}</span> */}
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] font-mono text-slate-600">

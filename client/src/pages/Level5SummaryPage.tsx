@@ -269,6 +269,8 @@ export default function Level5SummaryPage() {
       category: String(selectedSevenDaysAlert.category || "all"),
       villageName: String(selectedSevenDaysAlert.village_name || ""),
       esrName: String(selectedSevenDaysAlert.esr_name || ""),
+      tier: String(streakDays <= 7 ? 3 : streakDays <= 15 ? 4 : 5),
+      asOfDate: "18-Oct",
     });
     fetch(`/api/escalation/alert-history?${params.toString()}`)
       .then((res) => res.json())
@@ -1592,7 +1594,9 @@ export default function Level5SummaryPage() {
                       <th className="py-2.5 px-3">Scheme & Region</th>
                       <th className="py-2.5 px-3">Location (Village / Sensor)</th>
                       <th className="py-2.5 px-3">Alert & Value</th>
-                      <th className="py-2.5 px-3 text-center">Persistence & Trend</th>
+                      {selectedMetric !== "lowLpcdSchemes" && (
+                        <th className="py-2.5 px-3 text-center">Persistence & Trend</th>
+                      )}
                       <th className="py-2.5 px-3 text-center border-l border-slate-200">Email Sent</th>
                       <th className="py-2.5 px-3 text-center border-l border-slate-200">Sms Sent</th>
                       <th className="py-2.5 px-3 text-center border-l border-slate-200">Field Remarks</th>
@@ -1671,34 +1675,36 @@ export default function Level5SummaryPage() {
                               Value: {pVal}
                             </div>
                           </td>
-                          <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
-                            <div className="flex flex-col items-center justify-center gap-1">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedSevenDaysAlert({
-                                    scheme_id: sId,
-                                    scheme_name: sName,
-                                    region: reg,
-                                    village_name: vName || sName,
-                                    esr_name: eName || "-",
-                                    parameter_value: pVal,
-                                    days_since: streakDays,
-                                    category: cat,
-                                  });
-                                }}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 hover:text-blue-700 border border-slate-200 cursor-pointer shadow-2xs transition-all"
-                                title={`View Last 7 Days Values & Trend for ${sName}`}
-                              >
-                                <Calendar className="w-3.5 h-3.5 text-blue-600" />
-                                <span>View 7 Days</span>
-                              </button>
-                              <span className="text-[10px] text-slate-500 font-mono">
-                                Streak: <strong className="text-slate-800">{streakDays <= 7 ? "7d" : streakDays <= 15 ? "15d" : "20d"}</strong>
-                              </span>
-                            </div>
-                          </td>
+                          {selectedMetric !== "lowLpcdSchemes" && (
+                            <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
+                              <div className="flex flex-col items-center justify-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedSevenDaysAlert({
+                                      scheme_id: sId,
+                                      scheme_name: sName,
+                                      region: reg,
+                                      village_name: vName && vName !== "-" && vName !== sName ? vName : "",
+                                      esr_name: eName && eName !== "-" ? eName : "",
+                                      parameter_value: pVal,
+                                      days_since: streakDays,
+                                      category: cat,
+                                    });
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 hover:text-blue-700 border border-slate-200 cursor-pointer shadow-2xs transition-all"
+                                  title={`View Last 7 Days Values & Trend for ${sName}`}
+                                >
+                                  <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                                  <span>View 7 Days</span>
+                                </button>
+                                <span className="text-[10px] text-slate-500 font-mono">
+                                  Streak: <strong className="text-slate-800">{streakDays <= 7 ? "7d" : streakDays <= 15 ? "15d" : "20d"}</strong>
+                                </span>
+                              </div>
+                            </td>
+                          )}
                           <td className="py-3 px-3 text-center border-l border-slate-100 align-middle whitespace-nowrap">
                             {hasEmail ? (
                               <div className="flex flex-col items-center gap-1 max-w-[210px] mx-auto text-center">

@@ -2470,9 +2470,10 @@ export interface SentAlertsResponse {
 export async function getSentEscalationAlerts(options: {
   timeRange?: 'today' | 'yesterday' | '7days' | '30days' | 'all';
   date?: string;
-  tier?: 'all' | '1' | '2' | '3' | '4' | '5';
+  tier?: 'all' | '1' | '2' | '3' | '4' | '5' | 'vendor' | '0';
   channel?: 'all' | 'sms' | 'email';
   category?: 'all' | 'lpcd' | 'chlorine' | 'pressure' | 'offline';
+  region?: string;
   search?: string;
   limit?: number;
   offset?: number;
@@ -2514,6 +2515,10 @@ export async function getSentEscalationAlerts(options: {
     else if (options.category === 'pressure') whereClauses.push(`is_pressure = true`);
     else if (options.category === 'offline') whereClauses.push(`is_offline = true`);
   }
+  if (options.region && options.region !== 'all' && options.region !== 'All') {
+    const r = options.region.trim().replace(/'/g, "''");
+    whereClauses.push(`region ILIKE '%${r}%'`);
+  }
   if (options.search && options.search.trim()) {
     const s = options.search.trim().replace(/'/g, "''");
     whereClauses.push(`(scheme_name ILIKE '%${s}%' OR scheme_id ILIKE '%${s}%' OR recipient_name ILIKE '%${s}%' OR alert_title ILIKE '%${s}%' OR recipient_email ILIKE '%${s}%')`);
@@ -2522,7 +2527,10 @@ export async function getSentEscalationAlerts(options: {
   const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
   const baseCte = `
-    WITH combined_alerts AS (
+    WITH ws_reg AS (
+      SELECT DISTINCT scheme_id, region FROM water_scheme_data WHERE region IS NOT NULL
+    ),
+    combined_alerts AS (
       -- 1. Actual SMS Alerts Logged
       SELECT 
         s.id::text,
@@ -2592,12 +2600,14 @@ export async function getSentEscalationAlerts(options: {
             WHEN s.template_name ILIKE '%pressure%' THEN 'pressure'
             ELSE 'offline'
           END
-        ] AS categories
+        ] AS categories,
+        COALESCE(sed.region, ws.region, 'Unknown') AS region
       FROM sms_alert_logs s
       LEFT JOIN scheme_engineer_details sed ON (
         (s.scheme_id IS NOT NULL AND s.scheme_id != '' AND s.scheme_id = sed.scheme_id)
         OR (s.scheme_name IS NOT NULL AND s.scheme_name != '' AND s.scheme_name ILIKE sed.scheme)
       )
+      LEFT JOIN ws_reg ws ON ws.scheme_id = s.scheme_id
 
       UNION ALL
 
@@ -2643,9 +2653,12 @@ export async function getSentEscalationAlerts(options: {
             CASE WHEN ced.pressure_alerts_count > 0 THEN 'pressure' END,
             CASE WHEN ced.offline_alerts_count > 0 THEN 'offline' END
           ]) AS x WHERE x IS NOT NULL
-        ) AS categories
+        ) AS categories,
+        COALESCE(sed2.region, ws2.region, 'Unknown') AS region
       FROM consolidated_email_dispatches ced
       LEFT JOIN LATERAL jsonb_array_elements_text(COALESCE(ced.scheme_ids, '[]'::jsonb)) AS sid(scheme_id) ON true
+      LEFT JOIN scheme_engineer_details sed2 ON (sed2.scheme_id = sid.scheme_id)
+      LEFT JOIN ws_reg ws2 ON ws2.scheme_id = sid.scheme_id
 
       UNION ALL
 
@@ -2673,7 +2686,8 @@ export async function getSentEscalationAlerts(options: {
         sub.is_chlorine,
         sub.is_pressure,
         sub.is_offline,
-        sub.categories
+        sub.categories,
+        sub.region
       FROM (
         SELECT 
           MIN(ea.id)::text AS id,
@@ -2718,9 +2732,11 @@ export async function getSentEscalationAlerts(options: {
               WHEN ea.alert_type ILIKE '%pressure%' THEN 'pressure'
               ELSE 'offline'
             END
-          ) AS categories
+          ) AS categories,
+          COALESCE(MAX(s.region), MAX(ws3.region), 'Unknown') AS region
         FROM email_acknowledgements ea
         LEFT JOIN scheme_engineer_details s ON s.scheme_id = ea.scheme_id
+        LEFT JOIN ws_reg ws3 ON ws3.scheme_id = ea.scheme_id
         WHERE ea.sent_date::date NOT IN (SELECT DISTINCT dispatch_date FROM consolidated_email_dispatches)
         GROUP BY ea.sent_date::date, LOWER(TRIM(ea.engineer_email)), ea.scheme_id
       ) sub
@@ -2782,8 +2798,14 @@ export async function getSentEscalationAlerts(options: {
             WHEN e.alert_type ILIKE '%pressure%' THEN 'pressure'
             ELSE 'offline'
           END
-        ] AS categories
+        ] AS categories,
+        COALESCE(sed3.region, ws4.region, 'Unknown') AS region
       FROM email_alert_logs e
+      LEFT JOIN scheme_engineer_details sed3 ON (
+        (e.scheme_id IS NOT NULL AND e.scheme_id != '' AND e.scheme_id = sed3.scheme_id)
+        OR (e.scheme_name IS NOT NULL AND e.scheme_name != '' AND e.scheme_name ILIKE sed3.scheme)
+      )
+      LEFT JOIN ws_reg ws4 ON ws4.scheme_id = e.scheme_id
       WHERE e.dispatch_type LIKE 'escalation_%'
     )
   `;

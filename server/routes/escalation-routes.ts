@@ -78,6 +78,7 @@ router.get("/sent-alerts", async (req: Request, res: Response) => {
     const tier = (req.query.tier as any) || "all";
     const channel = (req.query.channel as any) || "all";
     const category = (req.query.category as any) || "all";
+    const region = req.query.region ? String(req.query.region) : undefined;
     const search = req.query.search ? String(req.query.search) : undefined;
     const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 100;
     const offset = req.query.offset ? parseInt(String(req.query.offset), 10) : 0;
@@ -88,6 +89,7 @@ router.get("/sent-alerts", async (req: Request, res: Response) => {
       tier,
       channel,
       category,
+      region,
       search,
       limit,
       offset,
@@ -310,8 +312,55 @@ router.get("/alert-history", async (req: Request, res: Response) => {
           ${esrName && esrName !== '-' ? sql`AND LOWER(TRIM(c.esr_name)) = LOWER(TRIM(${esrName}))` : sql``}
         ORDER BY c.chlorine_date, c.uploaded_at DESC, c.id DESC
       `;
-      const tRes = await db.execute(q);
+      const tRes: any = await db.execute(q);
       (tRes.rows || []).forEach((r: any) => recordsByDate.set(String(r.data_date).trim(), r));
+
+      if (recordsByDate.size === 0 && (villageName || esrName)) {
+        const fallbackHistoryRes: any = await db.execute(sql`
+          SELECT DISTINCT ON (c.chlorine_date)
+            c.scheme_id, c.scheme_name, c.village_name, c.esr_name, c.chlorine_date as data_date, c.chlorine_value,
+            wc.water_value
+          FROM chlorine_history c
+          LEFT JOIN (
+            SELECT DISTINCT ON (data_date) data_date, water_value
+            FROM water_consumption_history
+            WHERE scheme_id = ${schemeId}
+            ORDER BY data_date, uploaded_at DESC
+          ) wc ON wc.data_date = c.chlorine_date
+          WHERE c.scheme_id = ${schemeId}
+            AND c.chlorine_date IN (${sqlTargetDates})
+          ORDER BY c.chlorine_date, c.uploaded_at DESC, c.id DESC
+        `);
+        (fallbackHistoryRes.rows || []).forEach((r: any) => recordsByDate.set(String(r.data_date).trim(), r));
+      }
+
+      if (recordsByDate.size === 0) {
+        const cDataRes: any = await db.execute(sql`
+          SELECT * FROM chlorine_data
+          WHERE scheme_id = ${schemeId}
+            ${villageName && villageName !== '-' ? sql`AND LOWER(TRIM(village_name)) = LOWER(TRIM(${villageName}))` : sql``}
+            ${esrName && esrName !== '-' ? sql`AND LOWER(TRIM(esr_name)) = LOWER(TRIM(${esrName}))` : sql``}
+          LIMIT 1
+        `);
+        const cRow = cDataRes.rows?.[0] || (await db.execute(sql`SELECT * FROM chlorine_data WHERE scheme_id = ${schemeId} LIMIT 1`)).rows?.[0];
+        if (cRow) {
+          for (let i = 1; i <= 7; i++) {
+            const dt = cRow[`chlorine_date_day_${i}`];
+            const val = cRow[`chlorine_value_day_${i}`];
+            if (dt) {
+              recordsByDate.set(String(dt).trim(), {
+                scheme_id: schemeId,
+                scheme_name: cRow.scheme_name,
+                village_name: cRow.village_name,
+                esr_name: cRow.esr_name,
+                data_date: dt,
+                chlorine_value: val,
+                water_value: null,
+              });
+            }
+          }
+        }
+      }
     } else if (category === "pressure") {
       const q = sql`
         SELECT DISTINCT ON (p.pressure_date)
@@ -332,8 +381,55 @@ router.get("/alert-history", async (req: Request, res: Response) => {
           ${esrName && esrName !== '-' ? sql`AND LOWER(TRIM(p.esr_name)) = LOWER(TRIM(${esrName}))` : sql``}
         ORDER BY p.pressure_date, p.uploaded_at DESC, p.id DESC
       `;
-      const tRes = await db.execute(q);
+      const tRes: any = await db.execute(q);
       (tRes.rows || []).forEach((r: any) => recordsByDate.set(String(r.data_date).trim(), r));
+
+      if (recordsByDate.size === 0 && (villageName || esrName)) {
+        const fallbackHistoryRes: any = await db.execute(sql`
+          SELECT DISTINCT ON (p.pressure_date)
+            p.scheme_id, p.scheme_name, p.village_name, p.esr_name, p.pressure_date as data_date, p.pressure_value,
+            wc.water_value
+          FROM pressure_history p
+          LEFT JOIN (
+            SELECT DISTINCT ON (data_date) data_date, water_value
+            FROM water_consumption_history
+            WHERE scheme_id = ${schemeId}
+            ORDER BY data_date, uploaded_at DESC
+          ) wc ON wc.data_date = p.pressure_date
+          WHERE p.scheme_id = ${schemeId}
+            AND p.pressure_date IN (${sqlTargetDates})
+          ORDER BY p.pressure_date, p.uploaded_at DESC, p.id DESC
+        `);
+        (fallbackHistoryRes.rows || []).forEach((r: any) => recordsByDate.set(String(r.data_date).trim(), r));
+      }
+
+      if (recordsByDate.size === 0) {
+        const pDataRes: any = await db.execute(sql`
+          SELECT * FROM pressure_data
+          WHERE scheme_id = ${schemeId}
+            ${villageName && villageName !== '-' ? sql`AND LOWER(TRIM(village_name)) = LOWER(TRIM(${villageName}))` : sql``}
+            ${esrName && esrName !== '-' ? sql`AND LOWER(TRIM(esr_name)) = LOWER(TRIM(${esrName}))` : sql``}
+          LIMIT 1
+        `);
+        const pRow = pDataRes.rows?.[0] || (await db.execute(sql`SELECT * FROM pressure_data WHERE scheme_id = ${schemeId} LIMIT 1`)).rows?.[0];
+        if (pRow) {
+          for (let i = 1; i <= 7; i++) {
+            const dt = pRow[`pressure_date_day_${i}`];
+            const val = pRow[`pressure_value_day_${i}`];
+            if (dt) {
+              recordsByDate.set(String(dt).trim(), {
+                scheme_id: schemeId,
+                scheme_name: pRow.scheme_name,
+                village_name: pRow.village_name,
+                esr_name: pRow.esr_name,
+                data_date: dt,
+                pressure_value: val,
+                water_value: null,
+              });
+            }
+          }
+        }
+      }
     } else if (category === "lpcd") {
       const q = sql`
         SELECT DISTINCT ON (h.data_date)
@@ -344,8 +440,45 @@ router.get("/alert-history", async (req: Request, res: Response) => {
           ${villageName && villageName !== '-' ? sql`AND LOWER(TRIM(h.village_name)) = LOWER(TRIM(${villageName}))` : sql``}
         ORDER BY h.data_date, h.uploaded_at DESC, h.id DESC
       `;
-      const tRes = await db.execute(q);
+      const tRes: any = await db.execute(q);
       (tRes.rows || []).forEach((r: any) => recordsByDate.set(String(r.data_date).trim(), r));
+
+      if (recordsByDate.size === 0 && villageName) {
+        const fallbackHistoryRes: any = await db.execute(sql`
+          SELECT DISTINCT ON (h.data_date)
+            h.scheme_id, h.scheme_name, h.village_name, h.data_date, h.lpcd_value
+          FROM water_scheme_data_history h
+          WHERE h.scheme_id = ${schemeId}
+            AND h.data_date IN (${sqlTargetDates})
+          ORDER BY h.data_date, h.uploaded_at DESC, h.id DESC
+        `);
+        (fallbackHistoryRes.rows || []).forEach((r: any) => recordsByDate.set(String(r.data_date).trim(), r));
+      }
+
+      if (recordsByDate.size === 0) {
+        const wDataRes: any = await db.execute(sql`
+          SELECT * FROM water_scheme_data
+          WHERE scheme_id = ${schemeId}
+            ${villageName && villageName !== '-' ? sql`AND LOWER(TRIM(village_name)) = LOWER(TRIM(${villageName}))` : sql``}
+          LIMIT 1
+        `);
+        const wRow = wDataRes.rows?.[0] || (await db.execute(sql`SELECT * FROM water_scheme_data WHERE scheme_id = ${schemeId} LIMIT 1`)).rows?.[0];
+        if (wRow) {
+          for (let i = 1; i <= 7; i++) {
+            const dt = wRow[`lpcd_date_day${i}`];
+            const val = wRow[`lpcd_value_day${i}`];
+            if (dt) {
+              recordsByDate.set(String(dt).trim(), {
+                scheme_id: schemeId,
+                scheme_name: wRow.scheme_name,
+                village_name: wRow.village_name,
+                data_date: dt,
+                lpcd_value: val,
+              });
+            }
+          }
+        }
+      }
     }
 
     const matchedTicket = logs.find((l: any) => l.ticket_id && l.ticket_id !== '-')?.ticket_id;
@@ -1496,8 +1629,11 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
       db.execute(sql`
         SELECT DISTINCT ON (v.scheme_id, LOWER(TRIM(v.village_name)))
           v.scheme_id, v.scheme_name, v.village_name, v.region, v.circle, v.division, v.sub_division, v.block,
+          COALESCE(ws.population, 0) as population,
+          COALESCE(ws.lpcd_value_day7::text, ws.lpcd_value_day1::text, '-') as lpcd_value,
           'Completed' as status
         FROM village v
+        LEFT JOIN water_scheme_data ws ON ws.scheme_id = v.scheme_id AND LOWER(TRIM(ws.village_name)) = LOWER(TRIM(v.village_name))
         WHERE TRIM(LOWER(v.fully_completion_village_status)) IN ('completed', 'fully completed', 'fully-completed')
           ${isAll ? sql`` : sql`AND v.region ILIKE ${`%${selectedRegion}%`}`}
         ORDER BY v.scheme_id, LOWER(TRIM(v.village_name))

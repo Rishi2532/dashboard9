@@ -59,10 +59,10 @@ import "./init-database.js"; // Initial data cleanup (optional, based on require
 import { initializeDataCleanup } from "./data-cleanup.js"; // Run data cleanup on startup
 import { mqttService } from "./mqtt-service"; // Initialize MQTT service
 import { startDailyAlertsCron } from "./cron/daily-alerts.js"; // Start daily alerts cron
-import { initPiChlorineIngestionCron } from "./cron/pi-chlorine-ingestion.js"; // Start PI Ingestion cron
+// import { initPiChlorineIngestionCron } from "./cron/pi-chlorine-ingestion.js"; // Start PI Ingestion cron
 import { startPiRealtimeAlertsCron } from "./cron/pi-realtime-alerts.js"; // Start PI Real-Time 5-minute alerts engine
 // import { initPiPressureIngestionCron } from "./cron/pi-pressure-ingestion.js"; // Start PI Pressure Ingestion cron
-// import { initPiWaterSchemeIngestionCron } from "./cron/pi-water-scheme-ingestion.js";
+import { initPiWaterSchemeIngestionCron } from "./cron/pi-water-scheme-ingestion.js";
 // import { initPiSchemeLpcdIngestionCron } from "./cron/pi-scheme-lpcd-ingestion.js";
 // import { initPiWaterConsumptionIngestionCron } from "./cron/pi-water-consumption-ingestion.js";
 // import { initPiCommunicationStatusIngestionCron } from "./cron/pi-communication-status-ingestion.js";
@@ -228,10 +228,10 @@ app.use((req, res, next) => {
       setTimeout(() => {
         initializeDataCleanup().catch(console.error);
         startDailyAlertsCron(); // Start the daily alerts cron job
-        initPiChlorineIngestionCron(); // Start PI Web API Sync
+        // initPiChlorineIngestionCron(); // Start PI Web API Sync
         // startPiRealtimeAlertsCron(); // PAUSED: Real-time alerts stopped to prevent excess SMS/Email costs. Start when requested.
         // initPiPressureIngestionCron(); // Start PI Web API Pressure Sync
-        // initPiWaterSchemeIngestionCron();
+        initPiWaterSchemeIngestionCron();
         // initPiSchemeLpcdIngestionCron();
         // initPiWaterConsumptionIngestionCron();
         // initPiCommunicationStatusIngestionCron();
