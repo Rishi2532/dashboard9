@@ -42,8 +42,10 @@ import {
   Calendar,
   Download,
   BarChart3,
-  TrendingUp
+  TrendingUp,
+  FileSpreadsheet
 } from "lucide-react";
+import { downloadAllIssueReportsBackend } from "@/lib/issue-reports-export";
 import { HelpdeskTicket } from "@shared/schema";
 import { format } from "date-fns";
 
@@ -325,8 +327,25 @@ const AdminHelpdeskPage = () => {
           <div>
             <h1 className="text-3xl font-bold">Helpdesk Administration</h1>
             <p className="text-muted-foreground">
-              Manage and resolve support tickets from users
+              Manage and resolve support tickets and field issue reports
             </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300 font-semibold shadow-2xs cursor-pointer"
+              onClick={() => {
+                toast({
+                  title: "Exporting Issue Reports",
+                  description: "Downloading all field issue reports (.xlsx)...",
+                });
+                downloadAllIssueReportsBackend();
+              }}
+              title="Download all field issue reports submitted across schemes, villages, and ESRs to Excel (.xlsx)"
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-2 text-emerald-600" />
+              Download All Issue Reports (.xlsx)
+            </Button>
           </div>
         </div>
 

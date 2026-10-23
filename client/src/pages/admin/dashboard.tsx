@@ -25,7 +25,9 @@ import {
   Gauge,
   HelpCircle,
   UserCheck,
+  FileSpreadsheet,
 } from 'lucide-react';
+import { downloadAllIssueReportsBackend } from '@/lib/issue-reports-export';
 import DashboardLayout from '@/components/dashboard/dashboard-layout';
 import ProtectedRoute from '@/components/auth/protected-route';
 import { useAuth } from '@/hooks/use-auth';
@@ -548,6 +550,23 @@ export default function AdminDashboard() {
     updateRegionMutation.mutate();
   };
 
+  const handleDownloadIssueReports = () => {
+    try {
+      toast({
+        title: "Exporting Issue Reports",
+        description: "Downloading all field issue reports (.xlsx)...",
+      });
+      downloadAllIssueReportsBackend();
+    } catch (err: any) {
+      console.error("Error downloading issue reports:", err);
+      toast({
+        title: "Download Failed",
+        description: err?.message || "Could not download issue reports",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <DashboardLayout>
       {/* Admin Header with gradient */}
@@ -561,7 +580,16 @@ export default function AdminDashboard() {
                 Import data and manage system settings
               </p>
             </div>
-            <div className="mt-4 md:mt-0 flex space-x-3">
+            <div className="mt-4 md:mt-0 flex flex-wrap items-center gap-3">
+              <Button 
+                variant="outline"
+                className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300 font-semibold shadow-2xs"
+                onClick={handleDownloadIssueReports}
+                title="Download all field issue reports submitted across schemes, villages, and ESRs to Excel (.xlsx)"
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-2 text-emerald-600" />
+                Download Issue Reports (.xlsx)
+              </Button>
               <Button 
                 variant="outline"
                 className="border-blue-200 text-blue-700 hover:bg-blue-50"

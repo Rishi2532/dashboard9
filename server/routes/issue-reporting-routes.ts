@@ -10,6 +10,7 @@ import {
     users
 } from "@shared/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
+import * as XLSX from "xlsx";
 
 const router = Router();
 
@@ -338,16 +339,27 @@ router.get("/all", async (req, res) => {
     }
 });
 
-// 7. Get list of issues (Filtered by current user and optional region)
+// 7. Get list of issues (Filtered by current user or all if admin, and optional region)
 router.get("/list", async (req: any, res) => {
     try {
         const db = await getDB();
         const userId = req.session.userId;
         const regionFilter = req.query.region as string;
+        const requestedAll = req.query.all === "true";
 
-        if (!userId) {
+        if (!userId && !req.session?.isAdmin) {
             return res.status(401).json({ message: "Unauthorized" });
         }
+
+        let isAdmin = Boolean(req.session?.isAdmin);
+        if (!isAdmin && userId) {
+            const [u] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+            if (u && (u.role === "admin" || (u as any).isAdmin)) {
+                isAdmin = true;
+            }
+        }
+
+        const showAll = isAdmin || requestedAll;
 
         let query = db
             .select({
@@ -370,10 +382,14 @@ router.get("/list", async (req: any, res) => {
             })
             .from(issueReports)
             .leftJoin(users, eq(issueReports.created_by, users.id))
-            .where(and(
-                eq(issueReports.created_by, userId),
-                regionFilter && regionFilter !== "All Regions" ? eq(issueReports.region, regionFilter) : undefined
-            ))
+            .where(
+                showAll
+                    ? (regionFilter && regionFilter !== "All Regions" ? eq(issueReports.region, regionFilter) : undefined)
+                    : and(
+                        eq(issueReports.created_by, userId),
+                        regionFilter && regionFilter !== "All Regions" ? eq(issueReports.region, regionFilter) : undefined
+                    )
+            )
             .orderBy(desc(issueReports.created_at));
 
         const list = await query;
@@ -385,7 +401,107 @@ router.get("/list", async (req: any, res) => {
     }
 });
 
-// 8. Get unique regions for filtering
+// 8. Export all issue reports to Excel (.xlsx)
+router.get("/export-excel", async (req: any, res) => {
+    try {
+        const db = await getDB();
+        const regionFilter = req.query.region as string;
+
+        const allIssues = await db
+            .select({
+                id: issueReports.id,
+                problem_level: issueReports.problem_level,
+                region: issueReports.region,
+                scheme_id: issueReports.scheme_id,
+                scheme_name: issueReports.scheme_name,
+                village_name: issueReports.village_name,
+                esr_name: issueReports.esr_name,
+                reason: issueReports.reason,
+                status_value: issueReports.status_value,
+                status: issueReports.status,
+                resolution_remark: issueReports.resolution_remark,
+                created_at: issueReports.created_at,
+                resolved_at: issueReports.resolved_at,
+                creator_name: sql`COALESCE(${issueReports.creator_name}, ${users.name}, ${users.username})`,
+                sensor_type: issueReports.sensor_type
+            })
+            .from(issueReports)
+            .leftJoin(users, eq(issueReports.created_by, users.id))
+            .where(
+                regionFilter && regionFilter !== "All Regions" && regionFilter !== "all"
+                    ? eq(issueReports.region, regionFilter)
+                    : undefined
+            )
+            .orderBy(desc(issueReports.created_at));
+
+        const rows = allIssues.map((item, idx) => {
+            const createdDate = item.created_at
+                ? new Date(item.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
+                : "-";
+            const resolvedDate = item.resolved_at
+                ? new Date(item.resolved_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
+                : "-";
+
+            return {
+                "Sr No": idx + 1,
+                "Report ID": `#${item.id}`,
+                "Problem Level": item.problem_level,
+                "Region": item.region || "-",
+                "Scheme ID": item.scheme_id,
+                "Scheme Name": item.scheme_name,
+                "Village Name": item.village_name || "-",
+                "ESR / Location Name": item.esr_name || "-",
+                "Sensor Type": item.sensor_type || "-",
+                "Status / Value": item.status_value || "-",
+                "Issue Reason / Justification": item.reason || "-",
+                "Issue Status": item.status || "Active",
+                "Submitted By": item.creator_name || "Unknown",
+                "Submitted At": createdDate,
+                "Resolution Status": item.status === "Resolved" ? "Resolved" : "Pending",
+                "Resolution Remark": item.resolution_remark || "-",
+                "Resolved At": resolvedDate
+            };
+        });
+
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Issue Reports");
+
+        ws["!cols"] = [
+            { wch: 6 },
+            { wch: 11 },
+            { wch: 14 },
+            { wch: 18 },
+            { wch: 14 },
+            { wch: 32 },
+            { wch: 22 },
+            { wch: 22 },
+            { wch: 16 },
+            { wch: 25 },
+            { wch: 38 },
+            { wch: 14 },
+            { wch: 22 },
+            { wch: 22 },
+            { wch: 16 },
+            { wch: 30 },
+            { wch: 22 },
+        ];
+
+        const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+        const dateStr = new Date().toISOString().split("T")[0];
+        const filename = `MJP_Issue_Reports_${dateStr}.xlsx`;
+
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Length", buffer.length);
+        return res.send(buffer);
+    } catch (error) {
+        console.error("Error exporting issue reports to Excel:", error);
+        res.status(500).json({ message: "Failed to export issue reports" });
+    }
+});
+
+// 9. Get unique regions for filtering
 router.get("/regions", async (req, res) => {
     try {
         const db = await getDB();
@@ -401,27 +517,39 @@ router.get("/regions", async (req, res) => {
     }
 });
 
-// 7. Mark as resolved (Creator only)
+// 10. Mark as resolved (Creator or Admin)
 router.patch("/resolve/:id", async (req: any, res) => {
     const { id } = req.params;
     const { resolution_remark } = req.body;
     const userId = req.session.userId;
 
-    if (!userId) {
+    if (!userId && !req.session?.isAdmin) {
         return res.status(401).json({ message: "Unauthorized" });
     }
 
     try {
         const db = await getDB();
 
-        // Check ownership
+        let isAdmin = Boolean(req.session?.isAdmin);
+        if (!isAdmin && userId) {
+            const [u] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+            if (u && (u.role === "admin" || (u as any).isAdmin)) {
+                isAdmin = true;
+            }
+        }
+
+        // Check ownership or admin
         const [report] = await db
             .select()
             .from(issueReports)
-            .where(and(eq(issueReports.id, parseInt(id)), eq(issueReports.created_by, userId)))
+            .where(eq(issueReports.id, parseInt(id)))
             .limit(1);
 
         if (!report) {
+            return res.status(404).json({ message: "Issue report not found" });
+        }
+
+        if (!isAdmin && report.created_by !== userId) {
             return res.status(403).json({ message: "You can only resolve your own issue reports" });
         }
 

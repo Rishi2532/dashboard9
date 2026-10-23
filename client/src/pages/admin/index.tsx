@@ -47,6 +47,14 @@ const Admin = () => {
             description="Manage support tickets and user requests"
             link="/admin/helpdesk"
           />
+
+          <AdminCard 
+            title="Field Issue Reports"
+            description="Download all issue reports & justifications submitted by engineers across schemes, villages, and ESRs"
+            link="/helpdesk/issue-reporting"
+            downloadUrl="/api/issue-reporting/export-excel"
+            downloadLabel="Download Excel (.xlsx)"
+          />
         </div>
       </div>
     </div>
@@ -54,15 +62,44 @@ const Admin = () => {
 };
 
 // Card component for admin options
-const AdminCard = ({ title, description, link }: { title: string; description: string; link: string }) => {
+const AdminCard = ({ 
+  title, 
+  description, 
+  link,
+  downloadUrl,
+  downloadLabel
+}: { 
+  title: string; 
+  description: string; 
+  link: string;
+  downloadUrl?: string;
+  downloadLabel?: string;
+}) => {
   return (
-    <a 
-      href={link}
-      className="block p-6 bg-white shadow-md rounded-lg hover:shadow-lg transition-shadow border border-gray-100"
-    >
-      <h2 className="text-xl font-semibold mb-2">{title}</h2>
-      <p className="text-gray-600">{description}</p>
-    </a>
+    <div className="flex flex-col justify-between p-6 bg-white shadow-md rounded-lg hover:shadow-lg transition-shadow border border-gray-100">
+      <div>
+        <a href={link} className="hover:text-blue-600 transition-colors">
+          <h2 className="text-xl font-semibold mb-2">{title}</h2>
+        </a>
+        <p className="text-gray-600 mb-4">{description}</p>
+      </div>
+      <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+        <a 
+          href={link}
+          className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+        >
+          Open Page &rarr;
+        </a>
+        {downloadUrl && (
+          <a
+            href={downloadUrl}
+            className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs transition-all"
+          >
+            <span>{downloadLabel || "Download (.xlsx)"}</span>
+          </a>
+        )}
+      </div>
+    </div>
   );
 };
 

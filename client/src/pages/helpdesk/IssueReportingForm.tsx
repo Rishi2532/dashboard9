@@ -29,8 +29,11 @@ import {
     Check,
     ChevronsUpDown,
     Search,
-    FileWarning
+    FileWarning,
+    FileSpreadsheet,
+    Download
 } from "lucide-react";
+import { exportIssueReportsToExcel, downloadAllIssueReportsBackend } from "@/lib/issue-reports-export";
 import {
     Command,
     CommandEmpty,
@@ -216,7 +219,7 @@ SearchableSelect.displayName = "SearchableSelect";
 
 export default function IssueReportingForm() {
     const { toast } = useToast();
-    const { user } = useAuth();
+    const { user, isAdmin } = useAuth();
     const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState("report");
     const [selectedRegion, setSelectedRegion] = useState<string>("All Regions");
@@ -307,6 +310,46 @@ export default function IssueReportingForm() {
             console.log("[IssueReporting] issuesList updated:", issuesList.length, "items");
         }
     }, [issuesList]);
+
+    // Download issues to Excel handler
+    const handleDownloadExcel = async (exportAll: boolean = false) => {
+        try {
+            if (exportAll || (isAdmin && selectedRegion === "All Regions")) {
+                downloadAllIssueReportsBackend(selectedRegion !== "All Regions" ? selectedRegion : undefined);
+                toast({
+                    title: "Downloading Excel",
+                    description: "Preparing and downloading all issue reports...",
+                });
+                return;
+            }
+
+            if (issuesList && issuesList.length > 0) {
+                exportIssueReportsToExcel(
+                    issuesList,
+                    selectedRegion && selectedRegion !== "All Regions"
+                        ? `MJP_Issue_Reports_${selectedRegion.replace(/\s+/g, "_")}`
+                        : "MJP_Issue_Reports"
+                );
+                toast({
+                    title: "Excel Downloaded",
+                    description: `Exported ${issuesList.length} issue report(s).`,
+                });
+            } else {
+                toast({
+                    title: "No Issues Found",
+                    description: "There are no reported issues in this view to download.",
+                    variant: "destructive"
+                });
+            }
+        } catch (error: any) {
+            console.error("Export error:", error);
+            toast({
+                title: "Export Failed",
+                description: error?.message || "Failed to export issue reports.",
+                variant: "destructive"
+            });
+        }
+    };
 
     // Mutations
     const submitMutation = useMutation({
@@ -705,32 +748,66 @@ export default function IssueReportingForm() {
                 </TabsContent>
 
                 <TabsContent value="list">
-                    <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
-                        <div className="w-full sm:w-64">
-                            <Select value={selectedRegion} onValueChange={setSelectedRegion} name="region_filter">
-                                <SelectTrigger id="region_filter" className="w-full border-blue-200">
-                                    <SelectValue placeholder="Filter by Region" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="All Regions">All Regions</SelectItem>
-                                    {regions?.map((r) => (
-                                        <SelectItem key={r.region} value={r.region}>
-                                            {r.region}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                            <div className="w-full sm:w-64">
+                                <Select value={selectedRegion} onValueChange={setSelectedRegion} name="region_filter">
+                                    <SelectTrigger id="region_filter" className="w-full bg-white border-blue-200">
+                                        <SelectValue placeholder="Filter by Region" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="All Regions">All Regions</SelectItem>
+                                        {regions?.map((r) => (
+                                            <SelectItem key={r.region} value={r.region}>
+                                                {r.region}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {isAdmin && (
+                                <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-300 font-semibold text-xs py-1">
+                                    Admin: Viewing All Submissions
+                                </Badge>
+                            )}
                         </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => refetchIssues()}
-                            disabled={isFetchingIssues}
-                            className="text-xs gap-2"
-                        >
-                            <Loader2 className={cn("h-3 w-3", isFetchingIssues && "animate-spin")} />
-                            {isFetchingIssues ? "Refreshing..." : "Refresh List"}
-                        </Button>
+
+                        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDownloadExcel(false)}
+                                className="text-xs gap-1.5 font-bold bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 shadow-2xs cursor-pointer"
+                                title="Download currently displayed issues to Excel (.xlsx)"
+                            >
+                                <FileSpreadsheet className="h-3.5 w-3.5 text-white" />
+                                <span>Download Issues (.xlsx)</span>
+                            </Button>
+
+                            {isAdmin && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleDownloadExcel(true)}
+                                    className="text-xs gap-1.5 font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300 shadow-2xs cursor-pointer"
+                                    title="Download complete database of all issue reports across all regions (.xlsx)"
+                                >
+                                    <Download className="h-3.5 w-3.5 text-emerald-600" />
+                                    <span>Download All (DB)</span>
+                                </Button>
+                            )}
+
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => refetchIssues()}
+                                disabled={isFetchingIssues}
+                                className="text-xs gap-1.5 bg-white border-slate-300 text-slate-700 hover:bg-slate-100"
+                            >
+                                <Loader2 className={cn("h-3 w-3", isFetchingIssues && "animate-spin")} />
+                                {isFetchingIssues ? "Refreshing..." : "Refresh"}
+                            </Button>
+                        </div>
                     </div>
                     <div className="space-y-4">
                         {isLoadingIssues ? (
