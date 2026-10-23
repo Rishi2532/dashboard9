@@ -1522,7 +1522,13 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
     const forceRefresh = req.query.refresh === "true";
     const isAll = !selectedRegion || selectedRegion.toLowerCase() === "all";
 
-    const cacheKey = `${selectedRegion.toLowerCase()}:::${streakThreshold}`;
+    const tier = req.query.tier ? String(req.query.tier).trim() : (streakThreshold <= 7 ? '3' : streakThreshold <= 15 ? '4' : '5');
+    const [dispatchInfo, asOfDateTier] = await Promise.all([
+      getLatestDispatchDateForTier(tier),
+      resolveTelemetryDateForTier(tier, req.query.asOfDate as string),
+    ]);
+
+    const cacheKey = `${selectedRegion.toLowerCase()}:::${streakThreshold}:::${dispatchInfo?.isoDate || 'latest'}`;
     if (!forceRefresh) {
       const cached = level5SummaryCache.get(cacheKey);
       if (cached && Date.now() - cached.timestamp < SUMMARY_CACHE_TTL) {
@@ -1733,7 +1739,11 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
           ${isAll ? sql`` : sql`AND c.region ILIKE ${`%${selectedRegion}%`}`}
         ORDER BY c.scheme_id, LOWER(TRIM(c.village_name)), LOWER(TRIM(c.esr_name))
       `),
-      getEscalationStatus({ region: isAll ? undefined : selectedRegion }),
+      getEscalationStatus({
+        region: isAll ? undefined : selectedRegion,
+        asOfDate: asOfDateTier,
+        dispatchDate: dispatchInfo?.isoDate,
+      }),
       db.execute(sql`
         SELECT scheme_id, 
                json_agg(json_build_object(
@@ -1962,8 +1972,8 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
     const rawEmailList = emailRecordsRes.rows || emailRecordsRes || [];
     
     // Find latest dispatch date for this level
-    let latestDispatchDateStr: string | null = null;
-    if (rawEmailList.length > 0) {
+    let latestDispatchDateStr: string | null = dispatchInfo?.isoDate || null;
+    if (!latestDispatchDateStr && rawEmailList.length > 0) {
       const rawD = rawEmailList[0].dispatch_date;
       latestDispatchDateStr = rawD ? String(rawD).slice(0, 10) : null;
     }
@@ -2208,7 +2218,16 @@ router.get("/export-level-history", async (req: Request, res: Response) => {
         ? "Level 4 - Member Secretary / HO - MJP (15+ Days)" 
         : "Level 5 - Principal Secretary / WSSD Office (20+ Days)";
 
-    const { schemes } = await getEscalationStatus({ region: isAll ? undefined : region });
+    const [dispatchInfo, asOfDateTier] = await Promise.all([
+      getLatestDispatchDateForTier(String(levelNum)),
+      resolveTelemetryDateForTier(String(levelNum), req.query.asOfDate as string),
+    ]);
+
+    const { schemes } = await getEscalationStatus({
+      region: isAll ? undefined : region,
+      asOfDate: asOfDateTier,
+      dispatchDate: dispatchInfo?.isoDate,
+    });
 
     // Generate date columns backwards
     const dateHeaders: string[] = [];

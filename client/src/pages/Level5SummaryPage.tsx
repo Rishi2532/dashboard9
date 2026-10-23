@@ -1291,28 +1291,28 @@ export default function Level5SummaryPage() {
                   <div className="col-span-2 px-4 py-3 text-left text-base sm:text-lg">
                     <ClickableNumber
                       metricKey="lowLpcdSchemes"
-                      value={streakDays > 7 ? 0 : alerts.lowLpcdSchemes}
+                      value={alerts.lowLpcdSchemes}
                       colorClass="text-slate-900"
                     />
                   </div>
                   <div className="col-span-2 px-4 py-3 text-left text-base sm:text-lg">
                     <ClickableNumber
                       metricKey="lowLpcdVillages"
-                      value={streakDays > 7 ? 0 : alerts.lowLpcdVillages}
+                      value={alerts.lowLpcdVillages}
                       colorClass="text-slate-900"
                     />
                   </div>
                   <div className="col-span-2 px-4 py-3 text-left text-base sm:text-lg">
                     <ClickableNumber
                       metricKey="lowPressureEsrs"
-                      value={streakDays > 7 ? 0 : alerts.lowPressureEsrs}
+                      value={alerts.lowPressureEsrs}
                       colorClass="text-slate-900"
                     />
                   </div>
                   <div className="col-span-2 px-4 py-3 text-left text-base sm:text-lg">
                     <ClickableNumber
                       metricKey="residualChlorineOutOfRange"
-                      value={streakDays > 7 ? 0 : alerts.residualChlorineOutOfRange}
+                      value={alerts.residualChlorineOutOfRange}
                       colorClass="text-slate-900"
                     />
                   </div>
