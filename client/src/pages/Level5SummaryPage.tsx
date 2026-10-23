@@ -1315,7 +1315,8 @@ export default function Level5SummaryPage() {
                   </div>
                 </div>
 
-                {/* ROW 6: Emails Sent - Total and Alert-wise (Clickable - Renders Directly Below in Table) */}
+                {/* ROW 6: Emails Sent - Commented out as requested */}
+                {/* 
                 <div className="grid grid-cols-10 bg-[#F0FDF4] text-slate-800 text-sm sm:text-base divide-x divide-slate-300 min-h-[58px] items-center">
                   <div className="col-span-2 px-4 py-3 font-bold text-emerald-800 flex items-center justify-between">
                     <span>Emails Sent</span>
@@ -1398,8 +1399,10 @@ export default function Level5SummaryPage() {
                     </button>
                   </div>
                 </div>
+                */}
 
-                {/* ROW 7: SMS Sent - Total and Alert-wise (Clickable - Renders Directly Below in Table) */}
+                {/* ROW 7: SMS Sent - Commented out as requested */}
+                {/*
                 <div className="grid grid-cols-10 bg-[#EFF6FF] text-slate-800 text-sm sm:text-base divide-x divide-slate-300 min-h-[58px] items-center">
                   <div className="col-span-2 px-4 py-3 font-bold text-blue-900 flex items-center justify-between">
                     <span>SMS Sent</span>
@@ -1482,6 +1485,7 @@ export default function Level5SummaryPage() {
                     </button>
                   </div>
                 </div>
+                */}
               </div>
             </div>
           </div>
@@ -1617,9 +1621,8 @@ export default function Level5SummaryPage() {
                       {!isLowLpcdSchemesMetric && (
                         <th className="py-2.5 px-3 text-center">Persistence & Trend</th>
                       )}
-                      {/* Email Sent and Sms Sent columns commented out */}
-                      {/* <th className="py-2.5 px-3 text-center border-l border-slate-200">Email Sent</th> */}
-                      {/* <th className="py-2.5 px-3 text-center border-l border-slate-200">Sms Sent</th> */}
+                      <th className="py-2.5 px-3 text-center border-l border-slate-200">Email Sent</th>
+                      <th className="py-2.5 px-3 text-center border-l border-slate-200">Sms Sent</th>
                       <th className="py-2.5 px-3 text-center border-l border-slate-200">Field Remarks</th>
                     </tr>
                   </thead>
@@ -1733,8 +1736,8 @@ export default function Level5SummaryPage() {
                               </div>
                             </td>
                           )}
-                          {/* Email Sent Column commented out */}
-                          {/* <td className="py-3 px-3 text-center border-l border-slate-100 align-middle whitespace-nowrap">
+                          {/* Email Sent Column */}
+                          <td className="py-3 px-3 text-center border-l border-slate-100 align-middle whitespace-nowrap">
                             {hasEmail ? (
                               <div className="flex flex-col items-center gap-1 max-w-[210px] mx-auto text-center">
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold border shadow-2xs bg-emerald-50 text-emerald-800 border-emerald-200">
@@ -1800,10 +1803,10 @@ export default function Level5SummaryPage() {
                                 </button>
                               </div>
                             )}
-                          </td> */}
+                          </td>
 
-                          {/* Sms Sent Column commented out */}
-                          {/* <td className="py-3 px-3 text-center border-l border-slate-100 align-middle whitespace-nowrap">
+                          {/* Sms Sent Column */}
+                          <td className="py-3 px-3 text-center border-l border-slate-100 align-middle whitespace-nowrap">
                             <div className="flex flex-col items-center gap-0.5">
                               <div className="flex items-center gap-1.5">
                                 {smsDispatches.delivered > 0 ? (
@@ -1863,7 +1866,7 @@ export default function Level5SummaryPage() {
                                 <span>View Log</span>
                               </button>
                             </div>
-                          </td> */}
+                          </td>
                           <td className="py-3 px-3 text-center border-l border-slate-100 align-middle whitespace-nowrap">
                             {remarksList.length > 0 ? (
                               <button
