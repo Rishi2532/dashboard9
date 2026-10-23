@@ -330,10 +330,13 @@ export default function EscalationPortalPage() {
     let isCancelled = false;
     setSevenDaysLoading(true);
 
-    // Determine evaluation telemetry date (1 day before dispatch date):
-    // Level 1 (AE/DE Daily): latest telemetry is 21-Oct (21 Oct down to 15 Oct)
-    // Level 2, 3, 4, 5: evaluated for 19-Oct dispatches -> telemetry is 18-Oct (18 Oct down to 12 Oct)
-    const resolvedAsOfDate = activeTierNumber === 1 ? "21-Oct" : "18-Oct";
+    const activeDispatchDate = tierLatestInfo[activeTierNumber]?.latestDate;
+    let resolvedAsOfDate: string | undefined = undefined;
+    if (activeDispatchDate) {
+      const telDate = new Date(activeDispatchDate.getTime() - 24 * 60 * 60 * 1000);
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      resolvedAsOfDate = `${telDate.getDate()}-${months[telDate.getMonth()]}`;
+    }
 
     const params = new URLSearchParams({
       schemeId: String(selectedSevenDaysAlert.scheme_id),
@@ -341,8 +344,10 @@ export default function EscalationPortalPage() {
       villageName: String(selectedSevenDaysAlert.village_name || ""),
       esrName: String(selectedSevenDaysAlert.esr_name || ""),
       tier: String(activeTierNumber),
-      asOfDate: resolvedAsOfDate,
     });
+    if (resolvedAsOfDate) {
+      params.set("asOfDate", resolvedAsOfDate);
+    }
 
     fetch(`/api/escalation/alert-history?${params.toString()}`)
       .then((res) => res.json())
@@ -847,24 +852,17 @@ export default function EscalationPortalPage() {
         let maxDate: Date | null = null;
         let maxDateRawStr: string | null = null;
 
-        // If tierNum >= 2 and 2026-10-19 exists with scheduled batch, but a later date only has < 5 emails (e.g. 1 test dispatch on Oct 22),
-        // pick 2026-10-19 as requested so Level 2 (EE) and above show the actual scheduled batch sent date and alerts.
-        if (tierNum >= 2 && dateMap.has("2026-10-19") && (dateMap.get("2026-10-19")?.count ?? 0) >= 5) {
-          const latestEntry = Array.from(dateMap.entries()).sort((a, b) => b[0].localeCompare(a[0]))[0];
-          if (latestEntry && latestEntry[0] > "2026-10-19" && latestEntry[1].count < 5) {
-            const entry19 = dateMap.get("2026-10-19")!;
-            maxDate = entry19.date;
-            maxDateRawStr = "2026-10-19";
+        // Sort entries by date descending to automatically find the latest dispatch date
+        const sortedEntries = Array.from(dateMap.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+        if (sortedEntries.length > 0) {
+          // If the most recent date only has < 3 emails (isolated test dispatch) while a recent date had a full batch (>=3), pick full batch
+          let chosen = sortedEntries[0];
+          if (chosen[1].count < 3 && sortedEntries.length > 1) {
+            const fullBatch = sortedEntries.find(e => e[1].count >= 3);
+            if (fullBatch) chosen = fullBatch;
           }
-        }
-
-        if (!maxDateRawStr) {
-          dateMap.forEach((val, str) => {
-            if (!maxDate || val.date > maxDate) {
-              maxDate = val.date;
-              maxDateRawStr = str;
-            }
-          });
+          maxDate = chosen[1].date;
+          maxDateRawStr = chosen[0];
         }
 
         const latestDateStr = maxDate

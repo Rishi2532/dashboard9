@@ -163,12 +163,13 @@ export async function getEscalationStatus(options: {
   region?: string;
   forceRefresh?: boolean;
   asOfDate?: string;
+  dispatchDate?: string;
 } = {}): Promise<{
   summary: EscalationSummary;
   schemes: SchemeEscalationItem[];
 }> {
   const asOfDate = options.asOfDate || await getLatestTelemetryDate();
-  const cacheKey = `${options.region || 'ALL'}::${asOfDate}::${options.daysLookback || 30}`;
+  const cacheKey = `${options.region || 'ALL'}::${asOfDate}::${options.dispatchDate || 'NO_DISP'}::${options.daysLookback || 30}`;
   if (!options.forceRefresh && cachedEscalationStatus && cachedEscalationStatus.key === cacheKey && (Date.now() - cachedEscalationStatus.timestamp < ESCALATION_STATUS_CACHE_TTL)) {
     return cachedEscalationStatus.data;
   }
@@ -206,7 +207,7 @@ export async function getEscalationStatus(options: {
 
   // Check if actual alerts were generated & logged in email_alert_logs for this evaluation/dispatch date
   const isoDateObj = formatDateOutputs(asOfDate);
-  const targetIsoDate = (isoDateObj?.isoDate || asOfDate).slice(0, 10);
+  const targetIsoDate = (options.dispatchDate || isoDateObj?.isoDate || asOfDate).slice(0, 10);
 
   let allAlerts = historyAlerts;
 
@@ -216,7 +217,11 @@ export async function getEscalationStatus(options: {
       FROM email_alert_logs 
       WHERE (dispatch_type = 'daily' OR dispatch_type IS NULL)
         AND (ticket_id NOT LIKE 'TKT-RT-%' OR ticket_id IS NULL)
-        AND sent_date = ${targetIsoDate}::date
+        AND (
+          (sent_date AT TIME ZONE 'Asia/Kolkata')::date = ${targetIsoDate}::date
+          OR (created_at AT TIME ZONE 'Asia/Kolkata')::date = ${targetIsoDate}::date
+          OR sent_date::date = ${targetIsoDate}::date
+        )
     `);
     const hasDispatchedAlerts = (emailLogCountRes.rows?.[0]?.count || 0) > 0;
 
@@ -229,38 +234,54 @@ export async function getEscalationStatus(options: {
           WHERE alert_type IN ('LPCD', 'Low LPCD')
             AND (ticket_id NOT LIKE 'TKT-RT-%' OR ticket_id IS NULL)
             AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
-            AND sent_date = ${targetIsoDate}::date
+            AND (
+              (sent_date AT TIME ZONE 'Asia/Kolkata')::date = ${targetIsoDate}::date
+              OR (created_at AT TIME ZONE 'Asia/Kolkata')::date = ${targetIsoDate}::date
+              OR sent_date::date = ${targetIsoDate}::date
+            )
           ORDER BY ticket_id, created_at DESC
         `),
         db.execute(sql`
-          SELECT DISTINCT ON (scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), sent_date)
+          SELECT DISTINCT ON (scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), (sent_date AT TIME ZONE 'Asia/Kolkata')::date)
             scheme_id, scheme_name, region, village_name, esr_name, ticket_id, alert_type, alert_value, telemetry_date
           FROM email_alert_logs
           WHERE alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine')
             AND (ticket_id NOT LIKE 'TKT-RT-%' OR ticket_id IS NULL)
             AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
-            AND sent_date = ${targetIsoDate}::date
-          ORDER BY scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), sent_date, created_at DESC
+            AND (
+              (sent_date AT TIME ZONE 'Asia/Kolkata')::date = ${targetIsoDate}::date
+              OR (created_at AT TIME ZONE 'Asia/Kolkata')::date = ${targetIsoDate}::date
+              OR sent_date::date = ${targetIsoDate}::date
+            )
+          ORDER BY scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), (sent_date AT TIME ZONE 'Asia/Kolkata')::date, created_at DESC
         `),
         db.execute(sql`
-          SELECT DISTINCT ON (scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), sent_date)
+          SELECT DISTINCT ON (scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), (sent_date AT TIME ZONE 'Asia/Kolkata')::date)
             scheme_id, scheme_name, region, village_name, esr_name, ticket_id, alert_type, alert_value, telemetry_date
           FROM email_alert_logs
           WHERE alert_type IN ('Pressure', 'Low Pressure')
             AND (ticket_id NOT LIKE 'TKT-RT-%' OR ticket_id IS NULL)
             AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
-            AND sent_date = ${targetIsoDate}::date
-          ORDER BY scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), sent_date, created_at DESC
+            AND (
+              (sent_date AT TIME ZONE 'Asia/Kolkata')::date = ${targetIsoDate}::date
+              OR (created_at AT TIME ZONE 'Asia/Kolkata')::date = ${targetIsoDate}::date
+              OR sent_date::date = ${targetIsoDate}::date
+            )
+          ORDER BY scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), (sent_date AT TIME ZONE 'Asia/Kolkata')::date, created_at DESC
         `),
         db.execute(sql`
-          SELECT DISTINCT ON (scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), sent_date)
+          SELECT DISTINCT ON (scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), (sent_date AT TIME ZONE 'Asia/Kolkata')::date)
             scheme_id, scheme_name, region, village_name, esr_name, ticket_id, alert_type, alert_value, telemetry_date
           FROM email_alert_logs
           WHERE alert_type ILIKE '%Offline%'
             AND (ticket_id NOT LIKE 'TKT-RT-%' OR ticket_id IS NULL)
             AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
-            AND sent_date = ${targetIsoDate}::date
-          ORDER BY scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), sent_date, created_at DESC
+            AND (
+              (sent_date AT TIME ZONE 'Asia/Kolkata')::date = ${targetIsoDate}::date
+              OR (created_at AT TIME ZONE 'Asia/Kolkata')::date = ${targetIsoDate}::date
+              OR sent_date::date = ${targetIsoDate}::date
+            )
+          ORDER BY scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), (sent_date AT TIME ZONE 'Asia/Kolkata')::date, created_at DESC
         `),
       ]);
 

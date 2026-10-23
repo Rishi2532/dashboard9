@@ -115,32 +115,47 @@ router.get("/sent-alerts", async (req: Request, res: Response) => {
 });
 
 /**
- * Maps a tier or dispatch date to its evaluated telemetry date (1 day before dispatch date).
- * Tier 1: latest telemetry is 21-Oct (evaluated for 22-Oct daily dispatch).
- * Tier 2, 3, 4, 5: evaluated for 19-Oct dispatches -> telemetry is 18-Oct.
+ * Automatically maps a tier or dispatch date to its evaluated telemetry date (1 day before dispatch date).
+ * Queries the database for the tier's latest email dispatch, and computes the evaluated telemetry date.
+ * When new alerts/emails are sent for any level, it dynamically and automatically reflects the new date.
  */
-function resolveTelemetryDateForTier(tier?: string | number, asOfDateInput?: string): string {
+async function resolveTelemetryDateForTier(tier?: string | number, asOfDateInput?: string): Promise<string> {
   if (asOfDateInput && asOfDateInput !== 'undefined' && asOfDateInput !== 'null') {
     const raw = asOfDateInput.trim();
-    const d = parseHistoryDate(raw);
-    if (d) {
-      const day = d.getUTCDate();
-      const mon = d.getUTCMonth(); // 9 for Oct
-      if (mon === 9 && (day === 22 || day === 19)) {
+    // If it's a full ISO date YYYY-MM-DD (e.g. from dispatch_date '2026-10-23')
+    if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
+      const d = parseHistoryDate(raw);
+      if (d) {
         const telD = new Date(d.getTime() - 24 * 60 * 60 * 1000);
         return `${telD.getUTCDate()}-${MONTHS_SHORT[telD.getUTCMonth()]}`;
       }
-      return `${day}-${MONTHS_SHORT[mon]}`;
+    }
+    // If it's in DD-Mon format (e.g. '22-Oct'), return as is
+    const d = parseHistoryDate(raw);
+    if (d) {
+      return `${d.getUTCDate()}-${MONTHS_SHORT[d.getUTCMonth()]}`;
     }
     return raw;
   }
 
-  const t = String(tier || '1').trim();
-  if (t === '1') {
-    return '21-Oct';
+  const tStr = tier ? String(tier).trim() : '1';
+  try {
+    const dispatchInfo = await getLatestDispatchDateForTier(tStr);
+    if (dispatchInfo?.isoDate) {
+      const d = parseHistoryDate(dispatchInfo.isoDate);
+      if (d) {
+        // Telemetry date evaluated for the dispatch is always 1 day before dispatch date
+        const telD = new Date(d.getTime() - 24 * 60 * 60 * 1000);
+        return `${telD.getUTCDate()}-${MONTHS_SHORT[telD.getUTCMonth()]}`;
+      }
+    }
+  } catch (err) {
+    console.error(`Error resolving telemetry date for tier ${tier}:`, err);
   }
-  // Levels 2, 3, 4, 5 were evaluated for their 19-Oct dispatches (telemetry is 18-Oct)
-  return '18-Oct';
+
+  // Fallback to latest available telemetry in database
+  const latestTel = await getLatestTelemetryDate();
+  return latestTel || '22-Oct';
 }
 
 /**
@@ -150,21 +165,21 @@ function resolveTelemetryDateForTier(tier?: string | number, asOfDateInput?: str
 router.get("/summary", async (req: Request, res: Response) => {
   try {
     const region = req.query.region ? String(req.query.region) : undefined;
-    const tier = req.query.tier ? String(req.query.tier).trim() : '1';
-
-    const asOfDateTier = resolveTelemetryDateForTier(tier, req.query.asOfDate as string);
-    const asOfDateTier1 = resolveTelemetryDateForTier('1');
+    const tier = req.query.tier ? String(req.query.tier) : '1';
+    const [asOfDateTier, asOfDateTier1, tierInfo, tier1Info] = await Promise.all([
+      resolveTelemetryDateForTier(tier, req.query.asOfDate as string),
+      resolveTelemetryDateForTier('1'),
+      getLatestDispatchDateForTier(tier),
+      getLatestDispatchDateForTier('1'),
+    ]);
 
     const [statusTier, statusTier1] = await Promise.all([
-      getEscalationStatus({ region, asOfDate: asOfDateTier }),
-      tier === '1' ? null : getEscalationStatus({ region, asOfDate: asOfDateTier1 }),
+      getEscalationStatus({ region, asOfDate: asOfDateTier, dispatchDate: tierInfo?.isoDate }),
+      tier === '1' ? null : getEscalationStatus({ region, asOfDate: asOfDateTier1, dispatchDate: tier1Info?.isoDate }),
     ]);
 
     const activeStatus = statusTier;
     const baseStatus = tier === '1' ? statusTier : (statusTier1 || statusTier);
-
-    const tierInfo = await getLatestDispatchDateForTier(tier);
-    const tier1Info = tier === '1' ? tierInfo : await getLatestDispatchDateForTier('1');
 
     res.json({
       success: true,
@@ -218,7 +233,7 @@ router.get("/alert-history", async (req: Request, res: Response) => {
     const villageName = req.query.villageName ? String(req.query.villageName).trim() : "";
     const esrName = req.query.esrName ? String(req.query.esrName).trim() : "";
     const tier = req.query.tier ? String(req.query.tier).trim() : "1";
-    const asOfDate = resolveTelemetryDateForTier(tier, req.query.asOfDate as string);
+    const asOfDate = await resolveTelemetryDateForTier(tier, req.query.asOfDate as string);
 
     if (!schemeId) {
       return res.status(400).json({ error: "schemeId is required" });
