@@ -52,6 +52,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import * as XLSX from "xlsx";
 
 const REGIONS = [
   "All",
@@ -1891,6 +1892,110 @@ export default function EscalationPortalPage() {
     return filteredCategoryAlerts.slice(start, start + pageSize);
   }, [filteredCategoryAlerts, page, pageSize]);
 
+  // Export Alerts to Excel (.xlsx) including Village and ESR names
+  const exportAlertsListToExcel = (
+    alertsList: any[],
+    categoryLabel: string,
+    dispatchedOnly: boolean = false
+  ) => {
+    const dataset = dispatchedOnly
+      ? alertsList.filter((item: any) => {
+          const schemeEmails = (emailsByScheme.get(String(item.scheme_id)) || []).filter(
+            (a: any) => Number(a.tier) === activeTierNumber
+          );
+          return (schemeEmails.length > 0 || hasActiveLevelEmails) && item.officer_email;
+        })
+      : alertsList;
+
+    if (!dataset || dataset.length === 0) {
+      toast({
+        title: "No Alerts To Export",
+        description: `There are no ${dispatchedOnly ? 'dispatched ' : ''}alerts found for ${categoryLabel}.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const rows = dataset.map((item: any, idx: number) => {
+      const schemeEmails = (emailsByScheme.get(String(item.scheme_id)) || []).filter(
+        (a: any) => Number(a.tier) === activeTierNumber
+      );
+      const isSent = (schemeEmails.length > 0 || hasActiveLevelEmails) && item.officer_email;
+      const emailStatus = isSent
+        ? (item.isDualOfficer ? `Sent (${activeLatestDateStr || "Dispatched"})` : `Sent (${activeLatestDateStr || "Dispatched"})`)
+        : getEmailDispatchReason(item, activeLayer).label;
+
+      const allSchemeSms = smsByScheme.get(String(item.scheme_id)) || [];
+      const smsList = getMatchingSmsForAlert(item, allSchemeSms, activeTierNumber);
+      const smsSuccessCount = smsList.filter((s: any) => isSmsSuccess(s)).length;
+      const smsStatus = smsList.length > 0
+        ? (smsSuccessCount === smsList.length ? `Delivered (${smsList.length})` : smsSuccessCount > 0 ? `Partial (${smsSuccessCount}/${smsList.length})` : `Failed (${smsList.length})`)
+        : getSmsDispatchReason(item, activeLayer).label;
+
+      const remarksText = item.remarks && item.remarks.length > 0
+        ? `${item.remarks.length} remark(s): ${item.remarks.map((r: any) => r.reason).filter(Boolean).join('; ')}`
+        : 'No Remarks';
+
+      const officerEmail = item.isDualOfficer && item.se_officer && item.ce_officer
+        ? `${item.se_officer.email}; ${item.ce_officer.email}`
+        : (item.officer_email || '');
+
+      return {
+        "Sr No": idx + 1,
+        "Scheme ID": item.scheme_id,
+        "Scheme Name": item.scheme_name,
+        "Region": item.region || selectedRegion,
+        "District": item.district || '',
+        "Alert Category": toTitleCase(item.category || ''),
+        "Village Name": item.village_name || '-',
+        "ESR / Location Name": item.esr_name && item.esr_name !== '-' ? item.esr_name : (item.village_name || '-'),
+        "Alert Title": item.alert_title,
+        "Parameter / Recorded Value": item.parameter_value,
+        "Continuous Streak (Days)": item.days_since || minStreakForLevel,
+        "Email Alert Sent Status": emailStatus,
+        "SMS Delivery Status": smsStatus,
+        "Assigned Officer Name": item.officer_name,
+        "Officer Designation": item.officer_role,
+        "Officer Email": officerEmail,
+        "Officer Mobile": item.officer_mobile || '-',
+        "Field Remarks": remarksText
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    const safeSheet = `${toTitleCase(categoryLabel).slice(0, 25)} Alerts`;
+    XLSX.utils.book_append_sheet(wb, ws, safeSheet);
+
+    ws['!cols'] = [
+      { wch: 6 },
+      { wch: 11 },
+      { wch: 30 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 22 },
+      { wch: 24 },
+      { wch: 32 },
+      { wch: 20 },
+      { wch: 15 },
+      { wch: 22 },
+      { wch: 18 },
+      { wch: 24 },
+      { wch: 22 },
+      { wch: 28 },
+      { wch: 16 },
+      { wch: 30 },
+    ];
+
+    const fileName = `MJP_Level${activeTierNumber}_${categoryLabel.replace(/[\s\/\(\)]+/g, '_')}_Alerts_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    toast({
+      title: "Excel Downloaded",
+      description: `Exported ${rows.length} alerts for ${categoryLabel} with Village and ESR names.`,
+    });
+  };
+
   // Export to CSV function
   const exportCurrentTableToCSV = () => {
     if (filteredCategoryAlerts.length === 0) return;
@@ -2179,21 +2284,7 @@ export default function EscalationPortalPage() {
                 Refresh
               </Button>
 
-              <Button
-                size="sm"
-                asChild
-                className="h-8 text-xs bg-slate-800 hover:bg-slate-900 text-white font-medium shadow-xs"
-              >
-                <a
-                  href={`/api/escalation/export-excel?level=${activeTierNumber}${activeCategory !== "all" ? `&category=${activeCategory}` : ""}${selectedRegion !== "All" ? `&region=${encodeURIComponent(selectedRegion)}` : ""}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  title={`Export Level ${activeTierNumber} email dispatches${activeCategory !== "all" ? ` for ${activeCategory.toUpperCase()}` : ""}`}
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5" />
-                  Level {activeTierNumber} Excel{activeCategory !== "all" ? ` (${activeCategory.toUpperCase()})` : ""}
-                </a>
-              </Button>
+
 
               <Button
                 size="sm"
@@ -2254,17 +2345,6 @@ export default function EscalationPortalPage() {
                   Total Emails Sent
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <a
-                    href={`/api/escalation/export-overall-dispatches${activeCategory !== "all" ? `?category=${activeCategory}` : ""}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-[10px] text-emerald-800 bg-emerald-100 hover:bg-emerald-200 px-1.5 py-0.5 rounded font-bold inline-flex items-center gap-1 border border-emerald-300"
-                    title={`Download complete overall email dispatches Excel${activeCategory !== "all" ? ` (${activeCategory.toUpperCase()})` : ""}`}
-                  >
-                    <FileSpreadsheet className="w-3 h-3 text-emerald-700" />
-                    Excel{activeCategory !== "all" ? ` (${activeCategory.toUpperCase()})` : ""}
-                  </a>
                   <span className="text-[10px] text-blue-700 bg-blue-100 group-hover:bg-blue-200 px-1.5 py-0.5 rounded font-bold inline-flex items-center gap-0.5">
                     View Logs &rarr;
                   </span>
@@ -2364,24 +2444,6 @@ export default function EscalationPortalPage() {
                   </span>
                 </div>
               </div>
-
-              <a
-                href={`/api/escalation/export-excel?level=1${activeCategory !== "all" ? `&category=${activeCategory}` : ""}`}
-                target="_blank"
-                rel="noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="block"
-                title={`Download Level 1 (AE/DE) Email Dispatches${activeCategory !== "all" ? ` for ${activeCategory.toUpperCase()}` : ""}`}
-              >
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full h-7 text-[11px] font-semibold flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 border-slate-300 text-slate-700 shadow-2xs"
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                  Download Excel{activeCategory !== "all" ? ` (${activeCategory.toUpperCase()})` : ""}
-                </Button>
-              </a>
             </div>
           </div>
 
@@ -2438,24 +2500,6 @@ export default function EscalationPortalPage() {
                   </span>
                 </div>
               </div>
-
-              <a
-                href={`/api/escalation/export-excel?level=2${activeCategory !== "all" ? `&category=${activeCategory}` : ""}`}
-                target="_blank"
-                rel="noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="block"
-                title={`Download Level 2 (EE) Email Dispatches${activeCategory !== "all" ? ` for ${activeCategory.toUpperCase()}` : ""}`}
-              >
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full h-7 text-[11px] font-semibold flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 border-slate-300 text-slate-700 shadow-2xs"
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                  Download Excel{activeCategory !== "all" ? ` (${activeCategory.toUpperCase()})` : ""}
-                </Button>
-              </a>
             </div>
           </div>
 
@@ -2524,24 +2568,6 @@ export default function EscalationPortalPage() {
                   </span>
                 </div>
               </div>
-
-              <a
-                href={`/api/escalation/export-excel?level=3${activeCategory !== "all" ? `&category=${activeCategory}` : ""}`}
-                target="_blank"
-                rel="noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="block"
-                title={`Download Level 3 (CE & SE) Email Dispatches${activeCategory !== "all" ? ` for ${activeCategory.toUpperCase()}` : ""}`}
-              >
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full h-7 text-[11px] font-semibold flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 border-slate-300 text-slate-700 shadow-2xs"
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                  Download Excel{activeCategory !== "all" ? ` (${activeCategory.toUpperCase()})` : ""}
-                </Button>
-              </a>
             </div>
           </div>
 
@@ -2598,24 +2624,6 @@ export default function EscalationPortalPage() {
                   </span>
                 </div>
               </div>
-
-              <a
-                href={`/api/escalation/export-excel?level=4${activeCategory !== "all" ? `&category=${activeCategory}` : ""}`}
-                target="_blank"
-                rel="noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="block"
-                title={`Download Level 4 (Head - MJP) Email Dispatches${activeCategory !== "all" ? ` for ${activeCategory.toUpperCase()}` : ""}`}
-              >
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full h-7 text-[11px] font-semibold flex items-center justify-center gap-1.5 bg-purple-50 hover:bg-purple-100 border-purple-300 text-purple-950 shadow-2xs"
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-purple-700" />
-                  Download Excel{activeCategory !== "all" ? ` (${activeCategory.toUpperCase()})` : ""}
-                </Button>
-              </a>
             </div>
           </div>
 
@@ -2673,24 +2681,6 @@ export default function EscalationPortalPage() {
                   </span>
                 </div>
               </div>
-
-              <a
-                href={`/api/escalation/export-excel?level=5${activeCategory !== "all" ? `&category=${activeCategory}` : ""}`}
-                target="_blank"
-                rel="noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="block"
-                title={`Download Level 5 (Head - WSSD) Email Dispatches${activeCategory !== "all" ? ` for ${activeCategory.toUpperCase()}` : ""}`}
-              >
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full h-7 text-[11px] font-semibold flex items-center justify-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 border-indigo-300 text-indigo-950 shadow-2xs"
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-700" />
-                  Download Excel{activeCategory !== "all" ? ` (${activeCategory.toUpperCase()})` : ""}
-                </Button>
-              </a>
             </div>
           </div>
 
@@ -2785,6 +2775,23 @@ export default function EscalationPortalPage() {
                       : `${levelCategoryDispatches.lpcd.sms} Sms`}
                   </span>
                 </div>
+
+                <div className="mt-2.5 pt-2 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveCategory("lpcd");
+                      setPage(1);
+                      exportAlertsListToExcel(lpcdAlerts, "Low Village LPCD");
+                    }}
+                    className="w-full py-1.5 px-2 rounded-md text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                    title="Download LPCD Alerts Excel with Village and ESR names"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-white" />
+                    <span>Download LPCD Alerts (.xlsx)</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -2843,6 +2850,23 @@ export default function EscalationPortalPage() {
                       : `${levelCategoryDispatches.chlorine.sms} Sms`}
                   </span>
                 </div>
+
+                <div className="mt-2.5 pt-2 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveCategory("chlorine");
+                      setPage(1);
+                      exportAlertsListToExcel(chlorineAlerts, "Residual Chlorine Out Of Range");
+                    }}
+                    className="w-full py-1.5 px-2 rounded-md text-xs font-bold bg-teal-700 hover:bg-teal-800 text-white flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                    title="Download Chlorine Alerts Excel with Village and ESR names"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-white" />
+                    <span>Download Chlorine Alerts (.xlsx)</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -2900,6 +2924,23 @@ export default function EscalationPortalPage() {
                       ? `${activeLatestDateStr}: ${levelCategoryDispatches.pressure.sms} Sms`
                       : `${levelCategoryDispatches.pressure.sms} Sms`}
                   </span>
+                </div>
+
+                <div className="mt-2.5 pt-2 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveCategory("pressure");
+                      setPage(1);
+                      exportAlertsListToExcel(pressureAlerts, "Low Water Pressure");
+                    }}
+                    className="w-full py-1.5 px-2 rounded-md text-xs font-bold bg-amber-700 hover:bg-amber-800 text-white flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                    title="Download Pressure Alerts Excel with Village and ESR names"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-white" />
+                    <span>Download Pressure Alerts (.xlsx)</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -2965,6 +3006,23 @@ export default function EscalationPortalPage() {
                       ? `${activeLatestDateStr}: ${levelCategoryDispatches.offline.sms} Sms`
                       : `${levelCategoryDispatches.offline.sms} Sms`}
                   </span>
+                </div>
+
+                <div className="mt-2.5 pt-2 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveCategory("offline");
+                      setPage(1);
+                      exportAlertsListToExcel(offlineAlerts, "Offline Sensors");
+                    }}
+                    className="w-full py-1.5 px-2 rounded-md text-xs font-bold bg-rose-700 hover:bg-rose-800 text-white flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                    title="Download Offline Alerts Excel with Village and ESR names"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-white" />
+                    <span>Download Offline Alerts (.xlsx)</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -3093,50 +3151,31 @@ export default function EscalationPortalPage() {
                   )}
                 </div>
 
+                {/* Download Alerts Excel (.xlsx) with Village and ESR names */}
+                <Button
+                  size="sm"
+                  onClick={() => exportAlertsListToExcel(
+                    filteredCategoryAlerts,
+                    activeCategory === "all" ? `Level_${activeTierNumber}_All` : `${activeCategory}`,
+                    dispatchViewFilter === "dispatched"
+                  )}
+                  className="h-8 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 shrink-0 shadow-2xs cursor-pointer"
+                  title="Download alerts Excel with Village and ESR names"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-white" />
+                  <span>Download Alerts Excel (.xlsx)</span>
+                </Button>
+
                 {/* Export CSV Button */}
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={exportCurrentTableToCSV}
-                  className="h-8 text-xs font-medium border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center gap-1.5 shrink-0"
+                  className="h-8 text-xs font-medium border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center gap-1.5 shrink-0 cursor-pointer"
+                  title="Export current table view to CSV"
                 >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                  Export CSV
-                </Button>
-
-                {/* Level {N} Excel for the active level */}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  asChild
-                  className="h-8 text-xs font-semibold border-emerald-600 text-emerald-800 hover:bg-emerald-50 flex items-center gap-1.5 shrink-0 shadow-2xs"
-                >
-                  <a
-                    href={`/api/escalation/export-excel?level=${activeTierNumber}${activeCategory !== "all" ? `&category=${activeCategory}` : ""}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    title={`Download Level ${activeTierNumber} email dispatches${activeCategory !== "all" ? ` for ${activeCategory.toUpperCase()}` : ""}`}
-                  >
-                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                    Level {activeTierNumber} Excel{activeCategory !== "all" ? ` (${activeCategory.toUpperCase()})` : ""}
-                  </a>
-                </Button>
-
-                {/* Overall Dispatches Excel Report */}
-                <Button
-                  size="sm"
-                  asChild
-                  className="h-8 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white flex items-center gap-1.5 shrink-0 shadow-2xs"
-                >
-                  <a
-                    href={`/api/escalation/export-overall-dispatches${activeCategory !== "all" ? `?category=${activeCategory}` : ""}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    title={`Export complete multi-level breakdown with Overview sheet + Level sheets${activeCategory !== "all" ? ` (Filtered to ${activeCategory.toUpperCase()})` : ""}`}
-                  >
-                    <FileSpreadsheet className="w-3.5 h-3.5 text-white" />
-                    Overall Dispatches (Excel){activeCategory !== "all" ? ` - ${activeCategory.toUpperCase()}` : ""}
-                  </a>
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-slate-600" />
+                  <span>CSV</span>
                 </Button>
               </div>
             </div>

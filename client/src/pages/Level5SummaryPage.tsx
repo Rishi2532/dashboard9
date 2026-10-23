@@ -513,12 +513,11 @@ export default function Level5SummaryPage() {
         { key: "circle", label: "Circle" },
         { key: "division", label: "Division" },
         { key: "block", label: "Block" },
-        { key: "status", label: "Water Supply" },
         { key: "remarks", label: "Field Remarks" },
       ],
     },
     operationalVillages: {
-      title: "Operational - Villages (Water Supply = Yes)",
+      title: "Operational - Connected Villages",
       section: "Operational",
       columns: [
         { key: "scheme_id", label: "Scheme ID" },
@@ -530,11 +529,10 @@ export default function Level5SummaryPage() {
         { key: "block", label: "Block" },
         { key: "population", label: "Population" },
         { key: "lpcd_value", label: "Latest LPCD" },
-        { key: "status", label: "Water Supply" },
       ],
     },
     operationalEsr: {
-      title: "Operational - ESRs (Water Supply = Yes)",
+      title: "Operational - Connected ESRs",
       section: "Operational",
       columns: [
         { key: "scheme_id", label: "Scheme ID" },
@@ -545,7 +543,6 @@ export default function Level5SummaryPage() {
         { key: "circle", label: "Circle" },
         { key: "division", label: "Division" },
         { key: "block", label: "Block" },
-        { key: "status", label: "Water Supply" },
       ],
     },
     lowLpcdSchemes: {
@@ -1550,18 +1547,25 @@ export default function Level5SummaryPage() {
                   <span>Download Excel (.xlsx)</span>
                 </Button>
 
-                {/* Detailed Level History Multi-sheet Excel */}
-                <Button
-                  onClick={() => {
-                    const url = `/api/escalation/export-level-history?days=${streakDays}&region=${encodeURIComponent(selectedRegion)}`;
-                    window.open(url, "_blank");
-                  }}
-                  className="h-9 px-3 gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-sm"
-                  title={`Download detailed ${streakDays <= 7 ? "7 Days" : streakDays <= 15 ? "15 Days" : "20+ Days"} history multi-sheet Excel (.xlsx)`}
-                >
-                  <FileSpreadsheet className="h-4 w-4" />
-                  <span>Download {streakDays <= 7 ? "7 Days" : streakDays <= 15 ? "15 Days" : "20+ Days"} History (.xlsx)</span>
-                </Button>
+                {/* Detailed Level History Multi-sheet Excel - visible only for Result Alerts, Email, and SMS lists */}
+                {Boolean(
+                  selectedMetric &&
+                  !selectedMetric.startsWith("iot") &&
+                  !selectedMetric.startsWith("operational") &&
+                  !selectedMetric.startsWith("scope")
+                ) && (
+                  <Button
+                    onClick={() => {
+                      const url = `/api/escalation/export-level-history?days=${streakDays}&region=${encodeURIComponent(selectedRegion)}`;
+                      window.open(url, "_blank");
+                    }}
+                    className="h-9 px-3 gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-sm"
+                    title={`Download detailed ${streakDays <= 7 ? "7 Days" : streakDays <= 15 ? "15 Days" : "20+ Days"} history multi-sheet Excel (.xlsx)`}
+                  >
+                    <FileSpreadsheet className="h-4 w-4" />
+                    <span>Download {streakDays <= 7 ? "7 Days" : streakDays <= 15 ? "15 Days" : "20+ Days"} History (.xlsx)</span>
+                  </Button>
+                )}
 
                 {/* Close Button */}
                 <Button
