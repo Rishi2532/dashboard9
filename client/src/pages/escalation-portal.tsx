@@ -1962,38 +1962,49 @@ export default function EscalationPortalPage() {
       };
     });
 
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    const safeSheet = `${toTitleCase(categoryLabel).slice(0, 25)} Alerts`;
-    XLSX.utils.book_append_sheet(wb, ws, safeSheet);
+    try {
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      const rawSheet = `${toTitleCase(categoryLabel || 'Alerts')} Alerts`;
+      const safeSheet = rawSheet.slice(0, 31).replace(/[\/\\?*[\]]/g, "_");
+      XLSX.utils.book_append_sheet(wb, ws, safeSheet);
 
-    ws['!cols'] = [
-      { wch: 6 },
-      { wch: 11 },
-      { wch: 30 },
-      { wch: 18 },
-      { wch: 16 },
-      { wch: 14 },
-      { wch: 22 },
-      { wch: 24 },
-      { wch: 32 },
-      { wch: 20 },
-      { wch: 15 },
-      { wch: 22 },
-      { wch: 18 },
-      { wch: 24 },
-      { wch: 22 },
-      { wch: 28 },
-      { wch: 16 },
-      { wch: 30 },
-    ];
+      ws['!cols'] = [
+        { wch: 6 },
+        { wch: 11 },
+        { wch: 30 },
+        { wch: 18 },
+        { wch: 16 },
+        { wch: 14 },
+        { wch: 22 },
+        { wch: 24 },
+        { wch: 32 },
+        { wch: 20 },
+        { wch: 15 },
+        { wch: 22 },
+        { wch: 18 },
+        { wch: 24 },
+        { wch: 22 },
+        { wch: 28 },
+        { wch: 16 },
+        { wch: 30 },
+      ];
 
-    const fileName = `MJP_Level${activeTierNumber}_${categoryLabel.replace(/[\s\/\(\)]+/g, '_')}_Alerts_${new Date().toISOString().split('T')[0]}.xlsx`;
-    XLSX.writeFile(wb, fileName);
-    toast({
-      title: "Excel Downloaded",
-      description: `Exported ${rows.length} alerts for ${categoryLabel} with Village and ESR names.`,
-    });
+      const safeCategoryName = (categoryLabel || 'Alerts').replace(/[\s\/\(\)]+/g, '_').slice(0, 40);
+      const fileName = `MJP_Level${activeTierNumber}_${safeCategoryName}_Alerts_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      toast({
+        title: "Excel Downloaded",
+        description: `Exported ${rows.length} alerts for ${categoryLabel} with Village and ESR names.`,
+      });
+    } catch (err: any) {
+      console.error("Failed to export alerts to Excel:", err);
+      toast({
+        title: "Export Failed",
+        description: err?.message || "An unexpected error occurred while generating Excel.",
+        variant: "destructive"
+      });
+    }
   };
 
   // Export to CSV function
