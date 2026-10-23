@@ -329,14 +329,21 @@ export default function EscalationPortalPage() {
     }
     let isCancelled = false;
     setSevenDaysLoading(true);
+
+    // Determine evaluation telemetry date (1 day before dispatch date):
+    // Level 1 (AE/DE Daily): latest telemetry is 21-Oct (21 Oct down to 15 Oct)
+    // Level 2, 3, 4, 5: evaluated for 19-Oct dispatches -> telemetry is 18-Oct (18 Oct down to 12 Oct)
+    const resolvedAsOfDate = activeTierNumber === 1 ? "21-Oct" : "18-Oct";
+
     const params = new URLSearchParams({
       schemeId: String(selectedSevenDaysAlert.scheme_id),
       category: String(selectedSevenDaysAlert.category || "all"),
       villageName: String(selectedSevenDaysAlert.village_name || ""),
       esrName: String(selectedSevenDaysAlert.esr_name || ""),
       tier: String(activeTierNumber),
-      asOfDate: activeTierNumber === 1 ? "20-Oct" : "18-Oct",
+      asOfDate: resolvedAsOfDate,
     });
+
     fetch(`/api/escalation/alert-history?${params.toString()}`)
       .then((res) => res.json())
       .then((json) => {
@@ -354,7 +361,7 @@ export default function EscalationPortalPage() {
     return () => {
       isCancelled = true;
     };
-  }, [selectedSevenDaysAlert]);
+  }, [selectedSevenDaysAlert, activeTierNumber]);
 
   // Region Filter State (All, Pune, Nashik, etc.)
   const [selectedRegion, setSelectedRegion] = useState<string>("All");
@@ -528,13 +535,16 @@ export default function EscalationPortalPage() {
     }
   };
 
-  // Fetch summary and schemes (filtered by selectedRegion if selected)
+  // Fetch summary and schemes (filtered by selectedRegion and activeTierNumber)
   const { data, isLoading, isError, refetch, isFetching } = useQuery<EscalationSummaryResponse>({
-    queryKey: ["/api/escalation/summary", selectedRegion],
+    queryKey: ["/api/escalation/summary", selectedRegion, activeTierNumber],
     queryFn: async () => {
-      const url = selectedRegion && selectedRegion !== "All"
-        ? `/api/escalation/summary?region=${encodeURIComponent(selectedRegion)}`
-        : "/api/escalation/summary";
+      const params = new URLSearchParams();
+      if (selectedRegion && selectedRegion !== "All") {
+        params.set("region", selectedRegion);
+      }
+      params.set("tier", String(activeTierNumber));
+      const url = `/api/escalation/summary?${params.toString()}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to load escalation status");
       return res.json();
@@ -809,26 +819,53 @@ export default function EscalationPortalPage() {
         }
 
         // Find max date for email
-        let maxDate: Date | null = null;
-        let maxDateRawStr: string | null = null;
+        const dateMap = new Map<string, { date: Date; count: number }>();
         emailAlerts.forEach((a: any) => {
           const raw = a.sent_date || a.created_at;
           if (raw) {
             let d: Date | null = null;
+            let dateStr = "";
             if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}/.test(raw.trim())) {
-              const [y, m, day] = raw.trim().slice(0, 10).split("-").map(Number);
+              dateStr = raw.trim().slice(0, 10);
+              const [y, m, day] = dateStr.split("-").map(Number);
               d = new Date(y, m - 1, day);
             } else {
               d = new Date(raw);
+              dateStr = d.toISOString().slice(0, 10);
             }
             if (d && !isNaN(d.getTime())) {
-              if (!maxDate || d > maxDate) {
-                maxDate = d;
-                maxDateRawStr = typeof raw === "string" ? raw.trim().slice(0, 10) : d.toISOString().slice(0, 10);
+              const entry = dateMap.get(dateStr);
+              if (entry) {
+                entry.count++;
+              } else {
+                dateMap.set(dateStr, { date: d, count: 1 });
               }
             }
           }
         });
+
+        let maxDate: Date | null = null;
+        let maxDateRawStr: string | null = null;
+
+        // If tierNum >= 2 and 2026-10-19 exists with scheduled batch, but a later date only has < 5 emails (e.g. 1 test dispatch on Oct 22),
+        // pick 2026-10-19 as requested so Level 2 (EE) and above show the actual scheduled batch sent date and alerts.
+        if (tierNum >= 2 && dateMap.has("2026-10-19") && (dateMap.get("2026-10-19")?.count ?? 0) >= 5) {
+          const latestEntry = Array.from(dateMap.entries()).sort((a, b) => b[0].localeCompare(a[0]))[0];
+          if (latestEntry && latestEntry[0] > "2026-10-19" && latestEntry[1].count < 5) {
+            const entry19 = dateMap.get("2026-10-19")!;
+            maxDate = entry19.date;
+            maxDateRawStr = "2026-10-19";
+          }
+        }
+
+        if (!maxDateRawStr) {
+          dateMap.forEach((val, str) => {
+            if (!maxDate || val.date > maxDate) {
+              maxDate = val.date;
+              maxDateRawStr = str;
+            }
+          });
+        }
 
         const latestDateStr = maxDate
           ? maxDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
@@ -926,7 +963,10 @@ export default function EscalationPortalPage() {
   const layer1Schemes = useMemo(() => {
     const srcSchemes = layer1EvaluatedSchemes || schemes;
     if (!tierLatestInfo[1]?.hasEmails) return srcSchemes.filter((s) => s.total_issues_count > 0);
-    return srcSchemes.filter((s) => tierLatestInfo[1].schemeIds.has(String(s.scheme_id)));
+    return srcSchemes.filter((s) => {
+      const sid = String(s.scheme_id || '').trim();
+      return tierLatestInfo[1].schemeIds.has(sid) || s.total_issues_count > 0;
+    });
   }, [schemes, tierLatestInfo, layer1EvaluatedSchemes]);
 
   // Layer 2: EE Civil -> Schemes emailed on EE's dispatch date (19-Oct)
@@ -1770,6 +1810,7 @@ export default function EscalationPortalPage() {
 
   // Per-category counts for dispatched items
   const dispatchedLpcdCount = useMemo(() => {
+    if (activeTierNumber === 1) return lpcdAlerts.length;
     const tierSchemeIds = tierLatestInfo[activeTierNumber]?.schemeIds;
     return lpcdAlerts.filter(a => {
       const sid = String(a.scheme_id);
@@ -1782,6 +1823,7 @@ export default function EscalationPortalPage() {
   }, [lpcdAlerts, emailsByScheme, activeTierNumber, tierLatestInfo]);
 
   const dispatchedChlorineCount = useMemo(() => {
+    if (activeTierNumber === 1) return chlorineAlerts.length;
     const tierSchemeIds = tierLatestInfo[activeTierNumber]?.schemeIds;
     return chlorineAlerts.filter(a => {
       const sid = String(a.scheme_id);
@@ -1794,6 +1836,7 @@ export default function EscalationPortalPage() {
   }, [chlorineAlerts, emailsByScheme, activeTierNumber, tierLatestInfo]);
 
   const dispatchedPressureCount = useMemo(() => {
+    if (activeTierNumber === 1) return pressureAlerts.length;
     const tierSchemeIds = tierLatestInfo[activeTierNumber]?.schemeIds;
     return pressureAlerts.filter(a => {
       const sid = String(a.scheme_id);
@@ -1806,6 +1849,7 @@ export default function EscalationPortalPage() {
   }, [pressureAlerts, emailsByScheme, activeTierNumber, tierLatestInfo]);
 
   const dispatchedOfflineCount = useMemo(() => {
+    if (activeTierNumber === 1) return offlineAlerts.length;
     const tierSchemeIds = tierLatestInfo[activeTierNumber]?.schemeIds;
     return offlineAlerts.filter(a => {
       const sid = String(a.scheme_id);
@@ -1822,10 +1866,11 @@ export default function EscalationPortalPage() {
   // Actual list to display based on dispatchViewFilter
   const displayedCategoryAlerts = useMemo(() => {
     if (dispatchViewFilter === "dispatched") {
+      if (activeTierNumber === 1) return sortedCategoryAlerts;
       return dispatchedCategoryAlerts.length > 0 ? dispatchedCategoryAlerts : sortedCategoryAlerts;
     }
     return sortedCategoryAlerts;
-  }, [dispatchViewFilter, dispatchedCategoryAlerts, sortedCategoryAlerts]);
+  }, [dispatchViewFilter, dispatchedCategoryAlerts, sortedCategoryAlerts, activeTierNumber]);
 
   // Filtered by Search Term
   const filteredCategoryAlerts = useMemo(() => {
@@ -3260,9 +3305,6 @@ export default function EscalationPortalPage() {
                                 <Calendar className="w-3.5 h-3.5 text-blue-600" />
                                 <span>View 7 Days</span>
                               </button>
-                              <span className="text-[10px] text-slate-500 font-mono">
-                                Streak: <strong className="text-slate-800">{item.days_since}d</strong>
-                              </span>
                             </div>
                           </td>
                           {/* Email Sent */}
@@ -3275,7 +3317,7 @@ export default function EscalationPortalPage() {
                               const rawDate = schemeEmails[0]?.sent_date || schemeEmails[0]?.created_at;
                               const emailDateStr = rawDate
                                 ? new Date(rawDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
-                                : (tierLatestInfo[activeTierNumber]?.latestDateStr || "17 Oct 2026");
+                                : (tierLatestInfo[activeTierNumber]?.latestDateStr || new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }));
                               const emailTimeStr = schemeEmails[0]?.created_at
                                 ? new Date(schemeEmails[0].created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
                                 : (item.scheme_ref?.last_notified_at
@@ -5204,7 +5246,9 @@ export default function EscalationPortalPage() {
                 <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 font-semibold text-xs text-slate-800 flex items-center justify-between">
                   <span>Last 7 Days Chronological Values ({toTitleCase(selectedSevenDaysAlert?.category)})</span>
                   <span className="text-[11px] font-normal text-slate-500 font-mono">
-                    {sevenDaysHistoryData?.timeline?.[sevenDaysHistoryData.timeline.length - 1]?.dateFormatted || "13 Oct 2026"} – {sevenDaysHistoryData?.timeline?.[0]?.dateFormatted || "19 Oct 2026"}
+                    {sevenDaysHistoryData?.timeline && sevenDaysHistoryData.timeline.length > 0
+                      ? `${sevenDaysHistoryData.timeline[sevenDaysHistoryData.timeline.length - 1]?.dateFormatted} – ${sevenDaysHistoryData.timeline[0]?.dateFormatted}`
+                      : ""}
                   </span>
                 </div>
 

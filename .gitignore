@@ -45,3 +45,6 @@ pnpm-debug.log*
 test_*.xlsx
 test_*.csv
 final_pivot_excel.xlsx
+
+# One-off scratch scripts
+check_*.mjs

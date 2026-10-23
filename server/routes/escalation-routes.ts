@@ -21,7 +21,15 @@ import {
 import ExcelJS from "exceljs";
 import { getDB } from "../db";
 import { sql } from "drizzle-orm";
-import { calculateAllAlertStreaksFromHistory } from "../services/streak-engine";
+import {
+  calculateAllAlertStreaksFromHistory,
+  getLatestTelemetryDate,
+  getLatestDispatchDateForTier,
+  getSevenDaysTimelineConfig,
+  formatDateOutputs,
+  parseHistoryDate,
+  MONTHS_SHORT
+} from "../services/streak-engine";
 
 const router = Router();
 
@@ -107,23 +115,67 @@ router.get("/sent-alerts", async (req: Request, res: Response) => {
 });
 
 /**
+ * Maps a tier or dispatch date to its evaluated telemetry date (1 day before dispatch date).
+ * Tier 1: latest telemetry is 21-Oct (evaluated for 22-Oct daily dispatch).
+ * Tier 2, 3, 4, 5: evaluated for 19-Oct dispatches -> telemetry is 18-Oct.
+ */
+function resolveTelemetryDateForTier(tier?: string | number, asOfDateInput?: string): string {
+  if (asOfDateInput && asOfDateInput !== 'undefined' && asOfDateInput !== 'null') {
+    const raw = asOfDateInput.trim();
+    const d = parseHistoryDate(raw);
+    if (d) {
+      const day = d.getUTCDate();
+      const mon = d.getUTCMonth(); // 9 for Oct
+      if (mon === 9 && (day === 22 || day === 19)) {
+        const telD = new Date(d.getTime() - 24 * 60 * 60 * 1000);
+        return `${telD.getUTCDate()}-${MONTHS_SHORT[telD.getUTCMonth()]}`;
+      }
+      return `${day}-${MONTHS_SHORT[mon]}`;
+    }
+    return raw;
+  }
+
+  const t = String(tier || '1').trim();
+  if (t === '1') {
+    return '21-Oct';
+  }
+  // Levels 2, 3, 4, 5 were evaluated for their 19-Oct dispatches (telemetry is 18-Oct)
+  return '18-Oct';
+}
+
+/**
  * GET /api/escalation/summary
  * Returns high-level metrics across Level 1, Level 2, and Level 3 escalations
  */
 router.get("/summary", async (req: Request, res: Response) => {
   try {
     const region = req.query.region ? String(req.query.region) : undefined;
-    const [status18, status20] = await Promise.all([
-      getEscalationStatus({ region, asOfDate: '18-Oct' }),
-      getEscalationStatus({ region, asOfDate: '20-Oct' }),
+    const tier = req.query.tier ? String(req.query.tier).trim() : '1';
+
+    const asOfDateTier = resolveTelemetryDateForTier(tier, req.query.asOfDate as string);
+    const asOfDateTier1 = resolveTelemetryDateForTier('1');
+
+    const [statusTier, statusTier1] = await Promise.all([
+      getEscalationStatus({ region, asOfDate: asOfDateTier }),
+      tier === '1' ? null : getEscalationStatus({ region, asOfDate: asOfDateTier1 }),
     ]);
+
+    const activeStatus = statusTier;
+    const baseStatus = tier === '1' ? statusTier : (statusTier1 || statusTier);
+
+    const tierInfo = await getLatestDispatchDateForTier(tier);
+    const tier1Info = tier === '1' ? tierInfo : await getLatestDispatchDateForTier('1');
+
     res.json({
       success: true,
       timestamp: new Date().toISOString(),
-      summary: status18.summary,
-      dispatches: status18.summary.dispatches,
-      schemes: status18.schemes,
-      layer1Schemes: status20.schemes,
+      summary: activeStatus.summary,
+      dispatches: activeStatus.summary.dispatches,
+      schemes: activeStatus.schemes,
+      layer1Schemes: baseStatus.schemes,
+      latestTier1Date: tier1Info,
+      latestRequestedTierDate: tierInfo,
+      asOfDate: asOfDateTier,
     });
   } catch (error: any) {
     console.error("Error in /api/escalation/summary:", error);
@@ -138,25 +190,19 @@ router.get("/summary", async (req: Request, res: Response) => {
 router.get("/latest-date", async (req: Request, res: Response) => {
   try {
     const tier = req.query.tier ? String(req.query.tier) : undefined;
-    if (tier === '1') {
-      return res.json({
-        success: true,
-        rawDate: '20-Oct',
-        formatted: 'October 20, 2026',
-      });
-    }
-    const raw = '18-Oct';
-    const formatted = 'October 18, 2026';
+    const info = await getLatestDispatchDateForTier(tier || '1');
     res.json({
       success: true,
-      rawDate: raw,
-      formatted,
+      rawDate: info.rawDate,
+      formatted: info.formatted,
+      isoDate: info.isoDate,
     });
   } catch (error: any) {
+    const fallback = await getLatestTelemetryDate();
+    const formatted = formatDateOutputs(fallback) || { rawDate: '21-Oct', formatted: 'October 21, 2026', isoDate: '2026-10-21' };
     res.json({
       success: true,
-      rawDate: '18-Oct',
-      formatted: 'October 18, 2026'
+      ...formatted,
     });
   }
 });
@@ -171,8 +217,8 @@ router.get("/alert-history", async (req: Request, res: Response) => {
     const category = req.query.category ? String(req.query.category).trim().toLowerCase() : "all";
     const villageName = req.query.villageName ? String(req.query.villageName).trim() : "";
     const esrName = req.query.esrName ? String(req.query.esrName).trim() : "";
-    const tier = req.query.tier ? String(req.query.tier).trim() : "";
-    let asOfDate = req.query.asOfDate ? String(req.query.asOfDate).trim() : (tier === "1" ? "20-Oct" : "18-Oct");
+    const tier = req.query.tier ? String(req.query.tier).trim() : "1";
+    const asOfDate = resolveTelemetryDateForTier(tier, req.query.asOfDate as string);
 
     if (!schemeId) {
       return res.status(400).json({ error: "schemeId is required" });
@@ -203,7 +249,8 @@ router.get("/alert-history", async (req: Request, res: Response) => {
     `);
     const logs: any[] = logsRes.rows || [];
 
-    const is20Oct = asOfDate === '20-Oct';
+    // Dynamically compute the 7 continuous days backwards from evaluation date
+    const dateConfigs = getSevenDaysTimelineConfig(asOfDate);
 
     // CASE 1: OFFLINE SENSORS
     if (category === "offline") {
@@ -215,25 +262,6 @@ router.get("/alert-history", async (req: Request, res: Response) => {
         LIMIT 1
       `);
       const row: any = commRes.rows?.[0];
-
-      // Telemetry dates: 7 days backwards from evaluation date
-      const dateConfigs = is20Oct ? [
-        { dayIndex: 1, label: '20-Oct', full: '20 Oct 2026', d: new Date('2026-10-20T12:00:00Z') },
-        { dayIndex: 2, label: '19-Oct', full: '19 Oct 2026', d: new Date('2026-10-19T12:00:00Z') },
-        { dayIndex: 3, label: '18-Oct', full: '18 Oct 2026', d: new Date('2026-10-18T12:00:00Z') },
-        { dayIndex: 4, label: '17-Oct', full: '17 Oct 2026', d: new Date('2026-10-17T12:00:00Z') },
-        { dayIndex: 5, label: '16-Oct', full: '16 Oct 2026', d: new Date('2026-10-16T12:00:00Z') },
-        { dayIndex: 6, label: '15-Oct', full: '15 Oct 2026', d: new Date('2026-10-15T12:00:00Z') },
-        { dayIndex: 7, label: '14-Oct', full: '14 Oct 2026', d: new Date('2026-10-14T12:00:00Z') },
-      ] : [
-        { dayIndex: 1, label: '18-Oct', full: '18 Oct 2026', d: new Date('2026-10-18T12:00:00Z') },
-        { dayIndex: 2, label: '17-Oct', full: '17 Oct 2026', d: new Date('2026-10-17T12:00:00Z') },
-        { dayIndex: 3, label: '16-Oct', full: '16 Oct 2026', d: new Date('2026-10-16T12:00:00Z') },
-        { dayIndex: 4, label: '15-Oct', full: '15 Oct 2026', d: new Date('2026-10-15T12:00:00Z') },
-        { dayIndex: 5, label: '14-Oct', full: '14 Oct 2026', d: new Date('2026-10-14T12:00:00Z') },
-        { dayIndex: 6, label: '13-Oct', full: '13 Oct 2026', d: new Date('2026-10-13T12:00:00Z') },
-        { dayIndex: 7, label: '12-Oct', full: '12 Oct 2026', d: new Date('2026-10-12T12:00:00Z') },
-      ];
 
       const isChlorine = row ? (String(row.chlorine_connected || '').trim() === 'Connected' && row.chlorine_status === 'Offline') : false;
       const isPressure = row ? (String(row.pressure_connected || '').trim() === 'Connected' && row.pressure_status === 'Offline') : false;
@@ -286,9 +314,7 @@ router.get("/alert-history", async (req: Request, res: Response) => {
     }
 
     // CASE 2: LPCD, CHLORINE, OR PRESSURE from history tables
-    const targetDates = is20Oct
-      ? ['20-Oct', '19-Oct', '18-Oct', '17-Oct', '16-Oct', '15-Oct', '14-Oct']
-      : ['18-Oct', '17-Oct', '16-Oct', '15-Oct', '14-Oct', '13-Oct', '12-Oct'];
+    const targetDates = dateConfigs.map(c => c.label);
     const sqlTargetDates = sql.join(targetDates.map(d => sql`${d}`), sql`, `);
 
     const recordsByDate = new Map<string, any>();
@@ -566,8 +592,9 @@ router.get("/alert-history", async (req: Request, res: Response) => {
         }
       }
 
-      // Clean formatted date: e.g. "18-Oct" -> "18 Oct 2026"
-      const cleanDate = dateStr.replace('-', ' ') + ' 2026';
+      // Clean formatted date: e.g. "21-Oct" -> "21 Oct 2026"
+      const dateCfg = dateConfigs[idx] || dateConfigs.find(c => c.label === dateStr);
+      const cleanDate = dateCfg ? dateCfg.full : (dateStr.replace('-', ' ') + ' 2026');
 
       return {
         dayIndex: idx + 1,
@@ -1691,7 +1718,7 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
           ${isAll ? sql`` : sql`AND c.region ILIKE ${`%${selectedRegion}%`}`}
         ORDER BY c.scheme_id, LOWER(TRIM(c.village_name)), LOWER(TRIM(c.esr_name))
       `),
-      getEscalationStatus({ region: isAll ? undefined : selectedRegion, asOfDate: '18-Oct' }),
+      getEscalationStatus({ region: isAll ? undefined : selectedRegion }),
       db.execute(sql`
         SELECT scheme_id, 
                json_agg(json_build_object(

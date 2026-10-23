@@ -3,7 +3,7 @@ import { sql, eq } from "drizzle-orm";
 import { schemeEngineerDetails, users, emailAlertLogs } from "../../shared/schema";
 import { sendSmartpingDLTSMS, normalizeIndianMobile, logSmsAlert } from "./sms-service";
 import { sendMail } from "./email-service";
-import { calculateAllAlertStreaksFromHistory } from "./streak-engine";
+import { calculateAllAlertStreaksFromHistory, getLatestTelemetryDate, formatDateOutputs } from "./streak-engine";
 
 export interface SchemeEscalationItem {
   scheme_id: string;
@@ -167,7 +167,7 @@ export async function getEscalationStatus(options: {
   summary: EscalationSummary;
   schemes: SchemeEscalationItem[];
 }> {
-  const asOfDate = options.asOfDate || '18-Oct';
+  const asOfDate = options.asOfDate || await getLatestTelemetryDate();
   const cacheKey = `${options.region || 'ALL'}::${asOfDate}::${options.daysLookback || 30}`;
   if (!options.forceRefresh && cachedEscalationStatus && cachedEscalationStatus.key === cacheKey && (Date.now() - cachedEscalationStatus.timestamp < ESCALATION_STATUS_CACHE_TTL)) {
     return cachedEscalationStatus.data;
@@ -201,8 +201,153 @@ export async function getEscalationStatus(options: {
     }
   });
 
-  // 2. Query exact alerts & streaks directly from history tables for evaluation date (18-Oct)
-  const { allAlerts } = await calculateAllAlertStreaksFromHistory(db, options.forceRefresh, asOfDate);
+  // 2. Query exact alerts & streaks directly from history tables for evaluation date
+  const { allAlerts: historyAlerts, alertsByKey } = await calculateAllAlertStreaksFromHistory(db, options.forceRefresh, asOfDate);
+
+  // Check if actual alerts were generated & logged in email_alert_logs for this evaluation/dispatch date
+  const isoDateObj = formatDateOutputs(asOfDate);
+  const targetIsoDate = (isoDateObj?.isoDate || asOfDate).slice(0, 10);
+
+  let allAlerts = historyAlerts;
+
+  try {
+    const emailLogCountRes: any = await db.execute(sql`
+      SELECT COUNT(*)::int as count 
+      FROM email_alert_logs 
+      WHERE (dispatch_type = 'daily' OR dispatch_type IS NULL)
+        AND (ticket_id NOT LIKE 'TKT-RT-%' OR ticket_id IS NULL)
+        AND sent_date = ${targetIsoDate}::date
+    `);
+    const hasDispatchedAlerts = (emailLogCountRes.rows?.[0]?.count || 0) > 0;
+
+    if (hasDispatchedAlerts) {
+      const [lpcdRes, clRes, prRes, offRes]: any = await Promise.all([
+        db.execute(sql`
+          SELECT DISTINCT ON (ticket_id)
+            scheme_id, scheme_name, region, village_name, ticket_id, alert_value, telemetry_date
+          FROM email_alert_logs
+          WHERE alert_type IN ('LPCD', 'Low LPCD')
+            AND (ticket_id NOT LIKE 'TKT-RT-%' OR ticket_id IS NULL)
+            AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
+            AND sent_date = ${targetIsoDate}::date
+          ORDER BY ticket_id, created_at DESC
+        `),
+        db.execute(sql`
+          SELECT DISTINCT ON (scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), sent_date)
+            scheme_id, scheme_name, region, village_name, esr_name, ticket_id, alert_type, alert_value, telemetry_date
+          FROM email_alert_logs
+          WHERE alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine')
+            AND (ticket_id NOT LIKE 'TKT-RT-%' OR ticket_id IS NULL)
+            AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
+            AND sent_date = ${targetIsoDate}::date
+          ORDER BY scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), sent_date, created_at DESC
+        `),
+        db.execute(sql`
+          SELECT DISTINCT ON (scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), sent_date)
+            scheme_id, scheme_name, region, village_name, esr_name, ticket_id, alert_type, alert_value, telemetry_date
+          FROM email_alert_logs
+          WHERE alert_type IN ('Pressure', 'Low Pressure')
+            AND (ticket_id NOT LIKE 'TKT-RT-%' OR ticket_id IS NULL)
+            AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
+            AND sent_date = ${targetIsoDate}::date
+          ORDER BY scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), sent_date, created_at DESC
+        `),
+        db.execute(sql`
+          SELECT DISTINCT ON (scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), sent_date)
+            scheme_id, scheme_name, region, village_name, esr_name, ticket_id, alert_type, alert_value, telemetry_date
+          FROM email_alert_logs
+          WHERE alert_type ILIKE '%Offline%'
+            AND (ticket_id NOT LIKE 'TKT-RT-%' OR ticket_id IS NULL)
+            AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
+            AND sent_date = ${targetIsoDate}::date
+          ORDER BY scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), sent_date, created_at DESC
+        `),
+      ]);
+
+      const dispatchedAlerts: any[] = [];
+
+      (lpcdRes.rows || []).forEach((r: any) => {
+        const vName = (r.village_name || '-').trim().toLowerCase();
+        const key = `${r.scheme_id}|lpcd|${vName}|-`;
+        const hist = alertsByKey.get(key);
+        dispatchedAlerts.push({
+          scheme_id: String(r.scheme_id),
+          scheme_name: String(r.scheme_name || `Scheme ${r.scheme_id}`),
+          region: r.region ? String(r.region) : undefined,
+          category: 'lpcd',
+          alert_type: 'Low LPCD',
+          village_name: String(r.village_name || '-'),
+          esr_name: '-',
+          parameter_value: `${r.alert_value || '0'} LPCD`,
+          streak_days: hist?.streak_days || 1,
+          telemetry_date: r.telemetry_date ? String(r.telemetry_date) : undefined,
+        });
+      });
+
+      (clRes.rows || []).forEach((r: any) => {
+        const vName = (r.village_name || '-').trim().toLowerCase();
+        const eName = (r.esr_name || '-').trim().toLowerCase();
+        const key = `${r.scheme_id}|chlorine|${vName}|${eName}`;
+        const hist = alertsByKey.get(key);
+        const isHigh = String(r.alert_type || '').toLowerCase().includes('high');
+        dispatchedAlerts.push({
+          scheme_id: String(r.scheme_id),
+          scheme_name: String(r.scheme_name || `Scheme ${r.scheme_id}`),
+          region: r.region ? String(r.region) : undefined,
+          category: 'chlorine',
+          alert_type: isHigh ? 'High Chlorine' : 'Low Chlorine',
+          village_name: String(r.village_name || '-'),
+          esr_name: String(r.esr_name || '-'),
+          parameter_value: `${r.alert_value || '0'} mg/L`,
+          streak_days: hist?.streak_days || 1,
+          telemetry_date: r.telemetry_date ? String(r.telemetry_date) : undefined,
+        });
+      });
+
+      (prRes.rows || []).forEach((r: any) => {
+        const vName = (r.village_name || '-').trim().toLowerCase();
+        const eName = (r.esr_name || '-').trim().toLowerCase();
+        const key = `${r.scheme_id}|pressure|${vName}|${eName}`;
+        const hist = alertsByKey.get(key);
+        dispatchedAlerts.push({
+          scheme_id: String(r.scheme_id),
+          scheme_name: String(r.scheme_name || `Scheme ${r.scheme_id}`),
+          region: r.region ? String(r.region) : undefined,
+          category: 'pressure',
+          alert_type: 'Low Pressure',
+          village_name: String(r.village_name || '-'),
+          esr_name: String(r.esr_name || '-'),
+          parameter_value: `${r.alert_value || '0'} Bar`,
+          streak_days: hist?.streak_days || 1,
+          telemetry_date: r.telemetry_date ? String(r.telemetry_date) : undefined,
+        });
+      });
+
+      (offRes.rows || []).forEach((r: any) => {
+        const vName = (r.village_name || '-').trim().toLowerCase();
+        const eName = (r.esr_name || '-').trim().toLowerCase();
+        const key = `${r.scheme_id}|offline|${vName}|${eName}`;
+        const hist = alertsByKey.get(key);
+        dispatchedAlerts.push({
+          scheme_id: String(r.scheme_id),
+          scheme_name: String(r.scheme_name || `Scheme ${r.scheme_id}`),
+          region: r.region ? String(r.region) : undefined,
+          category: 'offline',
+          alert_type: 'Offline',
+          village_name: String(r.village_name || '-'),
+          esr_name: String(r.esr_name || '-'),
+          parameter_value: String(r.alert_value || 'Offline'),
+          offline_sensors: String(r.alert_value || 'Offline'),
+          streak_days: hist?.streak_days || 1,
+          telemetry_date: r.telemetry_date ? String(r.telemetry_date) : undefined,
+        });
+      });
+
+      allAlerts = dispatchedAlerts;
+    }
+  } catch (err: any) {
+    console.warn("Could not query email_alert_logs dispatches, using history alerts:", err.message);
+  }
 
   // Query issue_reports (Field Remarks)
   const remarksByScheme = new Map<string, any[]>();
@@ -308,8 +453,11 @@ export async function getEscalationStatus(options: {
     }
 
     if (alert.category === 'lpcd') {
-      item.lpcd_villages_count++;
-      item.lpcd_villages.push({ village_name: alert.village_name, days_count: days, avg_val: alert.parameter_value });
+      const vKey = (alert.village_name || '-').trim().toLowerCase();
+      if (!item.lpcd_villages.some(v => v.village_name.trim().toLowerCase() === vKey)) {
+        item.lpcd_villages_count++;
+        item.lpcd_villages.push({ village_name: alert.village_name, days_count: days, avg_val: alert.parameter_value });
+      }
     } else if (alert.category === 'chlorine') {
       if (alert.alert_type === 'High Chlorine') {
         const esrKey = `${alert.village_name.trim().toLowerCase()}__${alert.esr_name.trim().toLowerCase()}`;
@@ -338,6 +486,11 @@ export async function getEscalationStatus(options: {
       }
     }
   }
+
+  // Ensure total_issues_count accurately sums all active alert categories
+  schemeAgg.forEach(item => {
+    item.total_issues_count = item.lpcd_villages_count + item.chlorine_low_count + item.chlorine_high_count + item.pressure_low_count + item.offline_count;
+  });
 
   // 3b. Fetch actual notified message counts from sms_alert_logs and email_alert_logs
   try {
@@ -1128,7 +1281,16 @@ export async function getEscalationStatus(options: {
     total_esrs_low_chlorine: schemesList.reduce((acc, s) => acc + s.chlorine_low_count, 0),
     total_esrs_high_chlorine: schemesList.reduce((acc, s) => acc + s.chlorine_high_count, 0),
     total_esrs_low_pressure: schemesList.reduce((acc, s) => acc + s.pressure_low_count, 0),
-    total_offline_sensors: schemesList.reduce((acc, s) => acc + s.offline_count, 0),
+    total_offline_sensors: schemesList.reduce((acc, s) => {
+      return acc + (s.offline_esrs || []).reduce((inner, o) => {
+        const val = String(o.sensors || '').toLowerCase();
+        let count = 0;
+        if (val.includes('chlorine')) count++;
+        if (val.includes('pressure')) count++;
+        if (val.includes('flow') || val.includes('meter')) count++;
+        return inner + (count || 1);
+      }, 0);
+    }, 0),
     total_alert_incidents: schemesList.reduce((acc, s) => acc + (s.total_email_count || 0), 0),
     dispatches,
     regional_breakdown: {},

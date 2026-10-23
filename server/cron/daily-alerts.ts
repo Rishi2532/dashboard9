@@ -631,6 +631,7 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
           FROM email_acknowledgements ea
           INNER JOIN scheme_engineer_details sed ON sed.scheme_id = ea.scheme_id
           WHERE LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(sed.ee_civil_email))
+            AND (ea.engineer_role ILIKE '%EE%' OR ea.engineer_role ILIKE '%Executive%')
         ) all_ee_dispatches
         GROUP BY LOWER(TRIM(engineer_email)), scheme_id
       `);

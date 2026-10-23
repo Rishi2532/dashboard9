@@ -264,14 +264,18 @@ export default function Level5SummaryPage() {
     }
     let isCancelled = false;
     setSevenDaysLoading(true);
+    const alertDate = selectedSevenDaysAlert.telemetry_date || selectedSevenDaysAlert.sent_date;
+    const tierVal = String(streakDays <= 7 ? 3 : streakDays <= 15 ? 4 : 5);
     const params = new URLSearchParams({
       schemeId: String(selectedSevenDaysAlert.scheme_id),
       category: String(selectedSevenDaysAlert.category || "all"),
       villageName: String(selectedSevenDaysAlert.village_name || ""),
       esrName: String(selectedSevenDaysAlert.esr_name || ""),
-      tier: String(streakDays <= 7 ? 3 : streakDays <= 15 ? 4 : 5),
-      asOfDate: "18-Oct",
+      tier: tierVal,
     });
+    if (alertDate) {
+      params.set("asOfDate", alertDate);
+    }
     fetch(`/api/escalation/alert-history?${params.toString()}`)
       .then((res) => res.json())
       .then((json) => {

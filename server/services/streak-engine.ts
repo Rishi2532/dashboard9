@@ -22,18 +22,14 @@ const MONTH_MAP: Record<string, number> = {
   jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
 };
 
-const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export function generateRecentDateStrings(referenceDateStr?: string, daysLookback: number = 35): string[] {
   let baseDate = new Date();
   if (referenceDateStr) {
-    const parts = referenceDateStr.split('-');
-    if (parts.length >= 2) {
-      const day = parseInt(parts[0], 10);
-      const monIdx = MONTHS_SHORT.findIndex(m => m.toLowerCase() === parts[1].toLowerCase().slice(0, 3));
-      if (!isNaN(day) && monIdx !== -1) {
-        baseDate = new Date(Date.UTC(2026, monIdx, day));
-      }
+    const parsed = parseHistoryDate(referenceDateStr);
+    if (parsed) {
+      baseDate = parsed;
     }
   }
 
@@ -56,11 +52,15 @@ export function generateRecentDateStrings(referenceDateStr?: string, daysLookbac
 export function parseHistoryDate(dateStr: string): Date | null {
   if (!dateStr) return null;
   const str = String(dateStr).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+    const [y, m, d] = str.slice(0, 10).split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d));
+  }
   const parts = str.split('-');
   if (parts.length >= 2) {
     const day = parseInt(parts[0], 10);
-    const mon = MONTH_MAP[parts[1].toLowerCase().slice(0, 3)];
-    if (!isNaN(day) && mon !== undefined && day >= 1 && day <= 31) {
+    const monIdx = MONTHS_SHORT.findIndex(m => m.toLowerCase() === parts[1].toLowerCase().slice(0, 3));
+    if (!isNaN(day) && monIdx !== -1 && day >= 1 && day <= 31) {
       let year = 2026;
       if (parts.length >= 3) {
         let yr = parseInt(parts[2], 10);
@@ -69,14 +69,57 @@ export function parseHistoryDate(dateStr: string): Date | null {
           year = yr;
         }
       }
-      return new Date(Date.UTC(year, mon, day));
+      return new Date(Date.UTC(year, monIdx, day));
     }
   }
-  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
-    const [y, m, d] = str.split('-').map(Number);
-    return new Date(Date.UTC(y, m - 1, d));
-  }
   return null;
+}
+
+const MONTHS_FULL = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+export function formatDateOutputs(dateStr: string | Date | null) {
+  if (!dateStr) return null;
+  let d: Date | null = null;
+  if (dateStr instanceof Date) {
+    d = dateStr;
+  } else {
+    d = parseHistoryDate(String(dateStr));
+  }
+
+  if (!d || isNaN(d.getTime())) return null;
+  const day = d.getUTCDate();
+  const mIdx = d.getUTCMonth();
+  const year = d.getUTCFullYear();
+  const rawDate = `${day}-${MONTHS_SHORT[mIdx]}`;
+  const formatted = `${MONTHS_FULL[mIdx]} ${day}, ${year}`;
+  const isoDate = `${year}-${String(mIdx + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  return { rawDate, formatted, isoDate };
+}
+
+/**
+ * Returns 7 daily timeline intervals backwards starting from asOfDateStr.
+ * Day 1 is the most recent date (asOfDate), Day 7 is the oldest.
+ */
+export function getSevenDaysTimelineConfig(asOfDateStr?: string) {
+  const baseDate = (asOfDateStr ? parseHistoryDate(asOfDateStr) : null) || new Date();
+  const dateConfigs = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(baseDate.getTime() - i * 86400000);
+    const day = d.getUTCDate();
+    const mon = MONTHS_SHORT[d.getUTCMonth()];
+    const year = d.getUTCFullYear();
+    dateConfigs.push({
+      dayIndex: i + 1,
+      label: `${day}-${mon}`,
+      full: `${day} ${mon} ${year}`,
+      iso: `${year}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+      d,
+    });
+  }
+  return dateConfigs;
 }
 
 /**
@@ -101,24 +144,133 @@ const STREAK_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes cache
 
 export function invalidateStreakCache() {
   cachedAlertsMap.clear();
+  cachedLatestDate = null;
+}
+
+/**
+ * Dynamically determines the latest telemetry date available in the database.
+ * Checks water_scheme_data.lpcd_date_day7, chlorine_data.chlorine_date_day_7,
+ * and pressure_data.pressure_date_day_7 (these are the most recent date columns in 7-day tables).
+ * Returns a string like '21-Oct' in the DD-Mon format used throughout the system.
+ * Results are cached for 2 minutes to avoid repeated DB queries.
+ */
+let cachedLatestDate: { timestamp: number; date: string } | null = null;
+const LATEST_DATE_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+
+export async function getLatestTelemetryDate(db?: any): Promise<string> {
+  if (cachedLatestDate && Date.now() - cachedLatestDate.timestamp < LATEST_DATE_CACHE_TTL) {
+    return cachedLatestDate.date;
+  }
+
+  try {
+    const { getDB } = await import("../db");
+    const database = db || await getDB();
+    const res = await database.execute(sql`
+      SELECT COALESCE(
+        (SELECT lpcd_date_day7 FROM water_scheme_data WHERE lpcd_date_day7 IS NOT NULL AND TRIM(lpcd_date_day7) != '' LIMIT 1),
+        (SELECT chlorine_date_day_7 FROM chlorine_data WHERE chlorine_date_day_7 IS NOT NULL AND TRIM(chlorine_date_day_7) != '' LIMIT 1),
+        (SELECT pressure_date_day_7 FROM pressure_data WHERE pressure_date_day_7 IS NOT NULL AND TRIM(pressure_date_day_7) != '' LIMIT 1),
+        (SELECT to_char(MAX(sent_date), 'DD-Mon') FROM email_alert_logs),
+        (SELECT chlorine_date_day_1 FROM chlorine_data WHERE chlorine_date_day_1 IS NOT NULL LIMIT 1)
+      ) as latest_date
+    `);
+    const rawDate = String(res.rows?.[0]?.latest_date || '').trim();
+    if (rawDate) {
+      cachedLatestDate = { timestamp: Date.now(), date: rawDate };
+      return rawDate;
+    }
+  } catch (err) {
+    console.error("Error fetching latest telemetry date:", err);
+  }
+
+  // Fallback: compute from current IST date minus 1 day (data typically arrives a day late)
+  const now = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const istNow = new Date(now.getTime() + istOffset);
+  const yesterday = new Date(istNow.getTime() - 24 * 60 * 60 * 1000);
+  const day = yesterday.getUTCDate();
+  const mon = MONTHS_SHORT[yesterday.getUTCMonth()];
+  const fallbackDate = `${day}-${mon}`;
+  cachedLatestDate = { timestamp: Date.now(), date: fallbackDate };
+  return fallbackDate;
+}
+
+/**
+ * Dynamically queries the latest dispatch date when emails/notices were sent for a specific tier.
+ * Checks consolidated_email_dispatches and email_alert_logs, falling back to getLatestTelemetryDate.
+ */
+export async function getLatestDispatchDateForTier(tier?: string | number, db?: any): Promise<{ rawDate: string; formatted: string; isoDate: string }> {
+  try {
+    const { getDB } = await import("../db");
+    const database = db || await getDB();
+    const tStr = tier ? String(tier).trim() : '1';
+
+    let rolePattern = '%';
+    if (tStr === '1') rolePattern = '%DE%';
+    else if (tStr === '2') rolePattern = '%EE%';
+    else if (tStr === '3') rolePattern = '%CE%';
+    else if (tStr === '4') rolePattern = '%MS%';
+    else if (tStr === '5') rolePattern = '%PS%';
+
+    // 1. Try consolidated_email_dispatches
+    const cedRes: any = await database.execute(sql`
+      SELECT MAX(dispatch_date)::text as latest_dispatch
+      FROM consolidated_email_dispatches
+      WHERE engineer_role ILIKE ${rolePattern}
+         OR (
+           ${tStr === '1' ? sql`engineer_role ILIKE '%AE%'` :
+             tStr === '2' ? sql`engineer_role ILIKE '%Executive%'` :
+             tStr === '3' ? sql`engineer_role ILIKE '%SE%' OR engineer_role ILIKE '%Chief%' OR engineer_role ILIKE '%Superintending%'` :
+             tStr === '4' ? sql`engineer_role ILIKE '%Member Secretary%'` :
+             tStr === '5' ? sql`engineer_role ILIKE '%Principal Secretary%'` : sql`false`}
+         )
+    `);
+    let latest = cedRes.rows?.[0]?.latest_dispatch;
+
+    // 2. Fallback to email_alert_logs
+    if (!latest) {
+      let typePattern = tStr === '1' ? 'daily' : `escalation_level${tStr}`;
+      const ealRes: any = await database.execute(sql`
+        SELECT MAX(sent_date)::text as latest_sent
+        FROM email_alert_logs
+        WHERE dispatch_type = ${typePattern}
+      `);
+      latest = ealRes.rows?.[0]?.latest_sent;
+    }
+
+    // 3. Fallback to latest telemetry date
+    if (!latest) {
+      latest = await getLatestTelemetryDate(database);
+    }
+
+    const formatted = formatDateOutputs(latest);
+    if (formatted) return formatted;
+  } catch (err) {
+    console.error(`Error in getLatestDispatchDateForTier(${tier}):`, err);
+  }
+
+  const defaultDate = await getLatestTelemetryDate(db);
+  const fallback = formatDateOutputs(defaultDate);
+  return fallback || { rawDate: '21-Oct', formatted: 'October 21, 2026', isoDate: '2026-10-21' };
 }
 
 export async function calculateAllAlertStreaksFromHistory(
   db: any,
   forceRefresh: boolean = false,
-  asOfDateStr: string = '18-Oct'
+  asOfDateStr?: string
 ): Promise<{
   allAlerts: AlertWithHistoryStreak[];
   alertsByScheme: Map<string, AlertWithHistoryStreak[]>;
   alertsByKey: Map<string, AlertWithHistoryStreak>;
 }> {
-  const cacheKey = asOfDateStr || '18-Oct';
+  const resolvedDate = asOfDateStr || await getLatestTelemetryDate(db);
+  const cacheKey = resolvedDate;
   const cached = cachedAlertsMap.get(cacheKey);
   if (!forceRefresh && cached && Date.now() - cached.timestamp < STREAK_CACHE_TTL_MS) {
     return cached.data;
   }
 
-  const targetDate = parseHistoryDate(asOfDateStr);
+  const targetDate = parseHistoryDate(resolvedDate);
 
   const allAlerts: AlertWithHistoryStreak[] = [];
   const alertsByScheme = new Map<string, AlertWithHistoryStreak[]>();
@@ -159,7 +311,7 @@ export async function calculateAllAlertStreaksFromHistory(
   }
   const sqlOpIds = sql.join(opIds.map(id => sql`${id}`), sql`, `);
 
-  const rawLatest = asOfDateStr || latestDateRes.rows?.[0]?.latest_date || '18-Oct';
+  const rawLatest = resolvedDate;
   const recentDates = generateRecentDateStrings(String(rawLatest), 35);
   const sqlDateList = sql.join(recentDates.map(d => sql`${d}`), sql`, `);
 
@@ -207,7 +359,7 @@ export async function calculateAllAlertStreaksFromHistory(
       )
       SELECT 
         c.scheme_id, c.scheme_name, c.region, c.village_name, c.esr_name, c.chlorine_date, c.chlorine_value,
-        wc.water_value
+        COALESCE(wc.water_value, 1) as water_value
       FROM dedup_cl c
       LEFT JOIN dedup_wc wc ON (
         c.scheme_id = wc.scheme_id AND
@@ -241,7 +393,7 @@ export async function calculateAllAlertStreaksFromHistory(
       )
       SELECT 
         p.scheme_id, p.scheme_name, p.region, p.village_name, p.esr_name, p.pressure_date, p.pressure_value,
-        wc.water_value
+        COALESCE(wc.water_value, 1) as water_value
       FROM dedup_pr p
       LEFT JOIN dedup_wc wc ON (
         p.scheme_id = wc.scheme_id AND
@@ -312,7 +464,10 @@ export async function calculateAllAlertStreaksFromHistory(
     if (entry.records.length === 0) return;
 
     const latest = entry.records[0];
-    if (targetDate && latest.date.getTime() !== targetDate.getTime()) return;
+    if (targetDate) {
+      const diffDays = Math.round((targetDate.getTime() - latest.date.getTime()) / 86400000);
+      if (diffDays < 0 || diffDays > 3) return;
+    }
     if (latest.lpcd >= 55) return;
 
     let streak = 1;
@@ -392,8 +547,11 @@ export async function calculateAllAlertStreaksFromHistory(
     if (entry.records.length === 0) return;
 
     const latest = entry.records[0];
-    if (targetDate && latest.date.getTime() !== targetDate.getTime()) return;
-    if (latest.cl === null || isNaN(latest.cl) || (latest.cl >= 0.2 && latest.cl <= 0.5) || latest.water <= 0) {
+    if (targetDate) {
+      const diffDays = Math.round((targetDate.getTime() - latest.date.getTime()) / 86400000);
+      if (diffDays < 0 || diffDays > 3) return;
+    }
+    if (latest.cl === null || isNaN(latest.cl) || (latest.cl >= 0.2 && latest.cl <= 0.5) || (latest.water !== null && latest.water <= 0)) {
       return;
     }
 
@@ -475,8 +633,11 @@ export async function calculateAllAlertStreaksFromHistory(
     if (entry.records.length === 0) return;
 
     const latest = entry.records[0];
-    if (targetDate && latest.date.getTime() !== targetDate.getTime()) return;
-    if (latest.pr === null || isNaN(latest.pr) || latest.pr >= 0.2 || latest.pr < 0 || latest.water <= 0) {
+    if (targetDate) {
+      const diffDays = Math.round((targetDate.getTime() - latest.date.getTime()) / 86400000);
+      if (diffDays < 0 || diffDays > 3) return;
+    }
+    if (latest.pr === null || isNaN(latest.pr) || latest.pr >= 0.2 || latest.pr < 0 || (latest.water !== null && latest.water <= 0)) {
       return;
     }
 
