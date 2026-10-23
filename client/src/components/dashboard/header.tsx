@@ -177,6 +177,21 @@ export default function Header() {
 
               {authData?.isAdmin && (
                 <>
+                  <Link href="/level5-summary">
+                    <Button
+                      size="sm"
+                      className={cn(
+                        "hidden sm:flex text-white h-8 text-xs font-semibold shadow-sm transition-all",
+                        isActive("/level5-summary") || isActive("/level-5-summary") || isActive("/alert-summary")
+                          ? "bg-indigo-800 text-white ring-2 ring-indigo-300"
+                          : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                      )}
+                      title="Level 5 Escalation Summary Portal"
+                    >
+                      <Layers className="h-3.5 w-3.5 mr-1" />
+                      Level 5 Portal
+                    </Button>
+                  </Link>
                   <Link href="/alerts-progress">
                     <Button
                       size="sm"
@@ -205,21 +220,6 @@ export default function Header() {
                     >
                       <ShieldAlert className="h-3.5 w-3.5 mr-1" />
                       Escalation Portal
-                    </Button>
-                  </Link>
-                  <Link href="/level5-summary">
-                    <Button
-                      size="sm"
-                      className={cn(
-                        "hidden sm:flex text-white h-8 text-xs font-semibold shadow-sm transition-all",
-                        isActive("/level5-summary") || isActive("/level-5-summary") || isActive("/alert-summary")
-                          ? "bg-indigo-800 text-white ring-2 ring-indigo-300"
-                          : "bg-indigo-600 hover:bg-indigo-700 text-white"
-                      )}
-                      title="Level 5 Escalation Summary Portal"
-                    >
-                      <Layers className="h-3.5 w-3.5 mr-1" />
-                      Level 5 Portal
                     </Button>
                   </Link>
                   <Link href="/admin/users">
@@ -675,6 +675,21 @@ export default function Header() {
                     Monthly Reports
                   </Button>
                 </Link>
+                <Link href="/level5-summary" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      "w-full justify-start h-10 font-semibold transition-colors",
+                      isActive("/level5-summary") || isActive("/level-5-summary") || isActive("/alert-summary")
+                        ? "bg-indigo-50 text-indigo-700 border-l-4 border-indigo-600 rounded-none pl-3"
+                        : "text-indigo-700 hover:bg-indigo-50"
+                    )}
+                  >
+                    <Layers className="h-4 w-4 mr-2" />
+                    Level 5 Portal
+                  </Button>
+                </Link>
                 <Link href="/alerts-progress" onClick={() => setIsMobileMenuOpen(false)}>
                   <Button
                     variant="ghost"
@@ -703,21 +718,6 @@ export default function Header() {
                   >
                     <ShieldAlert className="h-4 w-4 mr-2" />
                     Escalation Portal
-                  </Button>
-                </Link>
-                <Link href="/level5-summary" onClick={() => setIsMobileMenuOpen(false)}>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={cn(
-                      "w-full justify-start h-10 font-semibold transition-colors",
-                      isActive("/level5-summary") || isActive("/level-5-summary") || isActive("/alert-summary")
-                        ? "bg-indigo-50 text-indigo-700 border-l-4 border-indigo-600 rounded-none pl-3"
-                        : "text-indigo-700 hover:bg-indigo-50"
-                    )}
-                  >
-                    <Layers className="h-4 w-4 mr-2" />
-                    Level 5 Portal
                   </Button>
                 </Link>
               </>
