@@ -81,6 +81,12 @@ const AGENCY_OPTIONS = [
 
 const HANDOVER_OPTIONS = ['Handed Over', 'Not Handed Over'] as const;
 
+const isNA = (val?: string | null): boolean => {
+  if (!val) return true;
+  const clean = val.trim().toUpperCase();
+  return ['NA', 'N/A', 'NULL', '-', '--', 'NONE'].includes(clean);
+};
+
 export default function Admin2FormPage() {
   const { user, role, logout } = useAuth();
   const [, setLocation] = useLocation();
@@ -123,7 +129,7 @@ export default function Admin2FormPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // -------------------------------------------------------------
-  // Cascading Queries
+  // Cascading Queries & Filtered Lists (No NA options)
   // -------------------------------------------------------------
   // 1. Regions
   const { data: regionsData, isLoading: isLoadingRegions } = useQuery<{ success: boolean; regions: string[] }>({
@@ -134,6 +140,7 @@ export default function Admin2FormPage() {
       return res.json();
     },
   });
+  const regionsList = (regionsData?.regions || []).filter((r) => !isNA(r));
 
   // 2. Circles (dependent on region)
   const { data: circlesData, isLoading: isLoadingCircles } = useQuery<{ success: boolean; circles: string[] }>({
@@ -146,6 +153,7 @@ export default function Admin2FormPage() {
     },
     enabled: Boolean(selectedRegion),
   });
+  const circlesList = (circlesData?.circles || []).filter((c) => !isNA(c));
 
   // 3. Divisions (dependent on region and circle)
   const { data: divisionsData, isLoading: isLoadingDivisions } = useQuery<{ success: boolean; divisions: string[] }>({
@@ -160,6 +168,7 @@ export default function Admin2FormPage() {
     },
     enabled: Boolean(selectedRegion && selectedCircle),
   });
+  const divisionsList = (divisionsData?.divisions || []).filter((d) => !isNA(d));
 
   // 4. Sub-Divisions (dependent on region, circle, division)
   const { data: subDivisionsData, isLoading: isLoadingSubDivisions } = useQuery<{ success: boolean; subDivisions: string[] }>({
@@ -176,25 +185,34 @@ export default function Admin2FormPage() {
     },
     enabled: Boolean(selectedRegion && selectedCircle && selectedDivision),
   });
+  const subDivisionsList = (subDivisionsData?.subDivisions || []).filter((s) => !isNA(s));
 
   // 5. Blocks (dependent on region, circle, division, sub-division)
   const { data: blocksData, isLoading: isLoadingBlocks } = useQuery<{ success: boolean; blocks: string[] }>({
     queryKey: ['/api/admin2/locations/blocks', selectedRegion, selectedCircle, selectedDivision, selectedSubDivision],
     queryFn: async () => {
-      if (!selectedRegion || !selectedCircle || !selectedDivision || !selectedSubDivision)
+      if (!selectedRegion || !selectedCircle || !selectedDivision)
         return { success: true, blocks: [] };
-      const res = await fetch(
-        `/api/admin2/locations/blocks?region=${encodeURIComponent(selectedRegion)}&circle=${encodeURIComponent(
-          selectedCircle
-        )}&division=${encodeURIComponent(selectedDivision)}&subDivision=${encodeURIComponent(selectedSubDivision)}`
-      );
+      let url = `/api/admin2/locations/blocks?region=${encodeURIComponent(selectedRegion)}&circle=${encodeURIComponent(
+        selectedCircle
+      )}&division=${encodeURIComponent(selectedDivision)}`;
+      if (selectedSubDivision && !isNA(selectedSubDivision)) {
+        url += `&subDivision=${encodeURIComponent(selectedSubDivision)}`;
+      }
+      const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to load blocks');
       return res.json();
     },
-    enabled: Boolean(selectedRegion && selectedCircle && selectedDivision && selectedSubDivision),
+    enabled: Boolean(
+      selectedRegion &&
+      selectedCircle &&
+      selectedDivision &&
+      (subDivisionsList.length === 0 || selectedSubDivision)
+    ),
   });
+  const blocksList = (blocksData?.blocks || []).filter((b) => !isNA(b));
 
-  // 6. Schemes (dependent on all parents)
+  // 6. Schemes (dependent on selected hierarchy)
   const { data: schemesData, isLoading: isLoadingSchemes } = useQuery<{ success: boolean; schemes: SchemeOption[] }>({
     queryKey: [
       '/api/admin2/locations/schemes',
@@ -205,21 +223,33 @@ export default function Admin2FormPage() {
       selectedBlock,
     ],
     queryFn: async () => {
-      if (!selectedRegion || !selectedCircle || !selectedDivision || !selectedSubDivision || !selectedBlock) {
+      if (!selectedRegion || !selectedCircle || !selectedDivision) {
         return { success: true, schemes: [] };
       }
-      const res = await fetch(
-        `/api/admin2/locations/schemes?region=${encodeURIComponent(selectedRegion)}&circle=${encodeURIComponent(
-          selectedCircle
-        )}&division=${encodeURIComponent(selectedDivision)}&subDivision=${encodeURIComponent(
-          selectedSubDivision
-        )}&block=${encodeURIComponent(selectedBlock)}`
-      );
+      let url = `/api/admin2/locations/schemes?region=${encodeURIComponent(selectedRegion)}&circle=${encodeURIComponent(
+        selectedCircle
+      )}&division=${encodeURIComponent(selectedDivision)}`;
+      if (selectedSubDivision && !isNA(selectedSubDivision)) {
+        url += `&subDivision=${encodeURIComponent(selectedSubDivision)}`;
+      }
+      if (selectedBlock && !isNA(selectedBlock)) {
+        url += `&block=${encodeURIComponent(selectedBlock)}`;
+      }
+      const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to load schemes');
       return res.json();
     },
-    enabled: Boolean(selectedRegion && selectedCircle && selectedDivision && selectedSubDivision && selectedBlock),
+    enabled: Boolean(
+      selectedRegion &&
+      selectedCircle &&
+      selectedDivision &&
+      (subDivisionsList.length === 0 || selectedSubDivision) &&
+      (blocksList.length === 0 || selectedBlock)
+    ),
   });
+  const schemesList = (schemesData?.schemes || []).filter(
+    (s) => !isNA(s.scheme_name) && !isNA(s.scheme_id)
+  );
 
   // -------------------------------------------------------------
   // Cascading Reset Handlers
@@ -271,7 +301,7 @@ export default function Admin2FormPage() {
 
   const handleSchemeChange = (newSchemeName: string) => {
     setSelectedSchemeName(newSchemeName);
-    const matched = schemesData?.schemes.find((s) => s.scheme_name === newSchemeName);
+    const matched = schemesList.find((s) => s.scheme_name === newSchemeName);
     setSchemeId(matched ? matched.scheme_id : '');
     if (errors.scheme_name) setErrors((prev) => ({ ...prev, scheme_name: '' }));
     if (errors.scheme_id) setErrors((prev) => ({ ...prev, scheme_id: '' }));
@@ -310,8 +340,12 @@ export default function Admin2FormPage() {
     if (!selectedRegion.trim()) newErrors.region = 'Region is required';
     if (!selectedCircle.trim()) newErrors.circle = 'Circle is required';
     if (!selectedDivision.trim()) newErrors.division = 'Division is required';
-    if (!selectedSubDivision.trim()) newErrors.sub_division = 'Sub-Division is required';
-    if (!selectedBlock.trim()) newErrors.block = 'Block is required';
+    if (subDivisionsList.length > 0 && !selectedSubDivision.trim()) {
+      newErrors.sub_division = 'Sub-Division is required';
+    }
+    if (blocksList.length > 0 && !selectedBlock.trim()) {
+      newErrors.block = 'Block is required';
+    }
     if (!selectedSchemeName.trim()) newErrors.scheme_name = 'Scheme Name is required';
     if (!schemeId.trim()) newErrors.scheme_id = 'Scheme ID is required';
 
@@ -400,8 +434,8 @@ export default function Admin2FormPage() {
       region: selectedRegion.trim(),
       circle: selectedCircle.trim(),
       division: selectedDivision.trim(),
-      sub_division: selectedSubDivision.trim(),
-      block: selectedBlock.trim(),
+      sub_division: selectedSubDivision.trim() || 'General',
+      block: selectedBlock.trim() || 'General',
       scheme_name: selectedSchemeName.trim(),
       scheme_id: schemeId.trim(),
       engineer_name: engineerName.trim(),
@@ -618,7 +652,7 @@ export default function Admin2FormPage() {
                       }`}
                     >
                       <option value="">-- Select Region --</option>
-                      {regionsData?.regions?.map((reg) => (
+                      {regionsList.map((reg) => (
                         <option key={reg} value={reg}>
                           {reg}
                         </option>
@@ -645,7 +679,7 @@ export default function Admin2FormPage() {
                       <option value="">
                         {!selectedRegion ? '-- Select Region First --' : '-- Select Circle --'}
                       </option>
-                      {circlesData?.circles?.map((circ) => (
+                      {circlesList.map((circ) => (
                         <option key={circ} value={circ}>
                           {circ}
                         </option>
@@ -672,7 +706,7 @@ export default function Admin2FormPage() {
                       <option value="">
                         {!selectedCircle ? '-- Select Circle First --' : '-- Select Division --'}
                       </option>
-                      {divisionsData?.divisions?.map((div) => (
+                      {divisionsList.map((div) => (
                         <option key={div} value={div}>
                           {div}
                         </option>
@@ -684,22 +718,26 @@ export default function Admin2FormPage() {
                   {/* 4. Sub-Division */}
                   <div className="space-y-1.5">
                     <Label htmlFor="dropdown-sub-division" className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                      <span>4. Sub-Division <span className="text-rose-500">*</span></span>
+                      <span>4. Sub-Division {subDivisionsList.length > 0 && <span className="text-rose-500">*</span>}</span>
                       {isLoadingSubDivisions && <span className="text-[10px] text-blue-500 animate-pulse">Loading...</span>}
                     </Label>
                     <select
                       id="dropdown-sub-division"
                       value={selectedSubDivision}
                       onChange={(e) => handleSubDivisionChange(e.target.value)}
-                      disabled={!selectedDivision || isLoadingSubDivisions}
+                      disabled={!selectedDivision || isLoadingSubDivisions || subDivisionsList.length === 0}
                       className={`w-full h-10 rounded-lg border bg-white px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-950 dark:text-slate-100 font-medium transition-all disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 disabled:cursor-not-allowed ${
                         errors.sub_division ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-800'
                       }`}
                     >
                       <option value="">
-                        {!selectedDivision ? '-- Select Division First --' : '-- Select Sub-Division --'}
+                        {!selectedDivision
+                          ? '-- Select Division First --'
+                          : subDivisionsList.length === 0
+                          ? '-- Not Applicable / None --'
+                          : '-- Select Sub-Division --'}
                       </option>
-                      {subDivisionsData?.subDivisions?.map((sub) => (
+                      {subDivisionsList.map((sub) => (
                         <option key={sub} value={sub}>
                           {sub}
                         </option>
@@ -711,22 +749,33 @@ export default function Admin2FormPage() {
                   {/* 5. Block */}
                   <div className="space-y-1.5">
                     <Label htmlFor="dropdown-block" className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                      <span>5. Block <span className="text-rose-500">*</span></span>
+                      <span>5. Block {blocksList.length > 0 && <span className="text-rose-500">*</span>}</span>
                       {isLoadingBlocks && <span className="text-[10px] text-blue-500 animate-pulse">Loading...</span>}
                     </Label>
                     <select
                       id="dropdown-block"
                       value={selectedBlock}
                       onChange={(e) => handleBlockChange(e.target.value)}
-                      disabled={!selectedSubDivision || isLoadingBlocks}
+                      disabled={
+                        !selectedDivision ||
+                        (subDivisionsList.length > 0 && !selectedSubDivision) ||
+                        isLoadingBlocks ||
+                        blocksList.length === 0
+                      }
                       className={`w-full h-10 rounded-lg border bg-white px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-950 dark:text-slate-100 font-medium transition-all disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 disabled:cursor-not-allowed ${
                         errors.block ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-800'
                       }`}
                     >
                       <option value="">
-                        {!selectedSubDivision ? '-- Select Sub-Division First --' : '-- Select Block --'}
+                        {!selectedDivision
+                          ? '-- Select Division First --'
+                          : subDivisionsList.length > 0 && !selectedSubDivision
+                          ? '-- Select Sub-Division First --'
+                          : blocksList.length === 0
+                          ? '-- Not Applicable / None --'
+                          : '-- Select Block --'}
                       </option>
-                      {blocksData?.blocks?.map((blk) => (
+                      {blocksList.map((blk) => (
                         <option key={blk} value={blk}>
                           {blk}
                         </option>
@@ -745,15 +794,26 @@ export default function Admin2FormPage() {
                       id="dropdown-scheme-name"
                       value={selectedSchemeName}
                       onChange={(e) => handleSchemeChange(e.target.value)}
-                      disabled={!selectedBlock || isLoadingSchemes}
+                      disabled={
+                        !selectedDivision ||
+                        (subDivisionsList.length > 0 && !selectedSubDivision) ||
+                        (blocksList.length > 0 && !selectedBlock) ||
+                        isLoadingSchemes
+                      }
                       className={`w-full h-10 rounded-lg border bg-white px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-950 dark:text-slate-100 font-medium transition-all disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 disabled:cursor-not-allowed ${
                         errors.scheme_name ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-800'
                       }`}
                     >
                       <option value="">
-                        {!selectedBlock ? '-- Select Block First --' : '-- Select Scheme Name --'}
+                        {!selectedDivision
+                          ? '-- Select Division First --'
+                          : subDivisionsList.length > 0 && !selectedSubDivision
+                          ? '-- Select Sub-Division First --'
+                          : blocksList.length > 0 && !selectedBlock
+                          ? '-- Select Block First --'
+                          : '-- Select Scheme Name --'}
                       </option>
-                      {schemesData?.schemes?.map((sch) => (
+                      {schemesList.map((sch) => (
                         <option key={sch.scheme_name} value={sch.scheme_name}>
                           {sch.scheme_name}
                         </option>

@@ -92,7 +92,7 @@ router.get("/locations/regions", requireAdmin2OrAdmin, async (req: Request, res:
 
 /**
  * GET /api/admin2/locations/circles
- * List distinct circles for a region
+ * List distinct circles for a region (excluding NA)
  */
 router.get("/locations/circles", requireAdmin2OrAdmin, async (req: Request, res: Response) => {
   try {
@@ -108,6 +108,7 @@ router.get("/locations/circles", requireAdmin2OrAdmin, async (req: Request, res:
       WHERE TRIM(region) = ${region.trim()} 
         AND circle IS NOT NULL 
         AND TRIM(circle) != ''
+        AND UPPER(TRIM(circle)) NOT IN ('NA', 'N/A', 'NULL', '-', '--', 'NONE')
       ORDER BY circle ASC;
     `);
 
@@ -121,7 +122,7 @@ router.get("/locations/circles", requireAdmin2OrAdmin, async (req: Request, res:
 
 /**
  * GET /api/admin2/locations/divisions
- * List distinct divisions for a region and circle
+ * List distinct divisions for a region and circle (excluding NA)
  */
 router.get("/locations/divisions", requireAdmin2OrAdmin, async (req: Request, res: Response) => {
   try {
@@ -140,6 +141,7 @@ router.get("/locations/divisions", requireAdmin2OrAdmin, async (req: Request, re
         AND TRIM(circle) = ${circle.trim()}
         AND division IS NOT NULL 
         AND TRIM(division) != ''
+        AND UPPER(TRIM(division)) NOT IN ('NA', 'N/A', 'NULL', '-', '--', 'NONE')
       ORDER BY division ASC;
     `);
 
@@ -153,7 +155,7 @@ router.get("/locations/divisions", requireAdmin2OrAdmin, async (req: Request, re
 
 /**
  * GET /api/admin2/locations/sub-divisions
- * List distinct sub-divisions for region, circle, and division
+ * List distinct sub-divisions for region, circle, and division (excluding NA)
  */
 router.get("/locations/sub-divisions", requireAdmin2OrAdmin, async (req: Request, res: Response) => {
   try {
@@ -174,6 +176,7 @@ router.get("/locations/sub-divisions", requireAdmin2OrAdmin, async (req: Request
         AND TRIM(division) = ${division.trim()}
         AND sub_division IS NOT NULL 
         AND TRIM(sub_division) != ''
+        AND UPPER(TRIM(sub_division)) NOT IN ('NA', 'N/A', 'NULL', '-', '--', 'NONE')
       ORDER BY sub_division ASC;
     `);
 
@@ -187,18 +190,22 @@ router.get("/locations/sub-divisions", requireAdmin2OrAdmin, async (req: Request
 
 /**
  * GET /api/admin2/locations/blocks
- * List distinct blocks for region, circle, division, and sub-division
+ * List distinct blocks for region, circle, division, and optional sub-division (excluding NA)
  */
 router.get("/locations/blocks", requireAdmin2OrAdmin, async (req: Request, res: Response) => {
   try {
     const region = req.query.region as string;
     const circle = req.query.circle as string;
     const division = req.query.division as string;
-    const subDivision = req.query.subDivision as string;
+    const subDivision = (req.query.subDivision as string) || "";
 
-    if (!region || !circle || !division || !subDivision) {
-      return res.status(400).json({ success: false, message: "Region, Circle, Division, and Sub-Division are required" });
+    if (!region || !circle || !division) {
+      return res.status(400).json({ success: false, message: "Region, Circle, and Division are required" });
     }
+
+    const isSubDivValid =
+      subDivision &&
+      !["NA", "N/A", "NULL", "-", "--", "NONE", "DIRECT"].includes(subDivision.trim().toUpperCase());
 
     const db = await getDB();
     const result = await db.execute(sql`
@@ -207,9 +214,10 @@ router.get("/locations/blocks", requireAdmin2OrAdmin, async (req: Request, res: 
       WHERE TRIM(region) = ${region.trim()} 
         AND TRIM(circle) = ${circle.trim()}
         AND TRIM(division) = ${division.trim()}
-        AND TRIM(sub_division) = ${subDivision.trim()}
+        ${isSubDivValid ? sql`AND TRIM(sub_division) = ${subDivision.trim()}` : sql``}
         AND block IS NOT NULL 
         AND TRIM(block) != ''
+        AND UPPER(TRIM(block)) NOT IN ('NA', 'N/A', 'NULL', '-', '--', 'NONE')
       ORDER BY block ASC;
     `);
 
@@ -223,19 +231,27 @@ router.get("/locations/blocks", requireAdmin2OrAdmin, async (req: Request, res: 
 
 /**
  * GET /api/admin2/locations/schemes
- * List schemes (scheme_name and scheme_id) for region, circle, division, sub_division, and block
+ * List schemes (scheme_name and scheme_id) for selected hierarchy
  */
 router.get("/locations/schemes", requireAdmin2OrAdmin, async (req: Request, res: Response) => {
   try {
     const region = req.query.region as string;
     const circle = req.query.circle as string;
     const division = req.query.division as string;
-    const subDivision = req.query.subDivision as string;
-    const block = req.query.block as string;
+    const subDivision = (req.query.subDivision as string) || "";
+    const block = (req.query.block as string) || "";
 
-    if (!region || !circle || !division || !subDivision || !block) {
-      return res.status(400).json({ success: false, message: "All hierarchy parameters are required to fetch schemes" });
+    if (!region || !circle || !division) {
+      return res.status(400).json({ success: false, message: "Region, Circle, and Division are required to fetch schemes" });
     }
+
+    const isSubDivValid =
+      subDivision &&
+      !["NA", "N/A", "NULL", "-", "--", "NONE", "DIRECT"].includes(subDivision.trim().toUpperCase());
+
+    const isBlockValid =
+      block &&
+      !["NA", "N/A", "NULL", "-", "--", "NONE", "DIRECT"].includes(block.trim().toUpperCase());
 
     const db = await getDB();
     const result = await db.execute(sql`
@@ -246,10 +262,11 @@ router.get("/locations/schemes", requireAdmin2OrAdmin, async (req: Request, res:
       WHERE TRIM(region) = ${region.trim()} 
         AND TRIM(circle) = ${circle.trim()}
         AND TRIM(division) = ${division.trim()}
-        AND TRIM(sub_division) = ${subDivision.trim()}
-        AND TRIM(block) = ${block.trim()}
+        ${isSubDivValid ? sql`AND TRIM(sub_division) = ${subDivision.trim()}` : sql``}
+        ${isBlockValid ? sql`AND TRIM(block) = ${block.trim()}` : sql``}
         AND scheme_name IS NOT NULL 
         AND TRIM(scheme_name) != ''
+        AND UPPER(TRIM(scheme_name)) NOT IN ('NA', 'N/A', 'NULL')
         AND scheme_id IS NOT NULL 
         AND TRIM(scheme_id) != ''
       ORDER BY scheme_name ASC;

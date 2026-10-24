@@ -1615,7 +1615,7 @@ export async function sendAdmin2HandoverConfirmationEmail(
             Jal Jeevan Mission • Maharashtra
           </h1>
           <p style="margin: 6px 0 0 0; font-size: 13px; color: #bfdbfe; font-weight: 500;">
-            Water Scheme Handover & Engineer Details Portal (Admin2)
+            Water Scheme Handover & Engineer Details Portal
           </p>
         </div>
 
@@ -1628,7 +1628,7 @@ export async function sendAdmin2HandoverConfirmationEmail(
             Scheme Handover Record #${submission.id} has been successfully recorded in the database.
           </p>
           <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b;">
-            Recorded on: <strong>${formattedDate}</strong> ${submission.creator_username ? `| By: <strong>${submission.creator_username}</strong>` : ''}
+            Recorded on: <strong>${formattedDate}</strong>
           </p>
         </div>
 
@@ -1713,7 +1713,7 @@ export async function sendAdmin2HandoverConfirmationEmail(
 
           <!-- Footer note -->
           <div style="background-color: #f8fafc; border-radius: 6px; padding: 12px; font-size: 12px; color: #64748b; line-height: 1.5; border: 1px dashed #cbd5e1;">
-            This is an automated confirmation generated upon successful submission in the MahaJal Admin2 Handover Portal. All records are securely stored and referenced in the centralized database.
+            This is an automated confirmation generated upon successful submission in the MahaJal Scheme Handover Portal. All records are securely stored and referenced in the centralized database.
           </div>
         </div>
 
