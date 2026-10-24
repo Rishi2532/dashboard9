@@ -252,7 +252,7 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
 
     // 3. Fetch login logs
     const loginsRes = await db.execute(sql`
-      SELECT id, user_id, username, login_time, logout_time, session_duration, ip_address, user_agent, is_active
+      SELECT id, user_id, username, user_name, login_time, logout_time, session_duration, ip_address, user_agent, is_active
       FROM user_login_logs
       ORDER BY login_time DESC
     `);
