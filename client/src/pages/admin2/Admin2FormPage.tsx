@@ -582,7 +582,7 @@ export default function Admin2FormPage() {
 
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              JJM SWSM MVS Scheme owner details
+              JJM SWSM MVS Scheme Owner Entry details
             </h2>
             {/* <p className="text-xs sm:text-sm text-blue-100/90 leading-relaxed">
               Select the cascading administrative location to identify the scheme, enter the designated field engineer
