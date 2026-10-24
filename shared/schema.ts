@@ -1671,3 +1671,53 @@ export const insertConsolidatedEmailDispatchSchema = createInsertSchema(consolid
 export type InsertConsolidatedEmailDispatch = z.infer<typeof insertConsolidatedEmailDispatchSchema>;
 export type ConsolidatedEmailDispatch = typeof consolidatedEmailDispatches.$inferSelect;
 
+// Admin2 Form Submissions table
+export const admin2Submissions = pgTable("admin2_submissions", {
+  id: serial("id").primaryKey(),
+  region: text("region").notNull(),
+  circle: text("circle").notNull(),
+  division: text("division").notNull(),
+  sub_division: text("sub_division").notNull(),
+  block: text("block").notNull(),
+  scheme_name: text("scheme_name").notNull(),
+  scheme_id: text("scheme_id").notNull(),
+  engineer_name: text("engineer_name").notNull(),
+  engineer_email: text("engineer_email").notNull(),
+  engineer_mobile: text("engineer_mobile").notNull(),
+  engineer_designation: text("engineer_designation").notNull(),
+  agency_name: text("agency_name").notNull(),
+  handover_status: text("handover_status").notNull(),
+  created_by: integer("created_by").references(() => users.id),
+  creator_name: text("creator_name"),
+  creator_username: text("creator_username"),
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const insertAdmin2SubmissionSchema = createInsertSchema(admin2Submissions).omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+}).extend({
+  region: z.string().min(1, "Region is required"),
+  circle: z.string().min(1, "Circle is required"),
+  division: z.string().min(1, "Division is required"),
+  sub_division: z.string().min(1, "Sub-Division is required"),
+  block: z.string().min(1, "Block is required"),
+  scheme_name: z.string().min(1, "Scheme Name is required"),
+  scheme_id: z.string().min(1, "Scheme ID is required"),
+  engineer_name: z.string().min(1, "Engineer Name is required"),
+  engineer_email: z.string().email("Please enter a valid email address"),
+  engineer_mobile: z.string().regex(/^[0-9]{10}$/, "Please enter a valid 10-digit mobile number"),
+  engineer_designation: z.string().min(1, "Engineer Designation is required"),
+  agency_name: z.enum(["MJP", "ZP", "Shikarsamiti", "Gram Panchayat (GP)", "Contractor"], {
+    errorMap: () => ({ message: "Please select an Agency Name" }),
+  }),
+  handover_status: z.enum(["Handed Over", "Not Handed Over"], {
+    errorMap: () => ({ message: "Please select Handover Status" }),
+  }),
+});
+
+export type Admin2Submission = typeof admin2Submissions.$inferSelect;
+export type InsertAdmin2Submission = z.infer<typeof insertAdmin2SubmissionSchema>;
+

@@ -41,7 +41,19 @@ export default function AdminLoginPage() {
   const { toast } = useToast();
   const [loginError, setLoginError] = useState<string | null>(null);
   const [, setLocation] = useLocation();
-  const { login } = useAuth();
+  const auth = useAuth();
+  const { login } = auth;
+
+  // Auto-redirect if already authenticated
+  useEffect(() => {
+    if (!auth.isLoading && auth.isAuthenticated) {
+      if (auth.isAdmin2 || auth.role === 'admin2') {
+        setLocation('/admin2/form');
+      } else if (auth.isAdmin || auth.role === 'admin') {
+        setLocation('/admin/dashboard');
+      }
+    }
+  }, [auth.isLoading, auth.isAuthenticated, auth.isAdmin, auth.isAdmin2, auth.role, setLocation]);
 
   // Login form setup
   const form = useForm<LoginFormValues>({
@@ -58,12 +70,24 @@ export default function AdminLoginPage() {
       return await login(credentials.username, credentials.password, "admin");
     },
     onSuccess: (data) => {
-      toast({
-        title: "Login successful",
-        description: "You are now logged in as administrator",
-      });
-      setLoginError(null);
-      setLocation("/admin/dashboard");
+      const userRole = (data?.role || data?.user?.role || "").toLowerCase();
+      const isAdmin2 = userRole === "admin2" || Boolean(data?.isAdmin2);
+
+      if (isAdmin2) {
+        toast({
+          title: "Login successful",
+          description: "You are logged in as Admin2",
+        });
+        setLoginError(null);
+        setLocation("/admin2/form");
+      } else {
+        toast({
+          title: "Login successful",
+          description: "You are now logged in as administrator",
+        });
+        setLoginError(null);
+        setLocation("/admin/dashboard");
+      }
     },
     onError: (error: Error) => {
       setLoginError(error.message);

@@ -7,17 +7,21 @@ import { useAuth } from '@/hooks/use-auth';
 interface AuthStatusResponse {
   isLoggedIn: boolean;
   isAdmin: boolean;
+  isAdmin2?: boolean;
+  role?: string;
 }
 
 interface ProtectedRouteProps {
   children: ReactNode;
   requireAdmin?: boolean;
+  requireAdmin2?: boolean;
   redirectTo?: string;
 }
 
 export default function ProtectedRoute({ 
   children, 
   requireAdmin = false,
+  requireAdmin2 = false,
   redirectTo = '/login' 
 }: ProtectedRouteProps) {
   const [, setLocation] = useLocation();
@@ -35,9 +39,12 @@ export default function ProtectedRoute({
 
   const isAuth = auth.isAuthenticated || Boolean(data?.isLoggedIn);
   const isAdm = Boolean(auth.isAdmin || data?.isAdmin || auth.role === 'admin' || auth.user?.role === 'admin');
+  const isAdm2 = Boolean(auth.isAdmin2 || (data as any)?.isAdmin2 || auth.role === 'admin2' || auth.user?.role === 'admin2');
   
   // Only show pending if auth is still initializing, or if not yet authorized while query is in flight
-  const isPending = auth.isLoading || (!isAuth && (isLoading || isFetching)) || (requireAdmin && !isAdm && (isLoading || isFetching));
+  const isPending = auth.isLoading || (!isAuth && (isLoading || isFetching)) || 
+    (requireAdmin && !isAdm && (isLoading || isFetching)) ||
+    (requireAdmin2 && (!isAdm2 && !isAdm) && (isLoading || isFetching));
 
   useEffect(() => {
     if (!isPending) {
@@ -47,13 +54,23 @@ export default function ProtectedRoute({
         return;
       }
       
-      // Logged in but not admin when admin is required - redirect
+      // Admin2 cannot access Admin pages; redirect to Admin2 form
       if (requireAdmin && !isAdm) {
+        if (isAdm2) {
+          setLocation('/admin2/form');
+          return;
+        }
         setLocation(redirectTo);
         return;
       }
+
+      // Route requires Admin2 (or Super Admin)
+      if (requireAdmin2 && !isAdm2 && !isAdm) {
+        setLocation('/admin');
+        return;
+      }
     }
-  }, [isAuth, isAdm, isPending, setLocation, requireAdmin, redirectTo]);
+  }, [isAuth, isAdm, isAdm2, isPending, setLocation, requireAdmin, requireAdmin2, redirectTo]);
 
   if (isPending) {
     // Show loading spinner while checking auth status
@@ -66,9 +83,8 @@ export default function ProtectedRoute({
       </div>
     );
   }
-
-  // Not authenticated or not admin when required
-  if (!isAuth || (requireAdmin && !isAdm)) {
+  // Not authenticated or not permitted when required
+  if (!isAuth || (requireAdmin && !isAdm) || (requireAdmin2 && (!isAdm2 && !isAdm))) {
     return null;
   }
 

@@ -54,6 +54,7 @@ import ESRDashboard from "./pages/ESRDashboard";
 import EngineersHierarchyPage from "./pages/admin/EngineersHierarchyPage";
 import EscalationPortalPage from "./pages/escalation-portal";
 import Level5SummaryPage from "./pages/Level5SummaryPage";
+import Admin2FormPage from "./pages/admin2/Admin2FormPage";
 
 import ProtectedRoute from "./components/auth/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
@@ -82,10 +83,12 @@ function App() {
     "/register",
     "/forgot-password",
     "/admin",
+    "/admin2",
+    "/admin2/form",
   ];
 
-  // Check if current route starts with /admin/
-  const isAdminRoute = location.startsWith("/admin/");
+  // Check if current route starts with /admin/ or /admin2
+  const isAdminRoute = location.startsWith("/admin/") || location.startsWith("/admin2");
 
   // Determine if chatbot should be hidden
   const shouldHideChatbot =
@@ -462,6 +465,19 @@ function App() {
                     <Route path="/admin/portal">
                       <ProtectedRoute requireAdmin={true}>
                         <AdminPortalHub />
+                      </ProtectedRoute>
+                    </Route>
+
+                    {/* Dedicated Admin2 Route */}
+                    <Route path="/admin2/form">
+                      <ProtectedRoute requireAdmin2={true} redirectTo="/admin">
+                        <Admin2FormPage />
+                      </ProtectedRoute>
+                    </Route>
+
+                    <Route path="/admin2">
+                      <ProtectedRoute requireAdmin2={true} redirectTo="/admin">
+                        <Admin2FormPage />
                       </ProtectedRoute>
                     </Route>
 

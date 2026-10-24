@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { getDB } from "../../db";
 import { users, schemeEngineerDetails } from "@shared/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { 
   DLT_TEMPLATES, 
@@ -23,18 +23,20 @@ const createEngineerSchema = z.object({
   name: z.string().min(2, "Full name is required").trim(),
   email: z.string().email("Valid email address is required").trim().toLowerCase(),
   phone: z.string().optional().nullable(),
+  role: z.enum(["engineer", "admin2"]).default("engineer"),
 });
 
 const updateEngineerSchema = z.object({
   name: z.string().min(2, "Full name is required").trim().optional(),
   email: z.string().email("Valid email address is required").trim().toLowerCase().optional(),
   phone: z.string().optional().nullable(),
+  role: z.enum(["engineer", "admin2"]).optional(),
   password: z.string().min(6, "Password must be at least 6 characters").optional().or(z.literal("")),
 });
 
 /**
  * GET /api/admin/engineers
- * List all users with role 'engineer'
+ * List all users with role 'engineer' or 'admin2'
  */
 router.get("/", async (req: Request, res: Response) => {
   try {
@@ -49,7 +51,7 @@ router.get("/", async (req: Request, res: Response) => {
         role: users.role,
       })
       .from(users)
-      .where(eq(users.role, "engineer"))
+      .where(inArray(users.role, ["engineer", "admin2", "Admin2"]))
       .orderBy(sql`${users.id} DESC`);
 
     // Fetch scheme assignments count for each engineer
@@ -926,7 +928,7 @@ router.post("/", async (req: Request, res: Response) => {
       });
     }
 
-    // Insert new engineer user
+    // Insert new engineer/admin2 user
     const [newUser] = await db
       .insert(users)
       .values({
@@ -935,13 +937,13 @@ router.post("/", async (req: Request, res: Response) => {
         name: validated.name,
         email: validated.email,
         phone: validated.phone || null,
-        role: "engineer", // Strictly enforced
+        role: validated.role || "engineer",
       })
       .returning();
 
     res.status(201).json({
       success: true,
-      message: `Engineer account '${newUser.username}' created successfully`,
+      message: `${validated.role === "admin2" ? "Admin2" : "Engineer"} account '${newUser.username}' created successfully`,
       engineer: {
         id: newUser.id,
         username: newUser.username,
@@ -955,38 +957,39 @@ router.post("/", async (req: Request, res: Response) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({
         success: false,
-        message: error.errors[0]?.message || "Invalid engineer account data",
+        message: error.errors[0]?.message || "Invalid account data",
         errors: error.errors,
       });
     }
-    console.error("Error creating engineer user:", error);
-    res.status(500).json({ success: false, message: "Failed to create engineer account" });
+    console.error("Error creating user:", error);
+    res.status(500).json({ success: false, message: "Failed to create account" });
   }
 });
 
 /**
  * PUT /api/admin/engineers/:id
- * Admin updates engineer account credentials or details
+ * Admin updates engineer or admin2 account credentials or details
  */
 router.put("/:id", async (req: Request, res: Response) => {
   try {
     const db = await getDB();
     const engineerId = parseInt(req.params.id, 10);
     if (isNaN(engineerId)) {
-      return res.status(400).json({ success: false, message: "Invalid engineer ID" });
+      return res.status(400).json({ success: false, message: "Invalid user ID" });
     }
 
     const validated = updateEngineerSchema.parse(req.body);
 
     const [existing] = await db.select().from(users).where(eq(users.id, engineerId));
     if (!existing) {
-      return res.status(404).json({ success: false, message: "Engineer account not found" });
+      return res.status(404).json({ success: false, message: "Account not found" });
     }
 
     const updateFields: any = {};
     if (validated.name !== undefined) updateFields.name = validated.name;
     if (validated.email !== undefined) updateFields.email = validated.email;
     if (validated.phone !== undefined) updateFields.phone = validated.phone;
+    if (validated.role !== undefined) updateFields.role = validated.role;
     if (validated.password && validated.password.trim().length >= 6) {
       updateFields.password = validated.password.trim();
     }

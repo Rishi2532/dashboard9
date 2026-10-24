@@ -64,6 +64,7 @@ import realtimeAlertsRoutes from "./routes/realtime-alerts-routes";
 import escalationRoutes from "./routes/escalation-routes";
 import { sendSingleOfflineReminderEmail, sendBatchOfflineReminderEmail } from "./services/email-service";
 import { updateSmsDeliveryStatus } from "./services/sms-service";
+import admin2Routes from "./routes/admin2-routes";
 // import { mqttService } from "./mqtt-service";
 
 const exec = promisify(cp.exec);
@@ -77,6 +78,15 @@ declare module "express-session" {
   interface Session {
     userId?: number;
     isAdmin?: boolean;
+    isAdmin2?: boolean;
+    role?: string;
+    username?: string;
+    user?: any;
+    isEngineer?: boolean;
+    assignedSchemes?: any[];
+    assignedSchemeIds?: string[];
+    assignedSchemeNames?: string[];
+    engineerProfile?: any;
   }
 }
 
@@ -266,6 +276,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Mount LPCD import routes (admin-only)
   app.use("/api/admin", requireAdmin, lpcdImportRoutes);
+
+  // Mount Admin2 routes
+  app.use("/api/admin2", admin2Routes);
 
   // Auto-hydrate engineer session to ensure assignedSchemeIds is always accurate
   app.use(async (req, res, next) => {
@@ -1166,6 +1179,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check exact roles from user record
       const isUserAdmin = user.role === "admin";
+      const isUserAdmin2 = user.role === "admin2" || user.role === "Admin2";
       const isUserEngineer = user.role === "engineer";
 
       // Check for engineer role and look up assigned schemes only for engineers
@@ -1190,13 +1204,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Strict role & portal enforcement based on exact user role credentials
       const portal = credentials.portal;
       if (portal === "admin") {
-        if (!isUserAdmin) {
+        if (!isUserAdmin && !isUserAdmin2) {
           return res.status(403).json({
             message: "Access denied. Only Administrator credentials can log in here."
           });
         }
       } else if (portal === "engineer") {
-        if (isUserAdmin) {
+        if (isUserAdmin || isUserAdmin2) {
           return res.status(403).json({
             message: "Access denied. Administrators must use the Admin Login portal."
           });
@@ -1207,7 +1221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       } else if (portal === "user") {
-        if (isUserAdmin) {
+        if (isUserAdmin || isUserAdmin2) {
           return res.status(403).json({
             message: "Access denied. Administrators must use the Admin Login portal."
           });
@@ -1224,6 +1238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.session.userId = user.id;
         req.session.role = user.role;
         req.session.isAdmin = isUserAdmin;
+        req.session.isAdmin2 = isUserAdmin2;
         req.session.isEngineer = isUserEngineer;
         req.session.assignedSchemes = assignedSchemes;
         req.session.assignedSchemeIds = assignedSchemeIds;
@@ -1263,6 +1278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             role: user.role,
             name: user.name,
             isAdmin: isUserAdmin,
+            isAdmin2: isUserAdmin2,
             isEngineer: isUserEngineer,
             assignedSchemes,
             assignedSchemeIds,
@@ -1278,6 +1294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role: user.role,
         name: user.name,
         isAdmin: isUserAdmin,
+        isAdmin2: isUserAdmin2,
         isEngineer: isUserEngineer,
         assignedSchemes,
         assignedSchemeIds,
@@ -1305,8 +1322,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     );
     const isLoggedIn = !!(req.session && req.session.userId);
     const isAdmin = !!(req.session && req.session.isAdmin === true);
+    const isAdmin2 = !!(req.session && (req.session.isAdmin2 === true || req.session.role === "admin2" || req.session.role === "Admin2"));
     const isEngineer = !!(req.session && (req.session.isEngineer === true || req.session.role === "engineer"));
-    const role = req.session?.role || (isAdmin ? "admin" : isEngineer ? "engineer" : "user");
+    const role = req.session?.role || (isAdmin ? "admin" : isAdmin2 ? "admin2" : isEngineer ? "engineer" : "user");
     const assignedSchemes = req.session?.assignedSchemes || [];
     const assignedSchemeIds = req.session?.assignedSchemeIds || [];
     const assignedSchemeNames = req.session?.assignedSchemeNames || [];
@@ -1323,6 +1341,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({
       isLoggedIn,
       isAdmin,
+      isAdmin2,
       isEngineer,
       role,
       assignedSchemes,
@@ -1349,13 +1368,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const assignedSchemes = req.session.assignedSchemes || [];
       const assignedSchemeIds = req.session.assignedSchemeIds || [];
       const assignedSchemeNames = req.session.assignedSchemeNames || [];
-      const engineerProfile = req.session.engineerProfile || null;
+      const engineerProfile = req.session?.engineerProfile || null;
 
       // Return user details excluding password
       const { password, ...userDetails } = user;
       res.json({
         ...userDetails,
         isAdmin: user.role === "admin",
+        isAdmin2: user.role === "admin2" || user.role === "Admin2",
         isEngineer,
         assignedSchemes,
         assignedSchemeIds,

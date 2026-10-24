@@ -26,6 +26,7 @@ interface EngineerProfile {
 interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isAdmin2: boolean;
   isEngineer: boolean;
   role: string;
   assignedSchemes: AssignedScheme[];
@@ -42,6 +43,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   isAdmin: false,
+  isAdmin2: false,
   isEngineer: false,
   role: 'user',
   assignedSchemes: [],
@@ -58,6 +60,7 @@ const AuthContext = createContext<AuthContextType>({
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin2, setIsAdmin2] = useState(false);
   const [isEngineer, setIsEngineer] = useState(false);
   const [role, setRole] = useState('user');
   const [assignedSchemes, setAssignedSchemes] = useState<AssignedScheme[]>([]);
@@ -75,8 +78,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const response = await apiRequest('/api/auth/status');
         setIsAuthenticated(response.isLoggedIn || false);
         setIsAdmin(response.isAdmin || false);
+        setIsAdmin2(response.isAdmin2 || response.role === 'admin2' || false);
         setIsEngineer(response.isEngineer || false);
-        setRole(response.role || (response.isAdmin ? 'admin' : response.isEngineer ? 'engineer' : 'user'));
+        setRole(response.role || (response.isAdmin ? 'admin' : response.isAdmin2 ? 'admin2' : response.isEngineer ? 'engineer' : 'user'));
         setAssignedSchemes(response.assignedSchemes || []);
         setAssignedSchemeIds(response.assignedSchemeIds || []);
         setAssignedSchemeNames(response.assignedSchemeNames || []);
@@ -85,6 +89,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } catch (err) {
         setIsAuthenticated(false);
         setIsAdmin(false);
+        setIsAdmin2(false);
         setIsEngineer(false);
         setRole('user');
         setAssignedSchemes([]);
@@ -116,8 +121,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       setIsAuthenticated(true);
       setIsAdmin(!!response.isAdmin);
+      setIsAdmin2(!!(response.isAdmin2 || response.role === 'admin2'));
       setIsEngineer(!!response.isEngineer);
-      setRole(response.role || (response.isAdmin ? 'admin' : response.isEngineer ? 'engineer' : 'user'));
+      setRole(response.role || (response.isAdmin ? 'admin' : response.isAdmin2 ? 'admin2' : response.isEngineer ? 'engineer' : 'user'));
       setAssignedSchemes(response.assignedSchemes || []);
       setAssignedSchemeIds(response.assignedSchemeIds || []);
       setAssignedSchemeNames(response.assignedSchemeNames || []);
@@ -130,8 +136,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       queryClient.setQueryData(['/api/auth/status'], {
         isLoggedIn: true,
         isAdmin: !!response.isAdmin,
+        isAdmin2: !!(response.isAdmin2 || response.role === 'admin2'),
         isEngineer: !!response.isEngineer,
-        role: response.role || (response.isAdmin ? 'admin' : response.isEngineer ? 'engineer' : 'user'),
+        role: response.role || (response.isAdmin ? 'admin' : response.isAdmin2 ? 'admin2' : response.isEngineer ? 'engineer' : 'user'),
         assignedSchemes: response.assignedSchemes || [],
         assignedSchemeIds: response.assignedSchemeIds || [],
         assignedSchemeNames: response.assignedSchemeNames || [],
@@ -145,6 +152,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (err) {
       setIsAuthenticated(false);
       setIsAdmin(false);
+      setIsAdmin2(false);
       setIsEngineer(false);
       setRole('user');
       setAssignedSchemes([]);
@@ -171,6 +179,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } finally {
       setIsAuthenticated(false);
       setIsAdmin(false);
+      setIsAdmin2(false);
       setIsEngineer(false);
       setRole('user');
       setAssignedSchemes([]);
@@ -191,6 +200,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         isAuthenticated,
         isAdmin,
+        isAdmin2,
         isEngineer,
         role,
         assignedSchemes,

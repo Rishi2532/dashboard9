@@ -1555,3 +1555,188 @@ export async function sendRealtimeConsolidatedAlertEmail(
   });
 }
 
+export interface Admin2SubmissionEmailParams {
+  toEmails: string[];
+  ccEmails: string[];
+  submission: {
+    id: number;
+    region: string;
+    circle: string;
+    division: string;
+    sub_division: string;
+    block: string;
+    scheme_name: string;
+    scheme_id: string;
+    engineer_name: string;
+    engineer_email: string;
+    engineer_mobile: string;
+    engineer_designation: string;
+    agency_name: string;
+    handover_status: string;
+    creator_name?: string;
+    creator_username?: string;
+    created_at?: Date | string;
+  };
+}
+
+export async function sendAdmin2HandoverConfirmationEmail(
+  params: Admin2SubmissionEmailParams
+): Promise<boolean> {
+  const { toEmails, ccEmails, submission } = params;
+  if (!toEmails || toEmails.length === 0) {
+    console.warn("⚠️ No primary recipients for Admin2 handover confirmation email.");
+    return false;
+  }
+
+  const formattedDate = new Date(submission.created_at || new Date()).toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+  const isHandedOver = submission.handover_status === "Handed Over";
+  const statusColor = isHandedOver ? "#16a34a" : "#d97706";
+  const statusBg = isHandedOver ? "#f0fdf4" : "#fffbeb";
+  const statusBorder = isHandedOver ? "#bbf7d0" : "#fde68a";
+
+  const subject = `Confirmation: Scheme Handover Details Submitted - ${submission.scheme_name} [Scheme ID: ${submission.scheme_id}]`;
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 650px; margin: 0 auto; background-color: #f8fafc; padding: 24px 12px; color: #1e293b;">
+      <div style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0;">
+        
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); padding: 24px; text-align: center; color: #ffffff;">
+          <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.025em;">
+            Jal Jeevan Mission • Maharashtra
+          </h1>
+          <p style="margin: 6px 0 0 0; font-size: 13px; color: #bfdbfe; font-weight: 500;">
+            Water Scheme Handover & Engineer Details Portal (Admin2)
+          </p>
+        </div>
+
+        <!-- Success Banner -->
+        <div style="background-color: #f0fdf4; border-bottom: 1px solid #bbf7d0; padding: 16px 24px; text-align: center;">
+          <span style="display: inline-block; background-color: #16a34a; color: #ffffff; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em;">
+            ✓ Submission Confirmed
+          </span>
+          <p style="margin: 10px 0 0 0; font-size: 14px; color: #15803d; font-weight: 600;">
+            Scheme Handover Record #${submission.id} has been successfully recorded in the database.
+          </p>
+          <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b;">
+            Recorded on: <strong>${formattedDate}</strong> ${submission.creator_username ? `| By: <strong>${submission.creator_username}</strong>` : ''}
+          </p>
+        </div>
+
+        <!-- Body Content -->
+        <div style="padding: 24px;">
+
+          <!-- Scheme & Handover Summary Box -->
+          <div style="background-color: ${statusBg}; border: 1px solid ${statusBorder}; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="font-size: 13px; color: #64748b; font-weight: 600; padding-bottom: 6px;">Scheme Name:</td>
+                <td style="font-size: 14px; color: #0f172a; font-weight: 700; text-align: right; padding-bottom: 6px;">${submission.scheme_name}</td>
+              </tr>
+              <tr>
+                <td style="font-size: 13px; color: #64748b; font-weight: 600; padding-bottom: 6px;">Scheme ID:</td>
+                <td style="font-size: 13px; font-family: monospace; color: #2563eb; font-weight: 700; text-align: right; padding-bottom: 6px;">${submission.scheme_id}</td>
+              </tr>
+              <tr>
+                <td style="font-size: 13px; color: #64748b; font-weight: 600; padding-bottom: 6px;">Implementing Agency:</td>
+                <td style="font-size: 13px; color: #0f172a; font-weight: 700; text-align: right; padding-bottom: 6px;">${submission.agency_name}</td>
+              </tr>
+              <tr>
+                <td style="font-size: 13px; color: #64748b; font-weight: 600;">Handover Status:</td>
+                <td style="font-size: 13px; font-weight: 700; color: ${statusColor}; text-align: right;">
+                  <span style="background-color: ${isHandedOver ? '#dcfce7' : '#fef3c7'}; padding: 3px 10px; border-radius: 6px; border: 1px solid ${statusBorder};">
+                    ${submission.handover_status}
+                  </span>
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Section: Location Hierarchy -->
+          <h2 style="font-size: 14px; font-weight: 700; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px 0; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px;">
+            📍 Administrative Location Hierarchy
+          </h2>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 13px;">
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 8px 0; color: #64748b; font-weight: 500; width: 40%;">Region</td>
+              <td style="padding: 8px 0; color: #1e293b; font-weight: 600;">${submission.region}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Circle</td>
+              <td style="padding: 8px 0; color: #1e293b; font-weight: 600;">${submission.circle}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Division</td>
+              <td style="padding: 8px 0; color: #1e293b; font-weight: 600;">${submission.division}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Sub-Division</td>
+              <td style="padding: 8px 0; color: #1e293b; font-weight: 600;">${submission.sub_division}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Block</td>
+              <td style="padding: 8px 0; color: #1e293b; font-weight: 600;">${submission.block}</td>
+            </tr>
+          </table>
+
+          <!-- Section: Engineer In-Charge Details -->
+          <h2 style="font-size: 14px; font-weight: 700; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px 0; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px;">
+            👤 Engineer In-Charge Details
+          </h2>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 13px;">
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 8px 0; color: #64748b; font-weight: 500; width: 40%;">Engineer Name</td>
+              <td style="padding: 8px 0; color: #1e293b; font-weight: 600;">${submission.engineer_name}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Designation</td>
+              <td style="padding: 8px 0; color: #1e293b; font-weight: 600;">${submission.engineer_designation}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Official Email</td>
+              <td style="padding: 8px 0; color: #2563eb; font-weight: 600;">${submission.engineer_email}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Mobile Number</td>
+              <td style="padding: 8px 0; color: #1e293b; font-weight: 600;">${submission.engineer_mobile}</td>
+            </tr>
+          </table>
+
+          <!-- Footer note -->
+          <div style="background-color: #f8fafc; border-radius: 6px; padding: 12px; font-size: 12px; color: #64748b; line-height: 1.5; border: 1px dashed #cbd5e1;">
+            This is an automated confirmation generated upon successful submission in the MahaJal Admin2 Handover Portal. All records are securely stored and referenced in the centralized database.
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="background-color: #f1f5f9; padding: 16px 24px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: #64748b;">
+          Water Supply & Sanitation Department • Government of Maharashtra<br/>
+          MahaJal IoT Monitoring & Handover Portal
+        </div>
+      </div>
+    </div>
+  `;
+
+  try {
+    return await sendEmail({
+      to: toEmails,
+      cc: ccEmails,
+      from: "MahaJal Handover Portal",
+      subject,
+      html,
+    });
+  } catch (err) {
+    console.error("Error sending Admin2 handover confirmation email:", err);
+    return false;
+  }
+}
+

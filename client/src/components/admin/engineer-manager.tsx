@@ -79,12 +79,13 @@ export default function EngineerManager() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Form states for creating new engineer
+  // Form states for creating new user
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [role, setRole] = useState<'engineer' | 'admin2'>('engineer');
   const [showPassword, setShowPassword] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -93,6 +94,7 @@ export default function EngineerManager() {
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editPhone, setEditPhone] = useState('');
+  const [editRole, setEditRole] = useState<'engineer' | 'admin2'>('engineer');
   const [editPassword, setEditPassword] = useState('');
   const [showEditPassword, setShowEditPassword] = useState(false);
 
@@ -199,17 +201,19 @@ export default function EngineerManager() {
           name: name.trim(),
           email: email.trim().toLowerCase(),
           phone: phone.trim() || null,
+          role: role,
         }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to create engineer');
+      if (!res.ok) throw new Error(data.message || 'Failed to create account');
       return data;
     },
     onSuccess: (data) => {
+      const isA2 = data?.engineer?.role === 'admin2';
       toast({
-        title: '✅ Engineer Account Created',
-        description: `Login credentials for '${data.engineer.username}' have been generated with role 'engineer'.`,
+        title: isA2 ? '✅ Admin2 Account Created' : '✅ Engineer Account Created',
+        description: `Login credentials for '${data.engineer.username}' have been generated with role '${data.engineer.role}'.`,
       });
       // Reset form
       setUsername('');
@@ -217,6 +221,7 @@ export default function EngineerManager() {
       setName('');
       setEmail('');
       setPhone('');
+      setRole('engineer');
       queryClient.invalidateQueries({ queryKey: ['/api/admin/engineers'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/engineers/directory'] });
     },
@@ -237,6 +242,7 @@ export default function EngineerManager() {
         name: editName.trim(),
         email: editEmail.trim().toLowerCase(),
         phone: editPhone.trim() || null,
+        role: editRole,
       };
       if (editPassword.trim()) {
         payload.password = editPassword.trim();
@@ -430,15 +436,15 @@ export default function EngineerManager() {
               </div>
               <div>
                 <CardTitle className="text-lg font-bold text-slate-900 dark:text-white">
-                  Create Engineer Login Credentials
+                  Create User Credentials (Engineer / Admin2)
                 </CardTitle>
                 <CardDescription className="text-xs text-slate-500">
-                  Only Administrators have authority to create and assign engineer portal accounts in the users table.
+                  Create Engineer accounts or Admin2 dedicated form accounts in the users table.
                 </CardDescription>
               </div>
             </div>
-            <Badge className="bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-300 font-mono text-xs w-fit">
-              Role: engineer
+            <Badge className={role === 'admin2' ? "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 font-mono text-xs w-fit" : "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-300 font-mono text-xs w-fit"}>
+              Role: {role}
             </Badge>
           </div>
         </CardHeader>
@@ -451,19 +457,38 @@ export default function EngineerManager() {
             }}
             className="space-y-4"
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Role Selection */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Role Assignment <span className="text-rose-500">*</span>
+                </Label>
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value as 'engineer' | 'admin2')}
+                  className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50 font-medium"
+                >
+                  <option value="engineer">Engineer (Field Portal)</option>
+                  <option value="admin2">Admin2 (Dedicated Form Portal)</option>
+                </select>
+                <p className="text-[10px] text-slate-400">
+                  {role === 'admin2' ? 'Admin2 logs in at Admin Login and accesses Dedicated Form' : 'Engineer manages field schemes'}
+                </p>
+              </div>
+
               {/* Full Name */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Engineer Full Name <span className="text-rose-500">*</span>
+                  Full Name <span className="text-rose-500">*</span>
                 </Label>
                 <Input
-                  placeholder="e.g., Rajesh Sharma"
+                  placeholder={role === 'admin2' ? "e.g., Handover Officer" : "e.g., Rajesh Sharma"}
                   value={name}
                   onChange={(e) => {
                     setName(e.target.value);
                     if (!username && e.target.value) {
-                      setUsername(generateSuggestedUsername(e.target.value));
+                      const clean = e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 15);
+                      setUsername(role === 'admin2' ? `admin2_${clean}` : `eng_${clean}`);
                     }
                   }}
                   className="h-9 text-xs"
@@ -701,9 +726,9 @@ export default function EngineerManager() {
                       <TableRow key={eng.id} className="hover:bg-slate-50/70 transition-colors">
                         <TableCell className="py-3">
                           <div className="font-semibold text-xs text-slate-900 dark:text-white">
-                            {eng.name || 'Unnamed Engineer'}
+                            {eng.name || 'Unnamed User'}
                           </div>
-                          <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] mt-1 font-normal">
+                          <Badge className={eng.role === 'admin2' ? "bg-amber-100 text-amber-800 border-amber-300 text-[10px] mt-1 font-semibold" : "bg-blue-50 text-blue-700 border-blue-200 text-[10px] mt-1 font-normal"}>
                             Role: {eng.role}
                           </Badge>
                         </TableCell>
@@ -766,6 +791,7 @@ export default function EngineerManager() {
                                 setEditName(eng.name || '');
                                 setEditEmail(eng.email || '');
                                 setEditPhone(eng.phone || '');
+                                setEditRole((eng.role === 'admin2' ? 'admin2' : 'engineer'));
                                 setEditPassword('');
                               }}
                               className="h-7 px-2 text-xs text-blue-600 border-blue-200 hover:bg-blue-50"
@@ -950,6 +976,18 @@ export default function EngineerManager() {
                 className="h-8 text-xs"
                 required
               />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">User Role</Label>
+              <select
+                value={editRole}
+                onChange={(e) => setEditRole(e.target.value as 'engineer' | 'admin2')}
+                className="w-full h-8 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50 font-medium"
+              >
+                <option value="engineer">Engineer</option>
+                <option value="admin2">Admin2</option>
+              </select>
             </div>
 
             <div className="space-y-1">
