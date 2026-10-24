@@ -537,27 +537,27 @@ export default function Admin2FormPage() {
               <div className="flex items-center gap-2">
                 <h1 className="text-base sm:text-lg font-bold tracking-tight text-blue-900 dark:text-blue-100 flex items-center gap-1.5">
                   <ShieldCheck className="w-5 h-5 text-blue-600" />
-                  Admin2 Portal
+                  MVS Owner Form
                 </h1>
                 <Badge className="bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950 dark:text-indigo-300 font-mono text-[11px] font-semibold">
                   Handover Entry
                 </Badge>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">
-                Jal Jeevan Mission Maharashtra • Scheme Handover & Engineer Details Portal
+                Jal Jeevan Mission Maharashtra
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5">
-            <div className="hidden md:flex flex-col items-end text-right">
+            {/* <div className="hidden md:flex flex-col items-end text-right">
               <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                 {user?.name || user?.username || 'Admin2 User'}
               </span>
               <span className="text-[10px] text-slate-500 font-mono">
                 Role: {role || 'admin2'}
-              </span>
-            </div>
+              </span> */}
+            {/* </div> */}
 
             <Button
               variant="outline"
@@ -579,11 +579,10 @@ export default function Admin2FormPage() {
           <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-white/5 pointer-events-none transform skew-x-12"></div>
           <div className="relative z-10 max-w-2xl space-y-2">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm text-[11px] font-semibold text-blue-100 tracking-wide uppercase">
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              Dedicated Entry Form
+
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Water Scheme Handover Details
+              JJM SWSM MVS Scheme owner details
             </h2>
             <p className="text-xs sm:text-sm text-blue-100/90 leading-relaxed">
               Select the cascading administrative location to identify the scheme, enter the designated field engineer
@@ -602,7 +601,7 @@ export default function Admin2FormPage() {
                 </div>
                 <div>
                   <CardTitle className="text-lg font-bold text-slate-900 dark:text-white">
-                    Scheme Handover Information Form
+                    Scheme owner Information Form
                   </CardTitle>
                   <CardDescription className="text-xs text-slate-500">
                     All fields marked with <span className="text-rose-500 font-semibold">*</span> are mandatory and strictly validated.
@@ -610,12 +609,12 @@ export default function Admin2FormPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-xs text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800">
                   <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-500" />
                   Auto Scheme ID Mapping
                 </Badge>
-              </div>
+              </div> */}
             </div>
           </CardHeader>
 
@@ -647,9 +646,8 @@ export default function Admin2FormPage() {
                       id="dropdown-region"
                       value={selectedRegion}
                       onChange={(e) => handleRegionChange(e.target.value)}
-                      className={`w-full h-10 rounded-lg border bg-white px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-950 dark:text-slate-100 font-medium transition-all ${
-                        errors.region ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-800'
-                      }`}
+                      className={`w-full h-10 rounded-lg border bg-white px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-950 dark:text-slate-100 font-medium transition-all ${errors.region ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-800'
+                        }`}
                     >
                       <option value="">-- Select Region --</option>
                       {regionsList.map((reg) => (
@@ -672,9 +670,8 @@ export default function Admin2FormPage() {
                       value={selectedCircle}
                       onChange={(e) => handleCircleChange(e.target.value)}
                       disabled={!selectedRegion || isLoadingCircles}
-                      className={`w-full h-10 rounded-lg border bg-white px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-950 dark:text-slate-100 font-medium transition-all disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 disabled:cursor-not-allowed ${
-                        errors.circle ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-800'
-                      }`}
+                      className={`w-full h-10 rounded-lg border bg-white px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-950 dark:text-slate-100 font-medium transition-all disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 disabled:cursor-not-allowed ${errors.circle ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-800'
+                        }`}
                     >
                       <option value="">
                         {!selectedRegion ? '-- Select Region First --' : '-- Select Circle --'}
@@ -699,9 +696,8 @@ export default function Admin2FormPage() {
                       value={selectedDivision}
                       onChange={(e) => handleDivisionChange(e.target.value)}
                       disabled={!selectedCircle || isLoadingDivisions}
-                      className={`w-full h-10 rounded-lg border bg-white px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-950 dark:text-slate-100 font-medium transition-all disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 disabled:cursor-not-allowed ${
-                        errors.division ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-800'
-                      }`}
+                      className={`w-full h-10 rounded-lg border bg-white px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-950 dark:text-slate-100 font-medium transition-all disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 disabled:cursor-not-allowed ${errors.division ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-800'
+                        }`}
                     >
                       <option value="">
                         {!selectedCircle ? '-- Select Circle First --' : '-- Select Division --'}
@@ -726,16 +722,15 @@ export default function Admin2FormPage() {
                       value={selectedSubDivision}
                       onChange={(e) => handleSubDivisionChange(e.target.value)}
                       disabled={!selectedDivision || isLoadingSubDivisions || subDivisionsList.length === 0}
-                      className={`w-full h-10 rounded-lg border bg-white px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-950 dark:text-slate-100 font-medium transition-all disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 disabled:cursor-not-allowed ${
-                        errors.sub_division ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-800'
-                      }`}
+                      className={`w-full h-10 rounded-lg border bg-white px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-950 dark:text-slate-100 font-medium transition-all disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 disabled:cursor-not-allowed ${errors.sub_division ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-800'
+                        }`}
                     >
                       <option value="">
                         {!selectedDivision
                           ? '-- Select Division First --'
                           : subDivisionsList.length === 0
-                          ? '-- Not Applicable / None --'
-                          : '-- Select Sub-Division --'}
+                            ? '-- Not Applicable / None --'
+                            : '-- Select Sub-Division --'}
                       </option>
                       {subDivisionsList.map((sub) => (
                         <option key={sub} value={sub}>
@@ -762,18 +757,17 @@ export default function Admin2FormPage() {
                         isLoadingBlocks ||
                         blocksList.length === 0
                       }
-                      className={`w-full h-10 rounded-lg border bg-white px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-950 dark:text-slate-100 font-medium transition-all disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 disabled:cursor-not-allowed ${
-                        errors.block ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-800'
-                      }`}
+                      className={`w-full h-10 rounded-lg border bg-white px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-950 dark:text-slate-100 font-medium transition-all disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 disabled:cursor-not-allowed ${errors.block ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-800'
+                        }`}
                     >
                       <option value="">
                         {!selectedDivision
                           ? '-- Select Division First --'
                           : subDivisionsList.length > 0 && !selectedSubDivision
-                          ? '-- Select Sub-Division First --'
-                          : blocksList.length === 0
-                          ? '-- Not Applicable / None --'
-                          : '-- Select Block --'}
+                            ? '-- Select Sub-Division First --'
+                            : blocksList.length === 0
+                              ? '-- Not Applicable / None --'
+                              : '-- Select Block --'}
                       </option>
                       {blocksList.map((blk) => (
                         <option key={blk} value={blk}>
@@ -800,18 +794,17 @@ export default function Admin2FormPage() {
                         (blocksList.length > 0 && !selectedBlock) ||
                         isLoadingSchemes
                       }
-                      className={`w-full h-10 rounded-lg border bg-white px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-950 dark:text-slate-100 font-medium transition-all disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 disabled:cursor-not-allowed ${
-                        errors.scheme_name ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-800'
-                      }`}
+                      className={`w-full h-10 rounded-lg border bg-white px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-950 dark:text-slate-100 font-medium transition-all disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 disabled:cursor-not-allowed ${errors.scheme_name ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-800'
+                        }`}
                     >
                       <option value="">
                         {!selectedDivision
                           ? '-- Select Division First --'
                           : subDivisionsList.length > 0 && !selectedSubDivision
-                          ? '-- Select Sub-Division First --'
-                          : blocksList.length > 0 && !selectedBlock
-                          ? '-- Select Block First --'
-                          : '-- Select Scheme Name --'}
+                            ? '-- Select Sub-Division First --'
+                            : blocksList.length > 0 && !selectedBlock
+                              ? '-- Select Block First --'
+                              : '-- Select Scheme Name --'}
                       </option>
                       {schemesList.map((sch) => (
                         <option key={sch.scheme_name} value={sch.scheme_name}>
@@ -835,7 +828,7 @@ export default function Admin2FormPage() {
                         id="input-scheme-id"
                         value={schemeId}
                         readOnly
-                        placeholder="Automatically filled upon selecting Scheme Name"
+
                         className="h-10 text-xs font-mono font-bold bg-slate-100/90 dark:bg-slate-800/90 text-blue-700 dark:text-blue-300 border-slate-300 dark:border-slate-700 cursor-not-allowed pr-10"
                       />
                       <div className="absolute right-3 top-3 text-slate-400">
@@ -843,9 +836,9 @@ export default function Admin2FormPage() {
                       </div>
                     </div>
                     {errors.scheme_id && <p className="text-[11px] text-rose-500">{errors.scheme_id}</p>}
-                    <p className="text-[11px] text-slate-400">
+                    {/* <p className="text-[11px] text-slate-400">
                       This ID is directly fetched from the official water scheme master records.
-                    </p>
+                    </p> */}
                   </div>
                 </div>
               </div>
@@ -860,9 +853,9 @@ export default function Admin2FormPage() {
                     <User className="w-4 h-4 text-indigo-600" />
                     Engineer Details
                   </h3>
-                  <span className="text-[11px] text-slate-400 font-normal ml-auto">
+                  {/* <span className="text-[11px] text-slate-400 font-normal ml-auto">
                     Field In-Charge Credentials
-                  </span>
+                  </span> */}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -881,9 +874,8 @@ export default function Admin2FormPage() {
                           setEngineerName(e.target.value);
                           if (errors.engineer_name) setErrors((prev) => ({ ...prev, engineer_name: '' }));
                         }}
-                        className={`h-10 text-xs pl-9 ${
-                          errors.engineer_name ? 'border-rose-500 ring-1 ring-rose-500' : ''
-                        }`}
+                        className={`h-10 text-xs pl-9 ${errors.engineer_name ? 'border-rose-500 ring-1 ring-rose-500' : ''
+                          }`}
                       />
                     </div>
                     {errors.engineer_name && <p className="text-[11px] text-rose-500">{errors.engineer_name}</p>}
@@ -905,9 +897,8 @@ export default function Admin2FormPage() {
                           setEngineerEmail(e.target.value);
                           if (errors.engineer_email) setErrors((prev) => ({ ...prev, engineer_email: '' }));
                         }}
-                        className={`h-10 text-xs pl-9 ${
-                          errors.engineer_email ? 'border-rose-500 ring-1 ring-rose-500' : ''
-                        }`}
+                        className={`h-10 text-xs pl-9 ${errors.engineer_email ? 'border-rose-500 ring-1 ring-rose-500' : ''
+                          }`}
                       />
                     </div>
                     {errors.engineer_email && <p className="text-[11px] text-rose-500">{errors.engineer_email}</p>}
@@ -931,9 +922,8 @@ export default function Admin2FormPage() {
                           setEngineerMobile(val);
                           if (errors.engineer_mobile) setErrors((prev) => ({ ...prev, engineer_mobile: '' }));
                         }}
-                        className={`h-10 text-xs pl-9 ${
-                          errors.engineer_mobile ? 'border-rose-500 ring-1 ring-rose-500' : ''
-                        }`}
+                        className={`h-10 text-xs pl-9 ${errors.engineer_mobile ? 'border-rose-500 ring-1 ring-rose-500' : ''
+                          }`}
                       />
                     </div>
                     {errors.engineer_mobile && <p className="text-[11px] text-rose-500">{errors.engineer_mobile}</p>}
@@ -954,9 +944,8 @@ export default function Admin2FormPage() {
                           setEngineerDesignation(e.target.value);
                           if (errors.engineer_designation) setErrors((prev) => ({ ...prev, engineer_designation: '' }));
                         }}
-                        className={`h-10 text-xs pl-9 ${
-                          errors.engineer_designation ? 'border-rose-500 ring-1 ring-rose-500' : ''
-                        }`}
+                        className={`h-10 text-xs pl-9 ${errors.engineer_designation ? 'border-rose-500 ring-1 ring-rose-500' : ''
+                          }`}
                       />
                     </div>
                     {errors.engineer_designation && <p className="text-[11px] text-rose-500">{errors.engineer_designation}</p>}
@@ -989,9 +978,8 @@ export default function Admin2FormPage() {
                         setAgencyName(e.target.value);
                         if (errors.agency_name) setErrors((prev) => ({ ...prev, agency_name: '' }));
                       }}
-                      className={`w-full h-10 rounded-lg border bg-white px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-950 dark:text-slate-100 font-medium transition-all ${
-                        errors.agency_name ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-800'
-                      }`}
+                      className={`w-full h-10 rounded-lg border bg-white px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-950 dark:text-slate-100 font-medium transition-all ${errors.agency_name ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-800'
+                        }`}
                     >
                       <option value="">-- Select Agency Name --</option>
                       {AGENCY_OPTIONS.map((agency) => (
@@ -1001,9 +989,9 @@ export default function Admin2FormPage() {
                       ))}
                     </select>
                     {errors.agency_name && <p className="text-[11px] text-rose-500">{errors.agency_name}</p>}
-                    <p className="text-[11px] text-slate-400">
+                    {/* <p className="text-[11px] text-slate-400">
                       Implementing agency responsible for operation & maintenance.
-                    </p>
+                    </p> */}
                   </div>
 
                   {/* Handover Status Dropdown */}
@@ -1018,9 +1006,8 @@ export default function Admin2FormPage() {
                         setHandoverStatus(e.target.value);
                         if (errors.handover_status) setErrors((prev) => ({ ...prev, handover_status: '' }));
                       }}
-                      className={`w-full h-10 rounded-lg border bg-white px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-950 dark:text-slate-100 font-medium transition-all ${
-                        errors.handover_status ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-800'
-                      }`}
+                      className={`w-full h-10 rounded-lg border bg-white px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-950 dark:text-slate-100 font-medium transition-all ${errors.handover_status ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-800'
+                        }`}
                     >
                       <option value="">-- Select Handover Status --</option>
                       {HANDOVER_OPTIONS.map((status) => (
@@ -1030,9 +1017,9 @@ export default function Admin2FormPage() {
                       ))}
                     </select>
                     {errors.handover_status && <p className="text-[11px] text-rose-500">{errors.handover_status}</p>}
-                    <p className="text-[11px] text-slate-400">
+                    {/* <p className="text-[11px] text-slate-400">
                       Current legal and operational handover milestone.
-                    </p>
+                    </p> */}
                   </div>
                 </div>
               </div>
@@ -1084,9 +1071,9 @@ export default function Admin2FormPage() {
                     {submissionsList.length} Total Records
                   </Badge>
                 </CardTitle>
-                <CardDescription className="text-xs text-slate-500 mt-1">
+                {/* <CardDescription className="text-xs text-slate-500 mt-1">
                   Persisted records stored in the dedicated <code className="font-mono text-blue-600">admin2_submissions</code> database table.
-                </CardDescription>
+                </CardDescription> */}
               </div>
 
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
