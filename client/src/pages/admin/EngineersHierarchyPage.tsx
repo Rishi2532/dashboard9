@@ -1085,7 +1085,7 @@ export default function EngineersHierarchyPage() {
         open={Boolean(selectedLoginsEngineer)}
         onOpenChange={(open) => !open && setSelectedLoginsEngineer(null)}
       >
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white dark:bg-slate-900">
+        <DialogContent className="max-w-md max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white dark:bg-slate-900">
           <DialogHeader className="p-6 pb-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70">
             <div className="flex items-start justify-between">
               <div>
@@ -1131,53 +1131,24 @@ export default function EngineersHierarchyPage() {
                 <Table>
                   <TableHeader className="bg-slate-50 dark:bg-slate-900/90 text-xs">
                     <TableRow>
-                      <TableHead className="w-10">#</TableHead>
+                      <TableHead className="w-12 text-center">#</TableHead>
                       <TableHead>Login Time (IST)</TableHead>
-                      <TableHead>Duration / Logout</TableHead>
-                      <TableHead>IP Address</TableHead>
-                      <TableHead>Browser & Platform</TableHead>
-                      <TableHead className="text-right">Session Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody className="text-xs">
-                    {selectedLoginsEngineer?.last_30_logins.map((session, index) => {
-                      const ua = parseUserAgent(session.user_agent);
-                      return (
-                        <TableRow key={session.id || index} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                          <TableCell className="font-bold text-slate-400">
-                            #{index + 1}
-                          </TableCell>
-                          <TableCell className="font-semibold text-slate-900 dark:text-white whitespace-nowrap">
-                            {formatISTDateTime(session.login_time)}
-                          </TableCell>
-                          <TableCell>
-                            <span className="font-medium text-slate-700 dark:text-slate-300">
-                              {session.session_duration_formatted || (session.session_duration ? `${session.session_duration}s` : 'Active')}
-                            </span>
-                          </TableCell>
-                          <TableCell className="font-mono text-slate-500 whitespace-nowrap">
-                            {session.ip_address || '—'}
-                          </TableCell>
-                          <TableCell>
-                            <span className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300">
-                              <Laptop className="w-3 h-3 text-slate-400" />
-                              {ua.browser} on {ua.os}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {session.is_active ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Active Now
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                                Completed
-                              </span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                    {selectedLoginsEngineer?.last_30_logins.map((session, index) => (
+                      <TableRow key={session.id || index} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                        <TableCell className="font-bold text-slate-400 text-center">
+                          #{index + 1}
+                        </TableCell>
+                        <TableCell className="font-semibold text-slate-900 dark:text-white whitespace-nowrap py-3">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                            <span>{formatISTDateTime(session.login_time)}</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </div>
@@ -1207,7 +1178,7 @@ export default function EngineersHierarchyPage() {
         open={showAllPortalLogins}
         onOpenChange={(open) => !open && setShowAllPortalLogins(false)}
       >
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white dark:bg-slate-900">
+        <DialogContent className="max-w-xl max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white dark:bg-slate-900">
           <DialogHeader className="p-6 pb-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70">
             <div className="flex items-start justify-between">
               <div>
@@ -1245,58 +1216,29 @@ export default function EngineersHierarchyPage() {
                 <Table>
                   <TableHeader className="bg-slate-50 dark:bg-slate-900/90 text-xs">
                     <TableRow>
-                      <TableHead className="w-10">#</TableHead>
+                      <TableHead className="w-12 text-center">#</TableHead>
                       <TableHead>User / Engineer</TableHead>
                       <TableHead>Login Time (IST)</TableHead>
-                      <TableHead>Duration / Logout</TableHead>
-                      <TableHead>IP Address</TableHead>
-                      <TableHead>Browser & Platform</TableHead>
-                      <TableHead className="text-right">Session Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody className="text-xs">
-                    {data.latest_30_portal_logins.map((session, index) => {
-                      const ua = parseUserAgent(session.user_agent);
-                      return (
-                        <TableRow key={session.id || index} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                          <TableCell className="font-bold text-slate-400">
-                            #{index + 1}
-                          </TableCell>
-                          <TableCell className="font-semibold text-slate-900 dark:text-white whitespace-nowrap">
-                            <div>{session.user_name || session.username}</div>
-                            <div className="text-[11px] text-slate-500 font-normal">@{session.username}</div>
-                          </TableCell>
-                          <TableCell className="font-medium text-slate-900 dark:text-slate-200 whitespace-nowrap">
-                            {formatISTDateTime(session.login_time)}
-                          </TableCell>
-                          <TableCell>
-                            <span className="font-medium text-slate-700 dark:text-slate-300">
-                              {session.session_duration_formatted || (session.session_duration ? `${session.session_duration}s` : 'Active')}
-                            </span>
-                          </TableCell>
-                          <TableCell className="font-mono text-slate-500 whitespace-nowrap">
-                            {session.ip_address || '—'}
-                          </TableCell>
-                          <TableCell>
-                            <span className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300">
-                              <Laptop className="w-3 h-3 text-slate-400" />
-                              {ua.browser} on {ua.os}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {session.is_active ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Active Now
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                                Completed
-                              </span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                    {data.latest_30_portal_logins.map((session, index) => (
+                      <TableRow key={session.id || index} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                        <TableCell className="font-bold text-slate-400 text-center">
+                          #{index + 1}
+                        </TableCell>
+                        <TableCell className="font-semibold text-slate-900 dark:text-white whitespace-nowrap">
+                          <div>{session.user_name || session.username}</div>
+                          <div className="text-[11px] text-slate-500 font-normal">@{session.username}</div>
+                        </TableCell>
+                        <TableCell className="font-medium text-slate-900 dark:text-slate-200 whitespace-nowrap py-3">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                            <span>{formatISTDateTime(session.login_time)}</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </div>
