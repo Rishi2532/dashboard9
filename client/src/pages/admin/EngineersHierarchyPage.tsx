@@ -127,8 +127,10 @@ interface HierarchyResponse {
     total_alerts_acknowledged: number;
     total_sms_sent: number;
     total_actions_taken: number;
+    total_logins_recorded?: number;
   };
   engineers: EngineerHierarchyItem[];
+  latest_30_portal_logins?: LoginSession[];
 }
 
 function parseUserAgent(ua: string | null | undefined): { browser: string; os: string } {
@@ -196,6 +198,7 @@ export default function EngineersHierarchyPage() {
 
   // Modal States
   const [selectedLoginsEngineer, setSelectedLoginsEngineer] = useState<EngineerHierarchyItem | null>(null);
+  const [showAllPortalLogins, setShowAllPortalLogins] = useState(false);
   const [selectedActionsEngineer, setSelectedActionsEngineer] = useState<EngineerHierarchyItem | null>(null);
   const [actionCategoryFilter, setActionCategoryFilter] = useState<string>('ALL');
 
@@ -449,13 +452,22 @@ export default function EngineersHierarchyPage() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => setShowAllPortalLogins(true)}
+                className="bg-purple-950/80 border-purple-600/60 text-purple-200 hover:bg-purple-900 hover:text-white text-xs h-8 shadow-sm flex items-center"
+              >
+                <Clock className="w-3.5 h-3.5 mr-1.5 text-purple-300" />
+                Latest 30 Logins ({data?.latest_30_portal_logins?.length ?? 0})
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => {
                   setTestSmsResult(null);
                   setTestSmsOpen(true);
                 }}
-                className="bg-purple-950/80 border-purple-600/60 text-purple-200 hover:bg-purple-900 hover:text-white text-xs h-8 shadow-sm"
+                className="bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700 hover:text-white text-xs h-8 shadow-sm"
               >
-                <Smartphone className="w-3.5 h-3.5 mr-1.5 text-purple-300" />
+                <Smartphone className="w-3.5 h-3.5 mr-1.5 text-slate-300" />
                 Test SMS Gateway
               </Button>
               <Button
@@ -493,7 +505,7 @@ export default function EngineersHierarchyPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4">
         {/* Top KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <Card className="shadow-sm border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -521,6 +533,29 @@ export default function EngineersHierarchyPage() {
                   {kpis?.de_ae_count ?? 0} DE/AE
                 </span>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="shadow-sm border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur cursor-pointer hover:border-purple-400 transition-all hover:shadow-md"
+            onClick={() => setShowAllPortalLogins(true)}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Latest 30 Logins</p>
+                  <p className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">
+                    {data?.latest_30_portal_logins?.length ?? 0}
+                  </p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center font-bold">
+                  <Clock className="w-5 h-5" />
+                </div>
+              </div>
+              <p className="mt-3 text-[11px] text-purple-600 dark:text-purple-400 font-semibold flex items-center gap-1">
+                <Laptop className="w-3.5 h-3.5" />
+                <span>View Latest 30 Portal Logins →</span>
+              </p>
             </CardContent>
           </Card>
 
@@ -1157,6 +1192,125 @@ export default function EngineersHierarchyPage() {
               variant="outline"
               size="sm"
               onClick={() => setSelectedLoginsEngineer(null)}
+              className="text-xs"
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========================================================================= */}
+      {/* LATEST 30 PORTAL LOGINS (ALL ENGINEERS) MODAL DIALOG                     */}
+      {/* ========================================================================= */}
+      <Dialog
+        open={showAllPortalLogins}
+        onOpenChange={(open) => !open && setShowAllPortalLogins(false)}
+      >
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white dark:bg-slate-900">
+          <DialogHeader className="p-6 pb-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge variant="outline" className="text-xs border-purple-300 text-purple-700 bg-purple-50 font-bold">
+                    Portal Authentication Logs
+                  </Badge>
+                  <Badge className="bg-purple-100 text-purple-800 text-xs font-semibold">
+                    Latest 30 Recorded Sessions
+                  </Badge>
+                </div>
+                <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-purple-600" />
+                  Latest 30 Portal Logins (All Engineers & Users)
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-500 mt-1">
+                  Chronological session logs recorded across the engineers portal and system.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {/* Sessions List Content */}
+          <div className="p-6 overflow-y-auto flex-1 space-y-3">
+            {!data?.latest_30_portal_logins || data.latest_30_portal_logins.length === 0 ? (
+              <div className="text-center py-12">
+                <Laptop className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+                <h4 className="text-base font-bold text-slate-700 dark:text-slate-300">No Login Activity Recorded Yet</h4>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                  No portal login sessions have been recorded in the database yet.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                <Table>
+                  <TableHeader className="bg-slate-50 dark:bg-slate-900/90 text-xs">
+                    <TableRow>
+                      <TableHead className="w-10">#</TableHead>
+                      <TableHead>User / Engineer</TableHead>
+                      <TableHead>Login Time (IST)</TableHead>
+                      <TableHead>Duration / Logout</TableHead>
+                      <TableHead>IP Address</TableHead>
+                      <TableHead>Browser & Platform</TableHead>
+                      <TableHead className="text-right">Session Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody className="text-xs">
+                    {data.latest_30_portal_logins.map((session, index) => {
+                      const ua = parseUserAgent(session.user_agent);
+                      return (
+                        <TableRow key={session.id || index} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                          <TableCell className="font-bold text-slate-400">
+                            #{index + 1}
+                          </TableCell>
+                          <TableCell className="font-semibold text-slate-900 dark:text-white whitespace-nowrap">
+                            <div>{session.user_name || session.username}</div>
+                            <div className="text-[11px] text-slate-500 font-normal">@{session.username}</div>
+                          </TableCell>
+                          <TableCell className="font-medium text-slate-900 dark:text-slate-200 whitespace-nowrap">
+                            {formatISTDateTime(session.login_time)}
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-medium text-slate-700 dark:text-slate-300">
+                              {session.session_duration_formatted || (session.session_duration ? `${session.session_duration}s` : 'Active')}
+                            </span>
+                          </TableCell>
+                          <TableCell className="font-mono text-slate-500 whitespace-nowrap">
+                            {session.ip_address || '—'}
+                          </TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300">
+                              <Laptop className="w-3 h-3 text-slate-400" />
+                              {ua.browser} on {ua.os}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {session.is_active ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Active Now
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                                Completed
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+
+          <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
+            <span className="text-xs text-slate-500">
+              Showing latest {data?.latest_30_portal_logins?.length ?? 0} portal login records
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAllPortalLogins(false)}
               className="text-xs"
             >
               Close

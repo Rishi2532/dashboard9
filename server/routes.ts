@@ -1833,17 +1833,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const totalSensorsCount = onlineSensorsCount + offlineSensorsCount;
 
-      // Fetch recent 5 login records for this engineer
+      // Fetch latest 30 login records for this engineer
       let recentLogins: any[] = [];
-      const currentUserId = req.session?.userId;
-      if (currentUserId) {
+      const currentUserId = req.session?.userId || req.session?.user?.id;
+      const currentUsername = req.session?.username || req.session?.user?.username;
+      if (currentUserId || currentUsername) {
         try {
           const loginRes: any = await db.execute(sql`
             SELECT id, user_id, username, user_name, login_time, logout_time, session_duration, ip_address, user_agent, is_active
             FROM user_login_logs
-            WHERE user_id = ${currentUserId}
+            WHERE ${currentUserId ? sql`user_id = ${currentUserId}` : sql`false`}
+               OR ${currentUsername ? sql`LOWER(username) = LOWER(${currentUsername})` : sql`false`}
             ORDER BY login_time DESC
-            LIMIT 5
+            LIMIT 30
           `);
           recentLogins = loginRes.rows || loginRes || [];
         } catch (logErr) {

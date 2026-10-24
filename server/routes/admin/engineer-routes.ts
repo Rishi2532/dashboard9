@@ -328,28 +328,35 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
       console.warn("Could not query sms_alert_logs:", e.message);
     }
 
-    // Pre-group logins by user_id and username
+    // Pre-group logins by user_id, username, and user_name
     const loginsByUserId = new Map<number, any[]>();
     const loginsByUsername = new Map<string, any[]>();
+    const loginsByName = new Map<string, any[]>();
+    const formattedAllLogins: any[] = [];
+
     for (const log of allLogins) {
       const formattedLog = {
         ...log,
         session_duration_formatted: formatDuration(log.session_duration),
       };
+      formattedAllLogins.push(formattedLog);
+
       if (log.user_id) {
         if (!loginsByUserId.has(log.user_id)) loginsByUserId.set(log.user_id, []);
-        if (loginsByUserId.get(log.user_id)!.length < 30) {
-          loginsByUserId.get(log.user_id)!.push(formattedLog);
-        }
+        loginsByUserId.get(log.user_id)!.push(formattedLog);
       }
       if (log.username) {
         const uKey = log.username.toLowerCase();
         if (!loginsByUsername.has(uKey)) loginsByUsername.set(uKey, []);
-        if (loginsByUsername.get(uKey)!.length < 30) {
-          loginsByUsername.get(uKey)!.push(formattedLog);
-        }
+        loginsByUsername.get(uKey)!.push(formattedLog);
+      }
+      if (log.user_name) {
+        const nKey = log.user_name.trim().toLowerCase();
+        if (!loginsByName.has(nKey)) loginsByName.set(nKey, []);
+        loginsByName.get(nKey)!.push(formattedLog);
       }
     }
+    const latest30PortalLogins = formattedAllLogins.slice(0, 30);
 
     // Pre-group acks by engineer email and name
     const acksByEmail = new Map<string, any[]>();
@@ -474,26 +481,56 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
       }
     }
 
-    // Match registered users strictly against engineers existing in directoryMap
-    // Do NOT inject phantom user records that are not in scheme_engineer_details!
+    // Match registered users to directoryMap or register them as active engineers
     for (const u of allUsers) {
       const email = cleanStr(u.email).toLowerCase();
       const name = cleanStr(u.name);
       const phone = cleanStr(u.phone).replace(/\D/g, "").slice(-10);
+      const username = cleanStr(u.username);
 
       let matchedItem: any = null;
+
+      // 1. Exact username match if item already has username
       for (const item of Array.from(directoryMap.values())) {
-        if (name && item.name && item.name.toLowerCase() === name.toLowerCase()) {
+        if (item.username && item.username.toLowerCase() === username.toLowerCase()) {
           matchedItem = item;
           break;
         }
-        if (email && item.email && item.email.toLowerCase() === email) {
-          matchedItem = item;
-          break;
+      }
+
+      // 2. Exact name match (case-insensitive, trimmed)
+      if (!matchedItem && name) {
+        for (const item of Array.from(directoryMap.values())) {
+          if (!item.user_id && item.name && item.name.toLowerCase() === name.toLowerCase()) {
+            matchedItem = item;
+            break;
+          }
         }
-        if (phone && item.phone && item.phone.replace(/\D/g, "").slice(-10) === phone) {
-          matchedItem = item;
-          break;
+      }
+
+      // 3. Unique phone match (only if phone is 10 digits and unique)
+      if (!matchedItem && phone && phone.length === 10) {
+        const samePhoneUsers = allUsers.filter(usr => cleanStr(usr.phone).replace(/\D/g, "").slice(-10) === phone);
+        if (samePhoneUsers.length === 1) {
+          for (const item of Array.from(directoryMap.values())) {
+            if (!item.user_id && item.phone && item.phone.replace(/\D/g, "").slice(-10) === phone) {
+              matchedItem = item;
+              break;
+            }
+          }
+        }
+      }
+
+      // 4. Unique email match (only if email is unique and not a generic batch dummy email)
+      if (!matchedItem && email && !email.includes("salunkerishikesh") && !email.includes("rushikeshsalunkhe")) {
+        const sameEmailUsers = allUsers.filter(usr => cleanStr(usr.email).toLowerCase() === email);
+        if (sameEmailUsers.length === 1) {
+          for (const item of Array.from(directoryMap.values())) {
+            if (!item.user_id && item.email && item.email.toLowerCase() === email) {
+              matchedItem = item;
+              break;
+            }
+          }
         }
       }
 
@@ -503,6 +540,49 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
         matchedItem.is_registered = true;
         if (!matchedItem.email && email) matchedItem.email = email;
         if (!matchedItem.phone && u.phone) matchedItem.phone = u.phone;
+      } else if (u.role === "engineer" || u.role === "admin2" || loginsByUserId.has(u.id)) {
+        // Register active engineer / officer account in directoryMap
+        const userKey = `user-${u.id}-${username.toLowerCase()}`;
+        if (!directoryMap.has(userKey)) {
+          directoryMap.set(userKey, {
+            key: userKey,
+            rank: u.role === "admin2" ? 2 : 4,
+            level: u.role === "admin2" ? "SE" : "DE/AE",
+            position_title: u.role === "admin2" ? "Admin2 Officer" : "Deputy / Assistant Engineer (Field Engineer)",
+            name: name || username,
+            email: u.email || "",
+            phone: u.phone || "",
+            user_id: u.id,
+            username: u.username,
+            is_registered: true,
+            regions: new Set(),
+            districts: new Set(),
+            divisions: new Set(),
+            schemes: new Set(),
+          });
+
+          // Scan schemes to attach any relevant jurisdictions
+          const item = directoryMap.get(userKey);
+          for (const row of schemesRes.rows as any[]) {
+            const rowEmails = [row.ee_civil_email, row.ee_mech_email, row.de_ae_civil_email, row.de_ae_mech_email, row.se_email, row.chief_engineer_email]
+              .map(cleanStr).map(s => s.toLowerCase());
+            const rowNames = [row.ee_civil_name, row.ee_mech_name, row.de_ae_civil_name, row.de_ae_mech_name, row.se_name, row.chief_engineer_name]
+              .map(cleanStr).map(s => s.toLowerCase());
+            const rowPhones = [row.ee_civil_mobile, row.ee_mech_mobile, row.de_ae_civil_mobile, row.de_ae_mech_mobile, row.se_mobile, row.chief_engineer_mobile]
+              .map(cleanStr).map(s => s.replace(/\D/g, "").slice(-10));
+
+            if (
+              (name && rowNames.includes(name.toLowerCase())) ||
+              (phone && phone.length === 10 && rowPhones.includes(phone)) ||
+              (email && !email.includes("salunkerishikesh") && !email.includes("rushikeshsalunkhe") && rowEmails.includes(email))
+            ) {
+              if (row.region) item.regions.add(cleanStr(row.region));
+              if (row.district) item.districts.add(cleanStr(row.district));
+              if (row.division) item.divisions.add(cleanStr(row.division));
+              if (row.scheme) item.schemes.add(cleanStr(row.scheme));
+            }
+          }
+        }
       }
     }
 
@@ -512,13 +592,22 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
       const nameKey = (eng.name || "").trim().toLowerCase();
       const phoneKey = (eng.phone || "").replace(/\D/g, "").slice(-10);
 
-      // 1. Logins
-      let logins: any[] = [];
+      // 1. Logins - collect accurate latest sessions by user_id, username, and user_name
+      const collectedLogs = new Map<number, any>();
       if (eng.user_id && loginsByUserId.has(eng.user_id)) {
-        logins = loginsByUserId.get(eng.user_id)!;
-      } else if (eng.username && loginsByUsername.has(eng.username.toLowerCase())) {
-        logins = loginsByUsername.get(eng.username.toLowerCase())!;
+        for (const l of loginsByUserId.get(eng.user_id)!) collectedLogs.set(l.id, l);
       }
+      if (eng.username && loginsByUsername.has(eng.username.toLowerCase())) {
+        for (const l of loginsByUsername.get(eng.username.toLowerCase())!) collectedLogs.set(l.id, l);
+      }
+      // Only fallback to name if neither user_id nor username matched any logs
+      if (collectedLogs.size === 0 && eng.name && loginsByName.has(eng.name.trim().toLowerCase())) {
+        for (const l of loginsByName.get(eng.name.trim().toLowerCase())!) collectedLogs.set(l.id, l);
+      }
+
+      const logins: any[] = Array.from(collectedLogs.values())
+        .sort((a, b) => new Date(b.login_time).getTime() - new Date(a.login_time).getTime())
+        .slice(0, 30);
       const lastLogin = logins.length > 0 ? logins[0].login_time : null;
 
       // 2. Alerts & Acks
@@ -693,12 +782,14 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
       total_alerts_acknowledged: engineers.reduce((acc, e) => acc + e.alerts_acknowledged_count, 0),
       total_sms_sent: engineers.reduce((acc, e) => acc + (e.sms_sent_count || 0), 0),
       total_actions_taken: engineers.reduce((acc, e) => acc + e.actions_count, 0),
+      total_logins_recorded: engineers.reduce((acc, e) => acc + (e.total_logins_recorded || 0), 0),
     };
 
     res.json({
       success: true,
       kpis,
       engineers,
+      latest_30_portal_logins: latest30PortalLogins,
     });
   } catch (error: any) {
     console.error("Error fetching engineer hierarchy:", error);

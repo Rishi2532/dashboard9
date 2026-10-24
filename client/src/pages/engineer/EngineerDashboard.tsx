@@ -2255,7 +2255,7 @@ export default function EngineerDashboard() {
                       Recent Login Activity
                     </DialogTitle>
                     <DialogDescription className="text-xs text-slate-500">
-                      Last 5 authenticated engineer portal sessions & access logs
+                      Last 30 authenticated engineer portal sessions & access logs
                     </DialogDescription>
                   </div>
                 </div>
@@ -2268,7 +2268,7 @@ export default function EngineerDashboard() {
 
             <div className="p-4 space-y-2.5 max-h-[60vh] overflow-y-auto">
               {data?.recentLogins && data.recentLogins.length > 0 ? (
-                data.recentLogins.slice(0, 5).map((log, index) => {
+                data.recentLogins.slice(0, 30).map((log, index) => {
                   const isFirst = index === 0;
                   return (
                     <div

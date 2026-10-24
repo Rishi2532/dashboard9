@@ -74,7 +74,7 @@ interface Admin2SubmissionRecord {
 const AGENCY_OPTIONS = [
   'MJP',
   'ZP',
-  'Shikarsamiti',
+  'ZP-Shikarsamiti',
   'Gram Panchayat (GP)',
   'Contractor',
 ] as const;
@@ -539,9 +539,9 @@ export default function Admin2FormPage() {
                   <ShieldCheck className="w-5 h-5 text-blue-600" />
                   MVS Owner Form
                 </h1>
-                <Badge className="bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950 dark:text-indigo-300 font-mono text-[11px] font-semibold">
+                {/* <Badge className="bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950 dark:text-indigo-300 font-mono text-[11px] font-semibold">
                   Handover Entry
-                </Badge>
+                </Badge> */}
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">
                 Jal Jeevan Mission Maharashtra
@@ -584,10 +584,10 @@ export default function Admin2FormPage() {
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               JJM SWSM MVS Scheme owner details
             </h2>
-            <p className="text-xs sm:text-sm text-blue-100/90 leading-relaxed">
+            {/* <p className="text-xs sm:text-sm text-blue-100/90 leading-relaxed">
               Select the cascading administrative location to identify the scheme, enter the designated field engineer
               credentials, select the implementing agency, and declare the scheme handover status.
-            </p>
+            </p> */}
           </div>
         </div>
 
