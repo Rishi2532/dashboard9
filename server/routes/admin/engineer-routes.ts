@@ -51,7 +51,7 @@ router.get("/", async (req: Request, res: Response) => {
         role: users.role,
       })
       .from(users)
-      .where(inArray(users.role, ["engineer", "admin2", "Admin2"]))
+      .where(eq(users.role, "engineer"))
       .orderBy(sql`${users.id} DESC`);
 
     // Fetch scheme assignments count for each engineer
@@ -242,21 +242,39 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
       FROM scheme_engineer_details
     `);
 
-    // 2. Fetch users (excluding admin)
+    // 2. Fetch users (excluding admin and admin2)
     const usersRes = await db.execute(sql`
       SELECT id, username, name, email, phone, role 
       FROM users 
-      WHERE role != 'admin'
+      WHERE LOWER(role) NOT IN ('admin', 'admin2')
+        AND LOWER(username) NOT LIKE '%admin2%'
+        AND LOWER(username) != 'admin'
     `);
     const allUsers = usersRes.rows as any[];
 
-    // 3. Fetch login logs
+    // Find admin and admin2 user IDs to exclude from engineer portal logins
+    const adminUsersRes = await db.execute(sql`
+      SELECT id, username, role 
+      FROM users 
+      WHERE LOWER(role) IN ('admin', 'admin2')
+         OR LOWER(username) LIKE '%admin%'
+    `);
+    const excludedAdminUserIds = new Set<number>((adminUsersRes.rows as any[]).map((u: any) => u.id));
+
+    // 3. Fetch login logs (excluding admin & admin2)
     const loginsRes = await db.execute(sql`
       SELECT id, user_id, username, user_name, login_time, logout_time, session_duration, ip_address, user_agent, is_active
       FROM user_login_logs
       ORDER BY login_time DESC
     `);
-    const allLogins = loginsRes.rows as any[];
+    const allLogins = (loginsRes.rows as any[]).filter((log: any) => {
+      if (log.user_id && excludedAdminUserIds.has(log.user_id)) return false;
+      const u = (log.username || '').toLowerCase();
+      if (u.includes('admin')) return false;
+      const n = (log.user_name || '').toLowerCase();
+      if (n.includes('admin2') || n.includes('admin 2')) return false;
+      return true;
+    });
 
     // 4. Fetch email_acknowledgements
     let allAcks: any[] = [];
@@ -483,6 +501,9 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
 
     // Match registered users to directoryMap or register them as active engineers
     for (const u of allUsers) {
+      const isAdm = (u.role || '').toLowerCase().includes("admin") || (u.username || '').toLowerCase().includes("admin");
+      if (isAdm) continue;
+
       const email = cleanStr(u.email).toLowerCase();
       const name = cleanStr(u.name);
       const phone = cleanStr(u.phone).replace(/\D/g, "").slice(-10);
@@ -540,15 +561,18 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
         matchedItem.is_registered = true;
         if (!matchedItem.email && email) matchedItem.email = email;
         if (!matchedItem.phone && u.phone) matchedItem.phone = u.phone;
-      } else if (u.role === "engineer" || u.role === "admin2" || loginsByUserId.has(u.id)) {
-        // Register active engineer / officer account in directoryMap
+      } else if (
+        u.role === "engineer" || 
+        (!(u.role || '').toLowerCase().includes("admin") && !(u.username || '').toLowerCase().includes("admin") && loginsByUserId.has(u.id))
+      ) {
+        // Register active engineer account in directoryMap
         const userKey = `user-${u.id}-${username.toLowerCase()}`;
         if (!directoryMap.has(userKey)) {
           directoryMap.set(userKey, {
             key: userKey,
-            rank: u.role === "admin2" ? 2 : 4,
-            level: u.role === "admin2" ? "SE" : "DE/AE",
-            position_title: u.role === "admin2" ? "Admin2 Officer" : "Deputy / Assistant Engineer (Field Engineer)",
+            rank: 4,
+            level: "DE/AE",
+            position_title: "Deputy / Assistant Engineer (Field Engineer)",
             name: name || username,
             email: u.email || "",
             phone: u.phone || "",

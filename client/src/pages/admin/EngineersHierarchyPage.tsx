@@ -291,7 +291,23 @@ export default function EngineersHierarchyPage() {
     refetchInterval: 60000,
   });
 
-  const engineers = data?.engineers || [];
+  const engineers = useMemo(() => {
+    return (data?.engineers || []).filter((eng) => {
+      const u = (eng.username || '').toLowerCase();
+      const n = (eng.name || '').toLowerCase();
+      const t = (eng.position_title || '').toLowerCase();
+      return !u.includes('admin') && !n.includes('admin 2') && !n.includes('admin2') && !t.includes('admin2');
+    });
+  }, [data?.engineers]);
+
+  const portalLogins = useMemo(() => {
+    return (data?.latest_30_portal_logins || []).filter((session) => {
+      const u = (session.username || '').toLowerCase();
+      const n = (session.user_name || '').toLowerCase();
+      return !u.includes('admin') && !n.includes('admin 2') && !n.includes('admin2');
+    });
+  }, [data?.latest_30_portal_logins]);
+
   const kpis = data?.kpis;
 
   // Extract distinct regions for filter dropdown
@@ -1203,7 +1219,7 @@ export default function EngineersHierarchyPage() {
 
           {/* Sessions List Content */}
           <div className="p-6 overflow-y-auto flex-1 space-y-3">
-            {!data?.latest_30_portal_logins || data.latest_30_portal_logins.length === 0 ? (
+            {!portalLogins || portalLogins.length === 0 ? (
               <div className="text-center py-12">
                 <Laptop className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
                 <h4 className="text-base font-bold text-slate-700 dark:text-slate-300">No Login Activity Recorded Yet</h4>
@@ -1222,7 +1238,7 @@ export default function EngineersHierarchyPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody className="text-xs">
-                    {data.latest_30_portal_logins.map((session, index) => (
+                    {portalLogins.map((session, index) => (
                       <TableRow key={session.id || index} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                         <TableCell className="font-bold text-slate-400 text-center">
                           #{index + 1}
@@ -1247,7 +1263,7 @@ export default function EngineersHierarchyPage() {
 
           <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
             <span className="text-xs text-slate-500">
-              Showing latest {data?.latest_30_portal_logins?.length ?? 0} portal login records
+              Showing latest {portalLogins.length} portal login records
             </span>
             <Button
               variant="outline"
