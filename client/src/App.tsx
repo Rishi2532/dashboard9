@@ -54,6 +54,7 @@ import ESRDashboard from "./pages/ESRDashboard";
 import EngineersHierarchyPage from "./pages/admin/EngineersHierarchyPage";
 import EscalationPortalPage from "./pages/escalation-portal";
 import Level5SummaryPage from "./pages/Level5SummaryPage";
+import AlertTrackerPage from "./pages/AlertTrackerPage";
 import Admin2FormPage from "./pages/admin2/Admin2FormPage";
 
 import ProtectedRoute from "./components/auth/protected-route";
@@ -342,6 +343,18 @@ function App() {
                     <Route path="/escalation-portal">
                       <ProtectedRoute>
                         <EscalationPortalPage />
+                      </ProtectedRoute>
+                    </Route>
+
+                    <Route path="/alert-tracker">
+                      <ProtectedRoute>
+                        <AlertTrackerPage />
+                      </ProtectedRoute>
+                    </Route>
+
+                    <Route path="/alerts-tracker">
+                      <ProtectedRoute>
+                        <AlertTrackerPage />
                       </ProtectedRoute>
                     </Route>
 

@@ -136,7 +136,7 @@ export async function triggerDailyJobIfNotSentToday(triggerSource: string, force
     return false;
   }
 
-  const isManualOrForced = force || triggerSource === "admin-portal-api" || triggerSource === "manual";
+  const isManualOrForced = force || triggerSource === "admin-portal-api" || triggerSource === "manual" || process.env.FORCE_DAILY_ALERTS === "true";
 
   if (!isManualOrForced) {
     if (lastDispatchedDate === dateStr) {
@@ -145,9 +145,11 @@ export async function triggerDailyJobIfNotSentToday(triggerSource: string, force
     const alreadySentToday = await hasAlertsBeenSentToday(dateStr);
     if (alreadySentToday) {
       lastDispatchedDate = dateStr;
-      console.log(`ℹ️ [Daily Alerts Engine] Daily alerts have already been sent for ${dateStr}. Skipping trigger.`);
+      console.log(`ℹ️ [Daily Alerts Engine] Daily alerts have already been sent for ${dateStr}. Skipping trigger. (Set FORCE_DAILY_ALERTS=true in .env to resend)`);
       return false;
     }
+  } else if (process.env.FORCE_DAILY_ALERTS === "true") {
+    console.log(`⚡ [Daily Alerts Engine] FORCE_DAILY_ALERTS=true enabled. Executing dispatch without skipping.`);
   }
 
   isJobRunning = true;

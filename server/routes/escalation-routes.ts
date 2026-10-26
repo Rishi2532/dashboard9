@@ -57,10 +57,10 @@ router.get("/cron-status", async (req: Request, res: Response) => {
  */
 router.post("/trigger-daily-alerts", async (req: Request, res: Response) => {
   try {
-    const force = req.body?.force === true;
+    const force = req.body?.force !== false;
     if (force) {
       await runDailyAlertsJob();
-      return res.json({ success: true, message: "Daily alerts job triggered (force mode)" });
+      return res.json({ success: true, message: "Daily alerts job triggered successfully" });
     }
     const triggered = await triggerDailyJobIfNotSentToday("admin-portal-api", true);
     res.json({
@@ -1522,13 +1522,17 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
     const forceRefresh = req.query.refresh === "true";
     const isAll = !selectedRegion || selectedRegion.toLowerCase() === "all";
 
+    const rawDateParam = (req.query.date as string) || (req.query.dispatchDate as string) || "all";
+    const isAllDates = rawDateParam.toLowerCase() === "all" || rawDateParam.toLowerCase() === "historical";
+
     const tier = req.query.tier ? String(req.query.tier).trim() : (streakThreshold <= 7 ? '3' : streakThreshold <= 15 ? '4' : '5');
     const [dispatchInfo, asOfDateTier] = await Promise.all([
       getLatestDispatchDateForTier(tier),
-      resolveTelemetryDateForTier(tier, req.query.asOfDate as string),
+      resolveTelemetryDateForTier(tier, isAllDates ? undefined : rawDateParam),
     ]);
 
-    const cacheKey = `${selectedRegion.toLowerCase()}:::${streakThreshold}:::${dispatchInfo?.isoDate || 'latest'}`;
+    const activeDateKey = isAllDates ? "all" : (rawDateParam.slice(0, 10) || dispatchInfo?.isoDate || "latest");
+    const cacheKey = `${selectedRegion.toLowerCase()}:::${streakThreshold}:::${activeDateKey}`;
     if (!forceRefresh) {
       const cached = level5SummaryCache.get(cacheKey);
       if (cached && Date.now() - cached.timestamp < SUMMARY_CACHE_TTL) {
@@ -1971,17 +1975,54 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
 
     const rawEmailList = emailRecordsRes.rows || emailRecordsRes || [];
     
-    // Find latest dispatch date for this level
+    // Collect all available dispatch dates across email and SMS logs
+    const availableDatesSet = new Set<string>();
+    rawEmailList.forEach((r: any) => {
+      if (r.dispatch_date) {
+        availableDatesSet.add(String(r.dispatch_date).slice(0, 10));
+      }
+    });
+
+    try {
+      const smsDatesRes: any = await db.execute(sql`
+        SELECT DISTINCT sent_date::text as s_date
+        FROM sms_alert_logs
+        WHERE sent_date IS NOT NULL
+        ORDER BY sent_date DESC
+        LIMIT 30;
+      `);
+      (smsDatesRes.rows || smsDatesRes || []).forEach((row: any) => {
+        if (row.s_date) availableDatesSet.add(String(row.s_date).slice(0, 10));
+      });
+    } catch (e) {
+      // ignore
+    }
+
+    if (dispatchInfo?.isoDate) {
+      availableDatesSet.add(dispatchInfo.isoDate.slice(0, 10));
+    }
+
+    const availableDates = Array.from(availableDatesSet).sort().reverse();
+
+    // Determine active dispatch date display
     let latestDispatchDateStr: string | null = dispatchInfo?.isoDate || null;
     if (!latestDispatchDateStr && rawEmailList.length > 0) {
       const rawD = rawEmailList[0].dispatch_date;
       latestDispatchDateStr = rawD ? String(rawD).slice(0, 10) : null;
     }
 
-    // Filter to only records from the latest dispatch date
-    const dateFilteredEmailList = latestDispatchDateStr
-      ? rawEmailList.filter((r: any) => r.dispatch_date && String(r.dispatch_date).slice(0, 10) === latestDispatchDateStr)
-      : [];
+    const activeDispatchDateStr = isAllDates
+      ? "All Dates (Historical)"
+      : (rawDateParam.slice(0, 10) || latestDispatchDateStr || "Latest");
+
+    // Filter email dispatches by selected date or show all historical
+    const dateFilteredEmailList = isAllDates
+      ? rawEmailList
+      : (rawDateParam.slice(0, 10)
+          ? rawEmailList.filter((r: any) => r.dispatch_date && String(r.dispatch_date).slice(0, 10) === rawDateParam.slice(0, 10))
+          : (latestDispatchDateStr
+              ? rawEmailList.filter((r: any) => r.dispatch_date && String(r.dispatch_date).slice(0, 10) === latestDispatchDateStr)
+              : rawEmailList));
 
     const emailDispatchesList = dateFilteredEmailList.map((r: any) => {
       const schemeIdsArr = Array.isArray(r.scheme_ids) ? r.scheme_ids : (r.scheme_ids ? [r.scheme_ids] : []);
@@ -2019,7 +2060,7 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
       };
     });
 
-    // Scheme IDs included in the actual email dispatch for this date
+    // Scheme IDs included in the actual email dispatch or qualifying alerts
     const dispatchedSchemeIds = new Set<string>();
     dateFilteredEmailList.forEach((r: any) => {
       const sids = Array.isArray(r.scheme_ids) ? r.scheme_ids : (r.scheme_ids ? [r.scheme_ids] : []);
@@ -2030,22 +2071,14 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
 
     const hasSentEmails = emailDispatchesList.length > 0;
 
-    // For Level 3 (streakThreshold <= 7), show all qualifying alerts evaluated for 18-Oct (164 LPCD, 34 schemes, 44 pressure, 67 chlorine)
-    // For Level 4/5 (streakThreshold > 7), show only if email was sent
-    let finalLowLpcdSchemes = (streakThreshold <= 7 || hasSentEmails)
-      ? lowLpcdSchemesList
-      : [];
-    let finalLowLpcdVillages = (streakThreshold <= 7 || hasSentEmails)
-      ? lowLpcdVillagesList
-      : [];
-    let finalLowPressureEsrs = (streakThreshold <= 7 || hasSentEmails)
-      ? lowPressureEsrsList
-      : [];
-    let finalResidualChlorine = (streakThreshold <= 7 || hasSentEmails)
-      ? residualChlorineList
-      : [];
+    // Show all qualifying alerts evaluated for the selected criteria
+    const shouldShowAlerts = isAllDates || streakThreshold <= 7 || hasSentEmails || rawEmailList.length > 0;
+    let finalLowLpcdSchemes = shouldShowAlerts ? lowLpcdSchemesList : [];
+    let finalLowLpcdVillages = shouldShowAlerts ? lowLpcdVillagesList : [];
+    let finalLowPressureEsrs = shouldShowAlerts ? lowPressureEsrsList : [];
+    let finalResidualChlorine = shouldShowAlerts ? residualChlorineList : [];
 
-    // Query actual SMS dispatches for this level and date from sms_alert_logs
+    // Query actual SMS dispatches for this level
     let smsDispatchesList: any[] = [];
     let smsTotal = 0;
     let smsDelivered = 0;
@@ -2054,9 +2087,20 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
     let smsLowPressure = 0;
     let smsChlorine = 0;
 
-    if (hasSentEmails && latestDispatchDateStr && dispatchedSchemeIds.size > 0) {
-      const schemeIdArr = Array.from(dispatchedSchemeIds);
+    // Target schemes for SMS lookup
+    const allRelevantSchemeIds = new Set<string>(dispatchedSchemeIds);
+    [...finalLowLpcdSchemes, ...finalLowPressureEsrs, ...finalResidualChlorine].forEach((item: any) => {
+      if (item.scheme_id) allRelevantSchemeIds.add(String(item.scheme_id).trim());
+    });
+
+    if (allRelevantSchemeIds.size > 0) {
+      const schemeIdArr = Array.from(allRelevantSchemeIds).slice(0, 150);
       const schemeIdsSql = sql.join(schemeIdArr.map((id) => sql`${String(id)}`), sql`, `);
+      const targetDate = !isAllDates && rawDateParam.slice(0, 10) ? rawDateParam.slice(0, 10) : latestDispatchDateStr;
+      const dateCondition = isAllDates
+        ? sql`1=1`
+        : (targetDate ? sql`s.sent_date = ${targetDate}::date` : sql`1=1`);
+
       const smsRes: any = await db.execute(sql`
         SELECT 
           s.id,
@@ -2076,7 +2120,7 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
           s.delivery_description,
           s.is_success
         FROM sms_alert_logs s
-        WHERE s.sent_date = ${latestDispatchDateStr}::date
+        WHERE ${dateCondition}
           AND s.scheme_id IN (${schemeIdsSql})
         ORDER BY s.created_at DESC, s.id DESC
       `);
@@ -2101,7 +2145,9 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
         officer_name: escalationLevel === 3 ? (sRef.chief_engineer_name || sRef.se_name || "CE / SE") : escalationLevel === 4 ? "Member Secretary (MJP)" : "Principal Secretary (WSSD)",
         officer_role: escalationLevel === 3 ? "CE & SE" : escalationLevel === 4 ? "Head - MJP" : "Head - WSSD",
         officer_email: escalationLevel === 3 ? (sRef.chief_engineer_email || sRef.se_email || "") : escalationLevel === 4 ? "ms.mjp@gov.in" : "ps.wss@maharashtra.gov.in",
-        email_status: hasSentEmails ? `Dispatched (${latestDispatchDateStr})` : "Failed (Not Dispatched)",
+        email_status: hasSentEmails
+          ? (isAllDates ? `Dispatched (${dateFilteredEmailList.length} Total Dispatches)` : `Dispatched (${activeDispatchDateStr})`)
+          : "Failed (Not Dispatched)",
         sms_status: smsDelivered > 0 ? `${smsDelivered} Delivered` : "Failed (0 SMS Sent)",
         remarks,
         remarks_count: remarks.length,
@@ -2115,7 +2161,7 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
 
     const emailDispatches = {
       total: emailDispatchesList.length,
-      dispatchDate: latestDispatchDateStr,
+      dispatchDate: activeDispatchDateStr,
       hasEmails: hasSentEmails,
       lowLpcdSchemes: emailDispatchesList.filter((e: any) => e.lpcdAlertsCount > 0).length,
       lowLpcdVillages: emailDispatchesList.filter((e: any) => e.lpcdAlertsCount > 0).length,
@@ -2127,8 +2173,8 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
     const smsDispatches = {
       total: smsDelivered,
       delivered: smsDelivered,
-      failed: 0,
-      dispatchDate: latestDispatchDateStr,
+      failed: smsFailed,
+      dispatchDate: activeDispatchDateStr,
       hasSms: smsDelivered > 0,
       lowLpcdSchemes: smsDelivered > 0 ? smsLowLpcd : 0,
       lowLpcdVillages: smsDelivered > 0 ? smsLowLpcd : 0,
@@ -2143,7 +2189,9 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
       escalationRole,
       escalationTitle,
       escalationNotice,
-      dispatchDate: latestDispatchDateStr,
+      dispatchDate: activeDispatchDateStr,
+      selectedDate: isAllDates ? "all" : rawDateParam.slice(0, 10),
+      availableDates,
       hasEmails: streakThreshold <= 7 ? true : hasSentEmails,
       lowLpcdSchemes: finalLowLpcdSchemes.length,
       lowLpcdVillages: finalLowLpcdVillages.length,
@@ -2167,6 +2215,8 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
     const payload = {
       success: true,
       region: selectedRegion,
+      selectedDate: isAllDates ? "all" : rawDateParam.slice(0, 10),
+      availableDates,
       projectScope,
       iotProgress,
       operational,
@@ -2218,9 +2268,12 @@ router.get("/export-level-history", async (req: Request, res: Response) => {
         ? "Level 4 - Member Secretary / HO - MJP (15+ Days)" 
         : "Level 5 - Principal Secretary / WSSD Office (20+ Days)";
 
+    const dateParam = (req.query.date as string) || (req.query.asOfDate as string) || "";
+    const isAllDates = !dateParam || dateParam.toLowerCase() === "all" || dateParam.toLowerCase() === "historical";
+
     const [dispatchInfo, asOfDateTier] = await Promise.all([
       getLatestDispatchDateForTier(String(levelNum)),
-      resolveTelemetryDateForTier(String(levelNum), req.query.asOfDate as string),
+      resolveTelemetryDateForTier(String(levelNum), isAllDates ? undefined : dateParam),
     ]);
 
     const { schemes } = await getEscalationStatus({

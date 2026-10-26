@@ -56,6 +56,8 @@ import { useToast } from "@/hooks/use-toast";
 
 interface SummaryData {
   region: string;
+  selectedDate?: string;
+  availableDates?: string[];
   projectScope: {
     schemes: number;
     villages: number;
@@ -73,6 +75,9 @@ interface SummaryData {
   };
   alertsLevel5: {
     daysStreak: number;
+    dispatchDate?: string | null;
+    selectedDate?: string;
+    availableDates?: string[];
     lowLpcdSchemes: number;
     lowLpcdVillages: number;
     lowPressureEsrs: number;
@@ -84,6 +89,9 @@ interface SummaryData {
   };
   alertsLevel?: {
     daysStreak: number;
+    dispatchDate?: string | null;
+    selectedDate?: string;
+    availableDates?: string[];
     escalationLevel: number;
     escalationRole: string;
     escalationTitle: string;
@@ -113,6 +121,7 @@ interface SummaryData {
   };
   emailDispatches?: {
     total: number;
+    dispatchDate?: string | null;
     lowLpcdSchemes: number;
     lowLpcdVillages: number;
     lowPressureEsrs: number;
@@ -123,6 +132,7 @@ interface SummaryData {
     total: number;
     delivered: number;
     failed: number;
+    dispatchDate?: string | null;
     lowLpcdSchemes: number;
     lowLpcdVillages: number;
     lowPressureEsrs: number;
@@ -191,6 +201,7 @@ interface MetricConfig {
 
 export default function Level5SummaryPage() {
   const [selectedRegion, setSelectedRegion] = useState<string>("All");
+  const [selectedDate, setSelectedDate] = useState<string>("all");
   const initialStreakDays = (() => {
     if (typeof window !== "undefined") {
       const p = new URLSearchParams(window.location.search).get("days");
@@ -206,6 +217,22 @@ export default function Level5SummaryPage() {
   const [sortField, setSortField] = useState<string>("");
   const [sortAsc, setSortAsc] = useState<boolean>(true);
   const { toast } = useToast();
+
+  // Helper to format date in dropdown
+  const formatDateOption = (dStr: string) => {
+    if (!dStr || dStr === "all") return "All Dates (Historical)";
+    try {
+      const d = new Date(dStr);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        });
+      }
+    } catch (e) {}
+    return dStr;
+  };
 
   // 7-Days Telemetry History Modal state
   const [selectedSevenDaysAlert, setSelectedSevenDaysAlert] = useState<any | null>(null);
@@ -241,20 +268,27 @@ export default function Level5SummaryPage() {
     isLoading,
     isRefetching,
     refetch,
-  } = useQuery<{ success: boolean } & SummaryData>({
-    queryKey: ["/api/escalation/level5-summary", selectedRegion, streakDays],
+  } = useQuery<{ success: boolean; availableDates?: string[]; selectedDate?: string } & SummaryData>({
+    queryKey: ["/api/escalation/level5-summary", selectedRegion, streakDays, selectedDate],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (selectedRegion && selectedRegion !== "All") {
         params.append("region", selectedRegion);
       }
       params.append("days", String(streakDays));
+      if (selectedDate) {
+        params.append("date", selectedDate);
+      }
       const res = await fetch(`/api/escalation/level5-summary?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to load Level 5 summary");
       return res.json();
     },
     staleTime: 60 * 1000,
   });
+
+  const availableDates: string[] = useMemo(() => {
+    return data?.availableDates || [];
+  }, [data?.availableDates]);
 
   // Fetch 7-day history for the selected item
   useEffect(() => {
@@ -1018,35 +1052,75 @@ export default function Level5SummaryPage() {
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         {/* Top Controls / Filter Bar matching the image */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <label
-              htmlFor="region-filter-select"
-              className="text-base sm:text-lg font-bold text-slate-800 whitespace-nowrap"
-            >
-              Region -
-            </label>
-            <div className="w-56 sm:w-64">
-              <Select
-                value={selectedRegion}
-                onValueChange={(val) => {
-                  setSelectedRegion(val);
-                  setSelectedMetric(null);
-                }}
+          <div className="flex items-center gap-4 flex-wrap">
+            {/* Region Filter */}
+            <div className="flex items-center gap-2">
+              <label
+                htmlFor="region-filter-select"
+                className="text-sm sm:text-base font-bold text-slate-800 whitespace-nowrap"
               >
-                <SelectTrigger
-                  id="region-filter-select"
-                  className="h-10 bg-white border-slate-300 font-medium text-slate-700 shadow-sm focus:ring-blue-500 rounded-lg text-sm"
+                Region -
+              </label>
+              <div className="w-44 sm:w-52">
+                <Select
+                  value={selectedRegion}
+                  onValueChange={(val) => {
+                    setSelectedRegion(val);
+                    setSelectedMetric(null);
+                  }}
                 >
-                  <SelectValue placeholder="Filter" />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  {REGIONS.map((r) => (
-                    <SelectItem key={r} value={r} className="text-sm font-medium">
-                      {r === "All" ? "All Regions (State-wide)" : r}
+                  <SelectTrigger
+                    id="region-filter-select"
+                    className="h-10 bg-white border-slate-300 font-medium text-slate-700 shadow-sm focus:ring-blue-500 rounded-lg text-xs sm:text-sm"
+                  >
+                    <SelectValue placeholder="Filter" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    {REGIONS.map((r) => (
+                      <SelectItem key={r} value={r} className="text-sm font-medium">
+                        {r === "All" ? "All Regions (State-wide)" : r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Date Filter */}
+            <div className="flex items-center gap-2">
+              <label
+                htmlFor="date-filter-select"
+                className="text-sm sm:text-base font-bold text-slate-800 whitespace-nowrap flex items-center gap-1.5"
+              >
+                <Calendar className="h-4 w-4 text-indigo-600" />
+                Date -
+              </label>
+              <div className="w-52 sm:w-60">
+                <Select
+                  value={selectedDate}
+                  onValueChange={(val) => {
+                    setSelectedDate(val);
+                    setSelectedMetric(null);
+                  }}
+                >
+                  <SelectTrigger
+                    id="date-filter-select"
+                    className="h-10 bg-white border-slate-300 font-medium text-slate-700 shadow-sm focus:ring-indigo-500 rounded-lg text-xs sm:text-sm"
+                  >
+                    <SelectValue placeholder="Select Date" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white max-h-64">
+                    <SelectItem value="all" className="text-xs sm:text-sm font-bold text-indigo-700">
+                      All Dates (Historical)
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    {availableDates.map((d) => (
+                      <SelectItem key={d} value={d} className="text-xs sm:text-sm font-medium">
+                        {formatDateOption(d)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
@@ -1112,7 +1186,7 @@ export default function Level5SummaryPage() {
               variant="outline"
               size="sm"
               onClick={() => {
-                const url = `/api/escalation/export-level-history?days=${streakDays}&region=${encodeURIComponent(selectedRegion)}`;
+                const url = `/api/escalation/export-level-history?days=${streakDays}&region=${encodeURIComponent(selectedRegion)}&date=${encodeURIComponent(selectedDate)}`;
                 window.open(url, "_blank");
               }}
               className="h-9 px-3 gap-1.5 text-xs bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 shadow-sm font-semibold"
@@ -1511,6 +1585,7 @@ export default function Level5SummaryPage() {
                 </div>
                 <p className="text-xs text-slate-600">
                   Region: <span className="font-semibold text-slate-800">{selectedRegion}</span> •{" "}
+                  Date: <span className="font-semibold text-indigo-700">{selectedDate === "all" ? "All Dates (Historical)" : formatDateOption(selectedDate)}</span> •{" "}
                   Streak Filter: <span className="font-semibold text-slate-800">{streakDays}+ Days</span> •{" "}
                   Escalation Tier: <span className="font-semibold text-slate-800">{alerts.escalationRole}</span>
                 </p>
@@ -1560,7 +1635,7 @@ export default function Level5SummaryPage() {
                 ) && (
                   <Button
                     onClick={() => {
-                      const url = `/api/escalation/export-level-history?days=${streakDays}&region=${encodeURIComponent(selectedRegion)}`;
+                      const url = `/api/escalation/export-level-history?days=${streakDays}&region=${encodeURIComponent(selectedRegion)}&date=${encodeURIComponent(selectedDate)}`;
                       window.open(url, "_blank");
                     }}
                     className="h-9 px-3 gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-sm"
@@ -1602,11 +1677,13 @@ export default function Level5SummaryPage() {
                     {searchQuery
                       ? "Try clearing your search query."
                       : selectedMetric?.startsWith("emails")
-                      ? streakDays <= 7
+                      ? selectedDate === "all"
+                        ? "No emails recorded in historical logs for this tier."
+                        : streakDays <= 7
                         ? "Emails for Chief Engineer & Superintending Engineer (Level 3) are dispatched weekly on Mondays."
                         : streakDays <= 15
-                        ? "Emails for Member Secretary (Level 4) are scheduled every 2 weeks on Mondays for schemes with ≥ 15 consecutive days unresolved. No emails were scheduled/dispatched on this date."
-                        : "Emails for Principal Secretary (Level 5) are scheduled every 21 days on Mondays for persistent schemes with ≥ 20 consecutive days unresolved. No emails were scheduled/dispatched on this date."
+                        ? `Emails for Member Secretary (Level 4) are scheduled every 2 weeks on Mondays for schemes with ≥ 15 consecutive days unresolved. No emails were scheduled/dispatched on ${formatDateOption(selectedDate)}.`
+                        : `Emails for Principal Secretary (Level 5) are scheduled every 21 days on Mondays for persistent schemes with ≥ 20 consecutive days unresolved. No emails were scheduled/dispatched on ${formatDateOption(selectedDate)}.`
                       : `No data found for ${streakDays}+ days streak in ${selectedRegion} region.`}
                   </p>
                 </div>
@@ -1646,7 +1723,7 @@ export default function Level5SummaryPage() {
                       const pVal = item.parameter_value || (cat === "lpcd" ? "< 55 LPCD" : cat === "chlorine" ? "< 0.20 mg/L" : "< 0.20 Bar");
                       const alertTitle = item.alert_title || (cat === "lpcd" ? "Low LPCD Notice" : cat === "chlorine" ? "Residual Chlorine Out Of Range" : "Terminal Low Pressure");
                       const hasEmail = Boolean(item.email_status ? (item.email_status.includes("Dispatched") || item.email_status.includes("Success")) : (data?.alertsLevel?.hasEmails || (data?.emailDispatches?.total || 0) > 0));
-                      const emailDateStr = data?.emailDispatches?.dispatchDate || "19 Oct 2026";
+                      const emailDateStr = item.dispatchDate || item.dispatch_date || (selectedDate !== "all" ? formatDateOption(selectedDate) : (data?.emailDispatches?.dispatchDate || "Historical"));
                       const smsFailed = Boolean(item.sms_status ? (item.sms_status.includes("Failed") || item.sms_status.includes("0 SMS")) : (data?.smsDispatches?.failed || 0) > 0 || item.gateway_status >= 400 || item.is_success === false);
                       const remarksList = Array.isArray(item.remarks) ? item.remarks : [];
 
@@ -1855,7 +1932,7 @@ export default function Level5SummaryPage() {
                                         is_success: false,
                                         gateway_status: 400,
                                         error_message: '{"statusCode":2092,"description":"Insufficient Balance !"}',
-                                        created_at: `${data?.emailDispatches?.dispatchDate || '2026-10-19'}T10:37:00.000Z`,
+                                        created_at: item.dispatchDate ? `${item.dispatchDate}T10:37:00.000Z` : (item.createdAt || `${data?.emailDispatches?.dispatchDate || '2026-10-19'}T10:37:00.000Z`),
                                       }
                                     ]
                                   });

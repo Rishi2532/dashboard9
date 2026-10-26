@@ -62,6 +62,7 @@ import alertsProgressRoutes from "./routes/alerts-progress-routes";
 import acknowledgeRoutes from "./routes/acknowledge-routes";
 import realtimeAlertsRoutes from "./routes/realtime-alerts-routes";
 import escalationRoutes from "./routes/escalation-routes";
+import alertTrackerRoutes from "./routes/alert-tracker-routes";
 import { sendSingleOfflineReminderEmail, sendBatchOfflineReminderEmail } from "./services/email-service";
 import { updateSmsDeliveryStatus } from "./services/sms-service";
 import admin2Routes from "./routes/admin2-routes";
@@ -121,7 +122,7 @@ const requireApiKeyOrAuth = (req: Request, res: Response, next: NextFunction) =>
   if (apiKey && (apiKey === EXTERNAL_API_KEY || apiKey === "MAHAJAL_IOT_SECURE_KEY_25")) {
     return next(); // API Key is valid, allow access
   }
-  
+
   // 2. Standard session authentication (user or engineer or admin)
   if (req.session && req.session.userId) {
     return next();
@@ -134,8 +135,8 @@ const requireApiKeyOrAuth = (req: Request, res: Response, next: NextFunction) =>
     return next();
   }
 
-  return res.status(401).json({ 
-    message: "Please provide a valid API key (X-External-Proxy-Key) or login." 
+  return res.status(401).json({
+    message: "Please provide a valid API key (X-External-Proxy-Key) or login."
   });
 };
 
@@ -380,13 +381,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const rows = result.rows || result || [];
       const completedVillages = Array.from(new Set(
         rows.filter((r: any) => String(r.fully_completion_village_status || '').toLowerCase().trim() === 'completed')
-            .map((r: any) => r.village_name)
-            .filter(Boolean)
+          .map((r: any) => r.village_name)
+          .filter(Boolean)
       ));
       const inProgressVillages = Array.from(new Set(
         rows.filter((r: any) => String(r.fully_completion_village_status || '').toLowerCase().trim() !== 'completed')
-            .map((r: any) => r.village_name)
-            .filter(Boolean)
+          .map((r: any) => r.village_name)
+          .filter(Boolean)
       ));
       res.json({
         completedVillages,
@@ -443,6 +444,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Mount 3-Tier Escalation Matrix routes
   app.use("/api/escalation", escalationRoutes);
+
+  // Mount Alert Tracker routes
+  app.use("/api/alert-tracker", alertTrackerRoutes);
 
   // Mount Smartping SMS Webhook Callback (Public endpoint for real-time operator delivery reports)
   app.get("/api/sms/callback", async (req, res) => {
@@ -2707,7 +2711,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const db = await getDB();
       const filterByRegion = region && region !== "all";
       const scope = getEngineerSchemeScope(req);
-      
+
       let engineerFilter = sql``;
       if (scope.isEngineer) {
         if (scope.schemeIds.length === 0 || scope.schemeIds.includes('__NO_MATCHING_SCHEMES__')) {
@@ -2942,8 +2946,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Common condition for agency type
-      const agencyCondition = agencyType && agencyType !== "ALL" 
-        ? eq(schemeStatuses.agency_type, agencyType) 
+      const agencyCondition = agencyType && agencyType !== "ALL"
+        ? eq(schemeStatuses.agency_type, agencyType)
         : undefined;
 
       const engineerCondition = scope.isEngineer
@@ -2989,7 +2993,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (engineerCondition) regionConditions.push(engineerCondition);
       if (filterTypeCondition) regionConditions.push(filterTypeCondition);
       regionConditions.push(sql`${schemeStatuses.region} is not null and ${schemeStatuses.region} != ''`);
-      
+
       const regionsList = await db
         .selectDistinct({ value: schemeStatuses.region })
         .from(schemeStatuses)

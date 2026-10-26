@@ -59,6 +59,7 @@ import "./init-database.js"; // Initial data cleanup (optional, based on require
 import { initializeDataCleanup } from "./data-cleanup.js"; // Run data cleanup on startup
 import { mqttService } from "./mqtt-service"; // Initialize MQTT service
 import { startDailyAlertsCron } from "./cron/daily-alerts.js"; // Start daily alerts cron
+import { startAlertTrackerEscalationCron } from "./services/alert-tracker-service.js"; // Automatic Date-Wise Alert Tracker & EE Escalation Cron
 // import { initPiChlorineIngestionCron } from "./cron/pi-chlorine-ingestion.js"; // Start PI Ingestion cron
 import { startPiRealtimeAlertsCron } from "./cron/pi-realtime-alerts.js"; // Start PI Real-Time 5-minute alerts engine
 // import { initPiPressureIngestionCron } from "./cron/pi-pressure-ingestion.js"; // Start PI Pressure Ingestion cron
@@ -199,14 +200,12 @@ app.use((req, res, next) => {
   console.log(`Current __dirname: ${__dirname}`);
   console.log(`process.cwd(): ${process.cwd()}`);
 
-  // If the production build directory exists, assume we are in production
-  // and force static serving to prevent source code leaks.
-  if (fs.existsSync(distPath)) {
+  if (process.env.NODE_ENV !== "production") {
+    log("Development mode: Starting Vite development server...");
+    await setupVite(app, server);
+  } else if (fs.existsSync(distPath)) {
     log("Production build found. Serving statically from dist/public.");
     serveStatic(app);
-  } else if (process.env.NODE_ENV !== "production") {
-    log("No production build found. Starting Vite development server...");
-    await setupVite(app, server);
   } else {
     log("CRITICAL: Production mode but dist/public is missing. Static serving will fail.");
     serveStatic(app);
@@ -228,6 +227,7 @@ app.use((req, res, next) => {
       setTimeout(() => {
         initializeDataCleanup().catch(console.error);
         startDailyAlertsCron(); // Start the daily alerts cron job
+        startAlertTrackerEscalationCron(); // Start Date-Wise Alert Tracker & EE Escalation Cron
         // initPiChlorineIngestionCron(); // Start PI Web API Sync
         // startPiRealtimeAlertsCron(); // PAUSED: Real-time alerts stopped to prevent excess SMS/Email costs. Start when requested.
         // initPiPressureIngestionCron(); // Start PI Web API Pressure Sync

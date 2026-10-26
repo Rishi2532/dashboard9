@@ -56,8 +56,15 @@ async function ensureAdmin2Table() {
       );
     `);
     console.log("admin2_submissions table verified/created successfully");
+    
+    // Ensure scheme_operator_details has new columns
+    await db.execute(sql`
+      ALTER TABLE scheme_operator_details ADD COLUMN IF NOT EXISTS operated_by VARCHAR(100) DEFAULT 'MJP';
+      ALTER TABLE scheme_operator_details ADD COLUMN IF NOT EXISTS chief_se_name VARCHAR(255);
+      ALTER TABLE scheme_operator_details ADD COLUMN IF NOT EXISTS chief_se_number VARCHAR(50);
+    `);
   } catch (err) {
-    console.error("Error ensuring admin2_submissions table:", err);
+    console.error("Error ensuring admin2 tables:", err);
   }
 }
 
@@ -433,4 +440,171 @@ router.get("/submissions", requireAdmin2OrAdmin, async (req: Request, res: Respo
   }
 });
 
+// -------------------------------------------------------------
+// Scheme Operator Details Endpoints (Admin2 Editable Grid)
+// -------------------------------------------------------------
+
+/**
+ * GET /api/admin2/operator-details/regions
+ * List distinct regions present in scheme_operator_details
+ */
+router.get("/operator-details/regions", requireAdmin2OrAdmin, async (req: Request, res: Response) => {
+  try {
+    const db = await getDB();
+    const result = await db.execute(sql`
+      SELECT DISTINCT TRIM(region) AS region 
+      FROM scheme_operator_details 
+      WHERE region IS NOT NULL AND TRIM(region) != ''
+      ORDER BY region ASC;
+    `);
+
+    const standardRegions = [
+      "Konkan",
+      "Pune",
+      "Nashik",
+      "Nagpur",
+      "Chhatrapati Sambhajinagar",
+      "Amravati",
+    ];
+
+    const dbRegions = result.rows.map((r: any) => r.region);
+    const combined = Array.from(new Set([...standardRegions, ...dbRegions])).sort();
+
+    res.json({ success: true, regions: combined });
+  } catch (error: any) {
+    console.error("Error fetching operator details regions:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch regions" });
+  }
+});
+
+/**
+ * GET /api/admin2/operator-details/schemes
+ * List schemes for selected region present in scheme_operator_details
+ */
+router.get("/operator-details/schemes", requireAdmin2OrAdmin, async (req: Request, res: Response) => {
+  try {
+    const region = req.query.region as string;
+    if (!region) {
+      return res.status(400).json({ success: false, message: "Region query parameter is required" });
+    }
+
+    const db = await getDB();
+    const result = await db.execute(sql`
+      SELECT DISTINCT 
+        TRIM(scheme_name) AS scheme_name,
+        TRIM(scheme_id) AS scheme_id
+      FROM scheme_operator_details 
+      WHERE TRIM(region) = ${region.trim()}
+        AND scheme_name IS NOT NULL 
+        AND TRIM(scheme_name) != ''
+      ORDER BY scheme_name ASC;
+    `);
+
+    res.json({ success: true, schemes: result.rows });
+  } catch (error: any) {
+    console.error("Error fetching operator details schemes:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch schemes" });
+  }
+});
+
+/**
+ * GET /api/admin2/operator-details/records
+ * Get all village operator records for selected region & scheme
+ */
+router.get("/operator-details/records", requireAdmin2OrAdmin, async (req: Request, res: Response) => {
+  try {
+    const region = req.query.region as string;
+    const schemeName = req.query.scheme_name as string;
+    const schemeId = req.query.scheme_id as string;
+
+    if (!region || (!schemeName && !schemeId)) {
+      return res.status(400).json({ success: false, message: "Region and Scheme are required" });
+    }
+
+    const db = await getDB();
+    const result = await db.execute(sql`
+      SELECT 
+        id,
+        region,
+        circle,
+        division,
+        sub_division,
+        block,
+        scheme_id,
+        scheme_name,
+        village_name,
+        reservoir_name,
+        COALESCE(operated_by, 'MJP') AS operated_by,
+        COALESCE(operator_name, '-') AS operator_name,
+        COALESCE(operator_email, '') AS operator_email,
+        COALESCE(operator_number, '-') AS operator_number,
+        COALESCE(ee_name, '-') AS ee_name,
+        COALESCE(ee_email, '') AS ee_email,
+        COALESCE(ee_number, '-') AS ee_number,
+        COALESCE(chief_se_name, '-') AS chief_se_name,
+        COALESCE(chief_se_number, '-') AS chief_se_number,
+        created_at,
+        updated_at
+      FROM scheme_operator_details
+      WHERE TRIM(region) = ${region.trim()}
+        ${schemeName ? sql`AND TRIM(scheme_name) = ${schemeName.trim()}` : sql``}
+        ${schemeId ? sql`AND TRIM(scheme_id) = ${schemeId.trim()}` : sql``}
+      ORDER BY village_name ASC, id ASC;
+    `);
+
+    res.json({ success: true, records: result.rows });
+  } catch (error: any) {
+    console.error("Error fetching operator details records:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch records" });
+  }
+});
+
+/**
+ * PUT/POST /api/admin2/operator-details/records
+ * Save/update batch of operator details records
+ */
+const handleSaveOperatorDetails = async (req: Request, res: Response) => {
+  try {
+    const { records } = req.body;
+    if (!Array.isArray(records) || records.length === 0) {
+      return res.status(400).json({ success: false, message: "No records provided to update" });
+    }
+
+    const db = await getDB();
+    let updatedCount = 0;
+
+    for (const rec of records) {
+      if (!rec.id) continue;
+      await db.execute(sql`
+        UPDATE scheme_operator_details
+        SET 
+          operated_by = ${rec.operated_by ?? 'MJP'},
+          operator_name = ${rec.operator_name ?? ''},
+          operator_number = ${rec.operator_number ?? ''},
+          ee_name = ${rec.ee_name ?? ''},
+          ee_email = ${rec.ee_email ?? ''},
+          ee_number = ${rec.ee_number ?? ''},
+          chief_se_name = ${rec.chief_se_name ?? ''},
+          chief_se_number = ${rec.chief_se_number ?? ''},
+          updated_at = NOW()
+        WHERE id = ${rec.id};
+      `);
+      updatedCount++;
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully updated ${updatedCount} operator details record(s).`,
+      updatedCount,
+    });
+  } catch (error: any) {
+    console.error("Error updating operator details records:", error);
+    res.status(500).json({ success: false, message: "Failed to save operator details" });
+  }
+};
+
+router.put("/operator-details/records", requireAdmin2OrAdmin, handleSaveOperatorDetails);
+router.post("/operator-details/records", requireAdmin2OrAdmin, handleSaveOperatorDetails);
+
 export default router;
+

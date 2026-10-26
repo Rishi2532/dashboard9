@@ -1456,6 +1456,79 @@ export const insertSchemeEngineerDetailsSchema = createInsertSchema(schemeEngine
 export type InsertSchemeEngineerDetails = z.infer<typeof insertSchemeEngineerDetailsSchema>;
 export type SchemeEngineerDetails = typeof schemeEngineerDetails.$inferSelect;
 
+// Scheme Operator Details table
+export const schemeOperatorDetails = pgTable("scheme_operator_details", {
+  id: serial("id").primaryKey(),
+  region: varchar("region", { length: 100 }),
+  circle: varchar("circle", { length: 100 }),
+  division: varchar("division", { length: 100 }),
+  sub_division: varchar("sub_division", { length: 100 }),
+  block: varchar("block", { length: 100 }),
+  scheme_id: varchar("scheme_id", { length: 100 }),
+  scheme_name: varchar("scheme_name", { length: 255 }),
+  village_name: varchar("village_name", { length: 255 }),
+  reservoir_name: varchar("reservoir_name", { length: 255 }),
+  operator_name: varchar("operator_name", { length: 255 }),
+  operator_email: varchar("operator_email", { length: 255 }),
+  operator_number: varchar("operator_number", { length: 50 }),
+  ee_name: varchar("ee_name", { length: 255 }),
+  ee_email: varchar("ee_email", { length: 255 }),
+  ee_number: varchar("ee_number", { length: 50 }),
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
+});
+
+export const insertSchemeOperatorDetailsSchema = createInsertSchema(schemeOperatorDetails).omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+});
+
+export type InsertSchemeOperatorDetails = z.infer<typeof insertSchemeOperatorDetailsSchema>;
+export type SchemeOperatorDetails = typeof schemeOperatorDetails.$inferSelect;
+
+// Alert Tracker Logs table for date-wise Operator & EE escalation tracking
+export const alertTrackerLogs = pgTable("alert_tracker_logs", {
+  id: serial("id").primaryKey(),
+  alert_key: varchar("alert_key", { length: 255 }).notNull(),
+  scheme_id: varchar("scheme_id", { length: 100 }).notNull(),
+  scheme_name: varchar("scheme_name", { length: 255 }),
+  alert_type: varchar("alert_type", { length: 50 }).notNull(), // 'LPCD', 'Pressure', 'Chlorine'
+  region: varchar("region", { length: 100 }),
+  circle: varchar("circle", { length: 100 }),
+  division: varchar("division", { length: 100 }),
+  sub_division: varchar("sub_division", { length: 100 }),
+  block: varchar("block", { length: 100 }),
+  village_name: varchar("village_name", { length: 255 }),
+  reservoir_name: varchar("reservoir_name", { length: 255 }),
+  original_alert_date: date("original_alert_date").notNull(),
+  recipient_designation: varchar("recipient_designation", { length: 100 }).notNull(), // 'Operator' or 'Executive Engineer'
+  recipient_name: varchar("recipient_name", { length: 255 }),
+  recipient_contact: varchar("recipient_contact", { length: 255 }).notNull(),
+  notification_channel: varchar("notification_channel", { length: 20 }).notNull(), // 'SMS' or 'Email'
+  message_text: text("message_text"),
+  gateway_status: integer("gateway_status"),
+  gateway_response: text("gateway_response"),
+  delivery_status: varchar("delivery_status", { length: 50 }).default("SUCCESS"),
+  resolution_status: varchar("resolution_status", { length: 50 }).default("ACTIVE"), // 'ACTIVE', 'UNRESOLVED', 'RESOLVED'
+  escalated_to_ee: boolean("escalated_to_ee").default(false),
+  escalation_date: date("escalation_date"),
+  telemetry_value: varchar("telemetry_value", { length: 100 }),
+  sent_date: date("sent_date").notNull(),
+  sent_at: timestamp("sent_at", { withTimezone: true }).defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const insertAlertTrackerLogSchema = createInsertSchema(alertTrackerLogs).omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+});
+
+export type InsertAlertTrackerLog = z.infer<typeof insertAlertTrackerLogSchema>;
+export type AlertTrackerLog = typeof alertTrackerLogs.$inferSelect;
+
 // Email Alert Logs table
 export const emailAlertLogs = pgTable("email_alert_logs", {
   id: serial("id").primaryKey(),
@@ -1566,26 +1639,26 @@ export const realtimeSensorData = pgTable(
     scheme_id: varchar("scheme_id", { length: 100 }),
     village_name: varchar("village_name", { length: 255 }),
     esr_name: varchar("esr_name", { length: 255 }),
-    
+
     // Chlorine
     chlorine_value: decimal("chlorine_value"),
     chlorine_timestamp: timestamp("chlorine_timestamp", { withTimezone: true }),
     chlorine_comm_status: varchar("chlorine_comm_status", { length: 20 }),
-    
+
     // Pressure
     pressure_value: decimal("pressure_value"),
     pressure_timestamp: timestamp("pressure_timestamp", { withTimezone: true }),
     pressure_comm_status: varchar("pressure_comm_status", { length: 20 }),
-    
+
     // Flow Rate
     flow_rate_value: decimal("flow_rate_value"),
     flow_rate_timestamp: timestamp("flow_rate_timestamp", { withTimezone: true }),
     flow_rate_comm_status: varchar("flow_rate_comm_status", { length: 20 }),
-    
+
     // Previous state tracking for delta/recovery analysis
     prev_chlorine_status: varchar("prev_chlorine_status", { length: 20 }),
     prev_chlorine_value: decimal("prev_chlorine_value"),
-    
+
     // Track update times
     last_updated_values: timestamp("last_updated_values", { withTimezone: true }).defaultNow(),
     last_updated_comm: timestamp("last_updated_comm", { withTimezone: true }).defaultNow(),

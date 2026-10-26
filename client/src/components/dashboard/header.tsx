@@ -177,6 +177,21 @@ export default function Header() {
 
               {authData?.isAdmin && (
                 <>
+                  <Link href="/alert-tracker">
+                    <Button
+                      size="sm"
+                      className={cn(
+                        "hidden sm:flex text-white h-8 text-xs font-semibold shadow-sm transition-all",
+                        isActive("/alert-tracker") || isActive("/alerts-tracker")
+                          ? "bg-emerald-800 text-white ring-2 ring-emerald-300"
+                          : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                      )}
+                      title="Alert Tracker Matrix & Escalation Overview"
+                    >
+                      <Activity className="h-3.5 w-3.5 mr-1" />
+                      Alert Tracker
+                    </Button>
+                  </Link>
                   <Link href="/level5-summary">
                     <Button
                       size="sm"
@@ -673,6 +688,21 @@ export default function Header() {
                   >
                     <BarChart2 className="h-4 w-4 mr-2" />
                     Monthly Reports
+                  </Button>
+                </Link>
+                <Link href="/alert-tracker" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      "w-full justify-start h-10 font-semibold transition-colors",
+                      isActive("/alert-tracker") || isActive("/alerts-tracker")
+                        ? "bg-emerald-50 text-emerald-700 border-l-4 border-emerald-600 rounded-none pl-3"
+                        : "text-emerald-700 hover:bg-emerald-50"
+                    )}
+                  >
+                    <Activity className="h-4 w-4 mr-2" />
+                    Alert Tracker
                   </Button>
                 </Link>
                 <Link href="/level5-summary" onClick={() => setIsMobileMenuOpen(false)}>
