@@ -75,7 +75,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
+        // If the browser/dashboard tab was closed and reopened, sessionStorage is cleared.
+        // Enforce that user must re-enter credentials every time they reopen the dashboard.
+        if (typeof window !== "undefined" && !sessionStorage.getItem("mjp_session_active")) {
+          try {
+            await apiRequest("/api/auth/logout", { method: "POST" });
+          } catch {
+            // Ignore error if already not logged in
+          }
+          setIsAuthenticated(false);
+          setIsAdmin(false);
+          setIsAdmin2(false);
+          setIsEngineer(false);
+          setRole("user");
+          setAssignedSchemes([]);
+          setAssignedSchemeIds([]);
+          setAssignedSchemeNames([]);
+          setEngineerProfile(null);
+          setUser(null);
+          setIsLoading(false);
+          return;
+        }
+
         const response = await apiRequest('/api/auth/status');
+        if (!response.isLoggedIn) {
+          sessionStorage.removeItem("mjp_session_active");
+        }
         setIsAuthenticated(response.isLoggedIn || false);
         setIsAdmin(response.isAdmin || false);
         setIsAdmin2(response.isAdmin2 || response.role === 'admin2' || false);
@@ -87,6 +112,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setEngineerProfile(response.engineerProfile || null);
         setUser(response.user || null);
       } catch (err) {
+        sessionStorage.removeItem("mjp_session_active");
         setIsAuthenticated(false);
         setIsAdmin(false);
         setIsAdmin2(false);
@@ -119,6 +145,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         },
       });
       
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("mjp_session_active", "1");
+      }
+
       setIsAuthenticated(true);
       setIsAdmin(!!response.isAdmin);
       setIsAdmin2(!!(response.isAdmin2 || response.role === 'admin2'));
@@ -150,6 +180,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       return response;
     } catch (err) {
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("mjp_session_active");
+      }
       setIsAuthenticated(false);
       setIsAdmin(false);
       setIsAdmin2(false);
@@ -169,6 +202,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = async () => {
     setIsLoading(true);
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("mjp_session_active");
+    }
     
     try {
       await apiRequest('/api/auth/logout', {
@@ -177,6 +213,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("mjp_session_active");
+      }
       setIsAuthenticated(false);
       setIsAdmin(false);
       setIsAdmin2(false);

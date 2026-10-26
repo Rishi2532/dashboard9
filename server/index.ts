@@ -130,7 +130,7 @@ app.use(
       sameSite: "lax",
       secure: false, // Allows session cookie over standard HTTP in dev & behind reverse proxies
       httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days session persistence
+      // No maxAge: Session cookie deleted when the browser/dashboard is closed
     },
   }),
 );

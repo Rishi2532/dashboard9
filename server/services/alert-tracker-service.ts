@@ -198,12 +198,15 @@ export function getTelemetryDayIndex(targetDateStr?: string) {
   const nextDayIsoDate = nextDateObj.toISOString().slice(0, 10);
   const nextDayDisplayDate = `${String(nextDateObj.getUTCDate()).padStart(2, "0")}/${String(nextDateObj.getUTCMonth() + 1).padStart(2, "0")}/${nextDateObj.getUTCFullYear()}`;
 
-  // Current local IST date: 2026-10-25
-  const todayIST = new Date(Date.UTC(2026, 9, 25));
+  // Current local IST date (UTC + 5:30)
+  const now = new Date();
+  const istOffsetMs = 5.5 * 60 * 60 * 1000;
+  const istNow = new Date(now.getTime() + istOffsetMs);
+  const todayIST = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate()));
 
   // Next day data is in database only if dayIdx < 7 (Day 7 = 24-Oct, the latest day currently in DB)
   const isNextDayAvailable = dayIdx < 7 && todayIST >= eeEscalationDateObj;
-  const isCol4Available = dayIdx <= 5 && todayIST >= col4DateObj;
+  const isCol4Available = dayIdx <= 6 && todayIST >= col4DateObj;
 
   const eeDayOrdinal = getOrdinal(eeEscalationDateObj.getUTCDate());
   const eeMonthShort = MONTHS_SHORT[eeEscalationDateObj.getUTCMonth()];
@@ -409,11 +412,11 @@ export async function getAlertTrackerMetrics(params: {
           ${sql.raw(lpcdLatestCol)} as val_latest,
           sod.operator_name,
           sod.operator_number,
-          sod.ee_name,
-          sod.ee_number,
-          sod.ee_email,
-          sod.chief_se_name,
-          sod.chief_se_number,
+          COALESCE(NULLIF(sod.ee_name, '-'), sod_ee.ee_name) as ee_name,
+          COALESCE(NULLIF(sod.ee_number, '-'), sod_ee.ee_number) as ee_number,
+          COALESCE(NULLIF(sod.ee_email, '-'), sod_ee.ee_email) as ee_email,
+          COALESCE(NULLIF(sod.chief_se_name, '-'), sod_ee.chief_se_name) as chief_se_name,
+          COALESCE(NULLIF(sod.chief_se_number, '-'), sod_ee.chief_se_number) as chief_se_number,
           COALESCE(ss.agency, ss.agency_type, sod.operated_by, 'MJP') as operated_by,
           (
             SELECT a.delivery_status 
@@ -435,6 +438,12 @@ export async function getAlertTrackerMetrics(params: {
           FROM scheme_operator_details
           ORDER BY scheme_id, LOWER(TRIM(village_name))
         ) sod ON sod.scheme_id = w.scheme_id AND LOWER(TRIM(sod.village_name)) = LOWER(TRIM(w.village_name))
+        LEFT JOIN (
+          SELECT DISTINCT ON (scheme_id) scheme_id, ee_name, ee_number, ee_email, chief_se_name, chief_se_number
+          FROM scheme_operator_details
+          WHERE ee_name IS NOT NULL AND ee_name != '' AND ee_name != '-' AND LOWER(ee_name) != 'executive engineer'
+          ORDER BY scheme_id
+        ) sod_ee ON sod_ee.scheme_id = w.scheme_id
         WHERE ${sql.raw(lpcdCol)} IS NOT NULL AND ${sql.raw(lpcdCol)} >= 0 AND ${sql.raw(lpcdCol)} < 55
           ${lpcdRegionClause}
           ${agencyClause}
@@ -479,11 +488,11 @@ export async function getAlertTrackerMetrics(params: {
           cw.water_next_val as water_next,
           sod.operator_name,
           sod.operator_number,
-          sod.ee_name,
-          sod.ee_number,
-          sod.ee_email,
-          sod.chief_se_name,
-          sod.chief_se_number,
+          COALESCE(NULLIF(sod.ee_name, '-'), sod_ee.ee_name) as ee_name,
+          COALESCE(NULLIF(sod.ee_number, '-'), sod_ee.ee_number) as ee_number,
+          COALESCE(NULLIF(sod.ee_email, '-'), sod_ee.ee_email) as ee_email,
+          COALESCE(NULLIF(sod.chief_se_name, '-'), sod_ee.chief_se_name) as chief_se_name,
+          COALESCE(NULLIF(sod.chief_se_number, '-'), sod_ee.chief_se_number) as chief_se_number,
           COALESCE(ss.agency, ss.agency_type, sod.operated_by, 'MJP') as operated_by,
           (
             SELECT a.delivery_status 
@@ -510,6 +519,12 @@ export async function getAlertTrackerMetrics(params: {
           FROM scheme_operator_details
           ORDER BY scheme_id, LOWER(TRIM(village_name))
         ) sod ON sod.scheme_id = p.scheme_id AND LOWER(TRIM(sod.village_name)) = LOWER(TRIM(p.village_name))
+        LEFT JOIN (
+          SELECT DISTINCT ON (scheme_id) scheme_id, ee_name, ee_number, ee_email, chief_se_name, chief_se_number
+          FROM scheme_operator_details
+          WHERE ee_name IS NOT NULL AND ee_name != '' AND ee_name != '-' AND LOWER(ee_name) != 'executive engineer'
+          ORDER BY scheme_id
+        ) sod_ee ON sod_ee.scheme_id = p.scheme_id
         WHERE ${sql.raw(presCol)} IS NOT NULL AND ${sql.raw(presCol)} < 0.20
           ${presRegionClause}
           ${agencyClause}
@@ -554,11 +569,11 @@ export async function getAlertTrackerMetrics(params: {
           cw.water_next_val as water_next,
           sod.operator_name,
           sod.operator_number,
-          sod.ee_name,
-          sod.ee_number,
-          sod.ee_email,
-          sod.chief_se_name,
-          sod.chief_se_number,
+          COALESCE(NULLIF(sod.ee_name, '-'), sod_ee.ee_name) as ee_name,
+          COALESCE(NULLIF(sod.ee_number, '-'), sod_ee.ee_number) as ee_number,
+          COALESCE(NULLIF(sod.ee_email, '-'), sod_ee.ee_email) as ee_email,
+          COALESCE(NULLIF(sod.chief_se_name, '-'), sod_ee.chief_se_name) as chief_se_name,
+          COALESCE(NULLIF(sod.chief_se_number, '-'), sod_ee.chief_se_number) as chief_se_number,
           COALESCE(ss.agency, ss.agency_type, sod.operated_by, 'MJP') as operated_by,
           (
             SELECT a.delivery_status 
@@ -585,6 +600,12 @@ export async function getAlertTrackerMetrics(params: {
           FROM scheme_operator_details
           ORDER BY scheme_id, LOWER(TRIM(village_name))
         ) sod ON sod.scheme_id = c.scheme_id AND LOWER(TRIM(sod.village_name)) = LOWER(TRIM(c.village_name))
+        LEFT JOIN (
+          SELECT DISTINCT ON (scheme_id) scheme_id, ee_name, ee_number, ee_email, chief_se_name, chief_se_number
+          FROM scheme_operator_details
+          WHERE ee_name IS NOT NULL AND ee_name != '' AND ee_name != '-' AND LOWER(ee_name) != 'executive engineer'
+          ORDER BY scheme_id
+        ) sod_ee ON sod_ee.scheme_id = c.scheme_id
         WHERE ${sql.raw(chlCol)} IS NOT NULL AND (${sql.raw(chlCol)} < 0.20 OR ${sql.raw(chlCol)} > 0.50)
           ${chlRegionClause}
           ${agencyClause}
@@ -614,7 +635,9 @@ export async function getAlertTrackerMetrics(params: {
         alert_type: "LPCD",
         original_alert_date: isoDate,
         recipient_designation: isEE ? "Executive Engineer" : "Village Operator",
-        recipient_name: isEE ? (row.ee_name || "Executive Engineer") : (row.operator_name || "Village Operator"),
+        recipient_name: isEE
+          ? (row.ee_name && row.ee_name !== "-" && row.ee_name.toLowerCase() !== "executive engineer" ? row.ee_name : "-")
+          : (row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" ? row.operator_name : "-"),
         recipient_contact: isEE ? (row.ee_number || "-") : (row.operator_number || "-"),
         recipient_email: row.ee_email || undefined,
         notification_channel: isEE ? ("SMS & Email" as any) : "SMS",
@@ -631,12 +654,12 @@ export async function getAlertTrackerMetrics(params: {
         escalation_date: isEE ? nextDayDisplayDate : undefined,
         sent_date: isoDate,
         sent_at: `${isoDate}T10:30:00.000Z`,
-        operator_name: row.operator_name || "-",
+        operator_name: row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" ? row.operator_name : "-",
         operator_number: row.operator_number || "-",
-        ee_name: row.ee_name || "-",
+        ee_name: row.ee_name && row.ee_name !== "-" && row.ee_name.toLowerCase() !== "executive engineer" ? row.ee_name : "-",
         ee_number: row.ee_number || "-",
         ee_email: row.ee_email || "-",
-        chief_se_name: row.chief_se_name || "-",
+        chief_se_name: row.chief_se_name && row.chief_se_name !== "-" ? row.chief_se_name : "-",
         chief_se_number: row.chief_se_number || "-",
         operated_by: row.operated_by || "MJP",
         remarks_list: schemeRemarks,
@@ -692,7 +715,9 @@ export async function getAlertTrackerMetrics(params: {
         alert_type: "Pressure",
         original_alert_date: isoDate,
         recipient_designation: isEE ? "Executive Engineer" : "Village Operator",
-        recipient_name: isEE ? (row.ee_name || "Executive Engineer") : (row.operator_name || "Village Operator"),
+        recipient_name: isEE
+          ? (row.ee_name && row.ee_name !== "-" && row.ee_name.toLowerCase() !== "executive engineer" ? row.ee_name : "-")
+          : (row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" ? row.operator_name : "-"),
         recipient_contact: isEE ? (row.ee_number || "-") : (row.operator_number || "-"),
         recipient_email: row.ee_email || undefined,
         notification_channel: isEE ? ("SMS & Email" as any) : "SMS",
@@ -709,12 +734,12 @@ export async function getAlertTrackerMetrics(params: {
         escalation_date: isEE ? nextDayDisplayDate : undefined,
         sent_date: isoDate,
         sent_at: `${isoDate}T10:30:00.000Z`,
-        operator_name: row.operator_name || "-",
+        operator_name: row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" ? row.operator_name : "-",
         operator_number: row.operator_number || "-",
-        ee_name: row.ee_name || "-",
+        ee_name: row.ee_name && row.ee_name !== "-" && row.ee_name.toLowerCase() !== "executive engineer" ? row.ee_name : "-",
         ee_number: row.ee_number || "-",
         ee_email: row.ee_email || "-",
-        chief_se_name: row.chief_se_name || "-",
+        chief_se_name: row.chief_se_name && row.chief_se_name !== "-" ? row.chief_se_name : "-",
         chief_se_number: row.chief_se_number || "-",
         operated_by: row.operated_by || "MJP",
         remarks_list: schemeRemarks,
@@ -770,7 +795,9 @@ export async function getAlertTrackerMetrics(params: {
         alert_type: "Chlorine",
         original_alert_date: isoDate,
         recipient_designation: isEE ? "Executive Engineer" : "Village Operator",
-        recipient_name: isEE ? (row.ee_name || "Executive Engineer") : (row.operator_name || "Village Operator"),
+        recipient_name: isEE
+          ? (row.ee_name && row.ee_name !== "-" && row.ee_name.toLowerCase() !== "executive engineer" ? row.ee_name : "-")
+          : (row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" ? row.operator_name : "-"),
         recipient_contact: isEE ? (row.ee_number || "-") : (row.operator_number || "-"),
         recipient_email: row.ee_email || undefined,
         notification_channel: isEE ? ("SMS & Email" as any) : "SMS",
@@ -791,12 +818,12 @@ export async function getAlertTrackerMetrics(params: {
         escalation_date: isEE ? nextDayDisplayDate : undefined,
         sent_date: isoDate,
         sent_at: `${isoDate}T10:30:00.000Z`,
-        operator_name: row.operator_name || "-",
+        operator_name: row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" ? row.operator_name : "-",
         operator_number: row.operator_number || "-",
-        ee_name: row.ee_name || "-",
+        ee_name: row.ee_name && row.ee_name !== "-" && row.ee_name.toLowerCase() !== "executive engineer" ? row.ee_name : "-",
         ee_number: row.ee_number || "-",
         ee_email: row.ee_email || "-",
-        chief_se_name: row.chief_se_name || "-",
+        chief_se_name: row.chief_se_name && row.chief_se_name !== "-" ? row.chief_se_name : "-",
         chief_se_number: row.chief_se_number || "-",
         operated_by: row.operated_by || "MJP",
         remarks_list: schemeRemarks,

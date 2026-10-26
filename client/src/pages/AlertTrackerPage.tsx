@@ -1073,9 +1073,16 @@ export default function AlertTrackerPage() {
                                                     ? new Date(item.sent_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
                                                     : "11:00 am");
 
-                                            const contactName = isEscalationModal
-                                                ? (item.ee_name && item.ee_name !== "-" ? item.ee_name : "Executive Engineer")
-                                                : (item.operator_name && item.operator_name !== "-" ? item.operator_name : (item.recipient_name && item.recipient_name !== "-" ? item.recipient_name : "Village Operator"));
+                                            const actualEeName = item.ee_name && item.ee_name !== "-" && item.ee_name.toLowerCase() !== "executive engineer"
+                                                ? item.ee_name
+                                                : null;
+                                            const actualOperatorName = item.operator_name && item.operator_name !== "-" && item.operator_name.toLowerCase() !== "village operator"
+                                                ? item.operator_name
+                                                : (item.recipient_name && item.recipient_name !== "-" && item.recipient_name.toLowerCase() !== "village operator" && item.recipient_name.toLowerCase() !== "executive engineer"
+                                                    ? item.recipient_name
+                                                    : null);
+
+                                            const contactName = isEscalationModal ? actualEeName : actualOperatorName;
                                             const contactMobile = isEscalationModal
                                                 ? (item.ee_number && item.ee_number !== "-" ? item.ee_number : null)
                                                 : (item.operator_number && item.operator_number !== "-" ? item.operator_number : (item.recipient_contact && item.recipient_contact !== "-" ? item.recipient_contact : null));
@@ -1198,9 +1205,15 @@ export default function AlertTrackerPage() {
                                                     {/* 4. Assigned Engineer & Contact */}
                                                     <td className={`py-2.5 px-3 align-middle ${isResolvedModal ? "" : "border-r border-[#CBD5E1]"}`}>
                                                         <div>
-                                                            <div className="font-bold text-xs text-[#0A2540] leading-tight">
-                                                                <span className="text-[#64748B] font-semibold">[{shortRole}]</span> {contactName}
-                                                            </div>
+                                                            {contactName ? (
+                                                                <div className="font-bold text-xs text-[#0A2540] leading-tight">
+                                                                    <span className="text-[#64748B] font-semibold">[{shortRole}]</span> {contactName}
+                                                                </div>
+                                                            ) : (
+                                                                <div className="text-xs text-slate-400 font-normal italic leading-tight">
+                                                                    -
+                                                                </div>
+                                                            )}
                                                             <div className="mt-0.5 flex items-center gap-2 flex-wrap">
                                                                 {contactMobile && contactMobile !== "-" ? (
                                                                     <div className="flex items-center gap-1">
@@ -1232,7 +1245,7 @@ export default function AlertTrackerPage() {
                                                                         </button>
                                                                     </div>
                                                                 ) : (
-                                                                    <span className="text-[10px] text-slate-400 italic">No mobile</span>
+                                                                    contactName ? <span className="text-[10px] text-slate-400 italic">No mobile</span> : null
                                                                 )}
                                                                 {isEE && (item.ee_email || item.recipient_email) && (
                                                                     <span className="text-[10px] text-[#475569] font-mono">
@@ -1294,7 +1307,7 @@ export default function AlertTrackerPage() {
                                                             {(() => {
                                                                 const openSmsModal = () => {
                                                                     const defaultSms = {
-                                                                        recipient_name: contactName,
+                                                                        recipient_name: contactName || "-",
                                                                         recipient_role: isEE ? "Executive Engineer" : "Village Operator",
                                                                         recipient_mobile: contactMobile,
                                                                         message_content: (() => {
@@ -1330,7 +1343,7 @@ export default function AlertTrackerPage() {
                                                                             ...item,
                                                                             alert_title: alertBadgeText,
                                                                             parameter_value: alertValue,
-                                                                            officer_name: contactName,
+                                                                            officer_name: contactName || "-",
                                                                             officer_role: isEE ? "Executive Engineer" : "Village Operator",
                                                                             officer_mobile: contactMobile,
                                                                         },
