@@ -157,7 +157,7 @@ function getOrdinal(n: number): string {
  * and computes forward timeline availability for Unresolved and EE Escalation.
  */
 export function getTelemetryDayIndex(targetDateStr?: string) {
-  let dayNum = 24; // Default to latest telemetry day in database (24-Oct)
+  let dayNum = 25; // Default to latest telemetry day in database (25-Oct)
   let monthNum = 10;
   let yearNum = 2026;
 
@@ -177,11 +177,11 @@ export function getTelemetryDayIndex(targetDateStr?: string) {
     }
   }
 
-  // Days 1-7 in water_scheme_data are 18-Oct (day 1) to 24-Oct (day 7)
+  // Days 1-7 in water_scheme_data are 19-Oct (day 1) to 25-Oct (day 7)
   let dayIdx = 7;
-  if (dayNum >= 18 && dayNum <= 24 && monthNum === 10 && yearNum === 2026) {
-    dayIdx = dayNum - 17;
-  } else if (dayNum <= 17) {
+  if (dayNum >= 19 && dayNum <= 25 && monthNum === 10 && yearNum === 2026) {
+    dayIdx = dayNum - 18;
+  } else if (dayNum <= 18) {
     dayIdx = 1;
   } else {
     dayIdx = 7;
@@ -204,7 +204,7 @@ export function getTelemetryDayIndex(targetDateStr?: string) {
   const istNow = new Date(now.getTime() + istOffsetMs);
   const todayIST = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate()));
 
-  // Next day data is in database only if dayIdx < 7 (Day 7 = 24-Oct, the latest day currently in DB)
+  // Next day data is in database only if dayIdx < 7 (Day 7 = 25-Oct, the latest day currently in DB)
   const isNextDayAvailable = dayIdx < 7 && todayIST >= eeEscalationDateObj;
   const isCol4Available = dayIdx <= 6 && todayIST >= col4DateObj;
 
@@ -909,7 +909,7 @@ export async function runDailyAlertTrackerEscalation(options?: {
     // fetch the unresolved alerts from the prior observation day (e.g. 23-Oct) which are due for EE escalation today!
     let eeEscalationAlerts = allAlerts.filter((item) => item.escalated_to_ee);
     if (eeEscalationAlerts.length === 0 && dayIdx > 1) {
-      const prevDate = `2026-10-${String(dayIdx + 17 - 1).padStart(2, "0")}`;
+      const prevDate = `2026-10-${String(dayIdx + 18 - 1).padStart(2, "0")}`;
       const prevMetrics = await getAlertTrackerMetrics({ date: prevDate });
       eeEscalationAlerts = (prevMetrics.allAlerts || []).filter((item) => item.escalated_to_ee);
     }

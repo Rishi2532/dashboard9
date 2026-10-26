@@ -109,9 +109,9 @@ export default function AlertTrackerPage() {
     const [selectedRegion, setSelectedRegion] = useState<string>("All");
     const [selectedAgency, setSelectedAgency] = useState<string>("ALL Agency");
 
-    // Default to latest available data date in DB (24-Oct)
-    const [dataDate, setDataDate] = useState<string>("2026-10-24");
-    const [filterDateInput, setFilterDateInput] = useState<string>("24/10/2026");
+    // Default to latest available data date in DB (25-Oct)
+    const [dataDate, setDataDate] = useState<string>("2026-10-25");
+    const [filterDateInput, setFilterDateInput] = useState<string>("25/10/2026");
     const [isTriggeringAlerts, setIsTriggeringAlerts] = useState<boolean>(false);
 
     // Modal / Detail state for inspecting records behind any cell
