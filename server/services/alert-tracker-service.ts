@@ -862,7 +862,7 @@ export async function runDailyAlertTrackerEscalation(options?: {
   await ensureAlertTrackerTables();
   const db = await getDB();
   const dryRun = options?.dryRun ?? false;
-  const { isoDate, displayDate } = getTelemetryDayIndex(options?.targetDate);
+  const { isoDate, displayDate, dayIdx } = getTelemetryDayIndex(options?.targetDate);
 
   console.log(`[AlertTracker] Running daily alert evaluation for date: ${isoDate} (dryRun=${dryRun})`);
 
@@ -881,17 +881,25 @@ export async function runDailyAlertTrackerEscalation(options?: {
     // If the selected date is the latest reported day (where alerts are still in their 24-hr operator window),
     // fetch the unresolved alerts from the prior observation day (e.g. 23-Oct) which are due for EE escalation today!
     let eeEscalationAlerts = allAlerts.filter((item) => item.escalated_to_ee);
-    if (eeEscalationAlerts.length === 0 && meta.dayIdx > 1) {
-      const prevDate = `2026-10-${String(meta.dayIdx + 17 - 1).padStart(2, "0")}`;
+    if (eeEscalationAlerts.length === 0 && dayIdx > 1) {
+      const prevDate = `2026-10-${String(dayIdx + 17 - 1).padStart(2, "0")}`;
       const prevMetrics = await getAlertTrackerMetrics({ date: prevDate });
       eeEscalationAlerts = (prevMetrics.allAlerts || []).filter((item) => item.escalated_to_ee);
     }
 
     for (const item of eeEscalationAlerts) {
-      const eeKey = (item.ee_email || item.ee_number || "unknown").toLowerCase().trim();
+      const eeName = (item.ee_name && item.ee_name !== '-') ? item.ee_name : "Executive Engineer";
+      // Key by EE name or number so each distinct Executive Engineer receives their own email,
+      // even if multiple dummy test EEs share the same email inbox.
+      const eeKey = ((item.ee_name && item.ee_name !== '-') 
+        ? item.ee_name 
+        : (item.ee_number && item.ee_number !== '-') 
+          ? item.ee_number 
+          : item.ee_email || "unknown").toLowerCase().trim();
+
       if (!alertsByEE.has(eeKey)) {
         alertsByEE.set(eeKey, {
-          eeName: item.ee_name || "Executive Engineer",
+          eeName,
           eeMobile: item.ee_number || "",
           eeEmail: item.ee_email || "",
           alerts: [],

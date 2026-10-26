@@ -140,11 +140,15 @@ const requireApiKeyOrAuth = (req: Request, res: Response, next: NextFunction) =>
   });
 };
 
+let isOfflineReminderTablesInitialized = false;
+
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Ensure offline_reminder_logs table and scheme_engineer_details columns exist
-  try {
-    const initDb = await getDB();
-    await initDb.execute(sql`
+  // Ensure offline_reminder_logs table and scheme_engineer_details columns exist (once per process)
+  if (!isOfflineReminderTablesInitialized) {
+    try {
+      isOfflineReminderTablesInitialized = true;
+      const initDb = await getDB();
+      await initDb.execute(sql`
       CREATE TABLE IF NOT EXISTS offline_reminder_logs (
         id SERIAL PRIMARY KEY,
         alert_id INTEGER,
@@ -271,6 +275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   } catch (initErr) {
     console.error("Error ensuring offline_reminder_logs and scheme_engineer_details table:", initErr);
   }
+}
 
   // Mount admin engineer credential management routes (admin only)
   app.use("/api/admin/engineers", requireAdmin, engineerAdminRoutes);

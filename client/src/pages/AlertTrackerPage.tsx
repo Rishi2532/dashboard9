@@ -1011,7 +1011,7 @@ export default function AlertTrackerPage() {
                                             </>
                                         ) : (
                                             <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[140px]">
-                                                Date of Value - Time
+                                                Date of Value
                                             </th>
                                         )}
                                         <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-[#4A6484] min-w-[200px]">
@@ -1161,8 +1161,8 @@ export default function AlertTrackerPage() {
                                                             </div>
 
                                                             <div className="text-[10px] text-[#64748B] font-normal flex items-center justify-center gap-1">
-                                                                <Clock className="h-3 w-3 text-[#4A6484] shrink-0" />
-                                                                <span>{filterDateInput}, {formattedTime}</span>
+                                                                <Calendar className="h-3 w-3 text-[#4A6484] shrink-0" />
+                                                                <span>{filterDateInput}</span>
                                                             </div>
                                                         </div>
                                                     </td>
