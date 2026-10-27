@@ -386,7 +386,7 @@ export default function AlertTrackerPage() {
                 ["Region", selectedRegion, "Filter Agency", selectedAgency],
                 [],
                 ["Project Scope", `Scheme in Scope - ${projectScope.schemes.toLocaleString()}`, `Village covered - ${projectScope.villages.toLocaleString()}`, `ESR+ GSR+MBR - ${projectScope.esr.toLocaleString()}`],
-                ["Physical progress", `Partial completed schemes - ${(physicalProgress.schemes?.partial ?? 174).toLocaleString()} / Fully Completed Schemes - ${(physicalProgress.schemes?.fully ?? 52).toLocaleString()}`, `Partial villages - ${(physicalProgress.villages?.partial ?? 1986).toLocaleString()} / Fully Completed Villages - ${(physicalProgress.villages?.fully ?? 263).toLocaleString()}`, `Partial ESRs - ${(physicalProgress.esr?.partial ?? 2567).toLocaleString()} / Fully Completed ESRs - ${(physicalProgress.esr?.fully ?? 461).toLocaleString()}`],
+                ["Physical progress", `Partial completed schemes - ${(physicalProgress.schemes?.partial ?? 340).toLocaleString()} / Fully Completed Schemes - ${(physicalProgress.schemes?.fully ?? 49).toLocaleString()}`, `Partial villages - ${(physicalProgress.villages?.partial ?? 1986).toLocaleString()} / Fully Completed Villages - ${(physicalProgress.villages?.fully ?? 263).toLocaleString()}`, `Partial ESRs - ${(physicalProgress.esr?.partial ?? 2567).toLocaleString()} / Fully Completed ESRs - ${(physicalProgress.esr?.fully ?? 461).toLocaleString()}`],
                 ["Operational", `Scheme - ${operational.schemes || 39}`, `Villages - ${operational.villages || 255}`, `No. Of ESR - ${operational.esr || 325}`],
                 [],
                 ["Alert Date :", filterDateInput],
@@ -395,14 +395,15 @@ export default function AlertTrackerPage() {
                     `(Display result for ${headerDateInfo.dayWithOrdinal} ${headerDateInfo.month.toLowerCase()} as per date )`,
                     `Resolution - ${data?.dateMeta?.isNextDayAvailable ? data.dateMeta.nextDayDisplayDate : "Next Day"}`,
                     "Escalated to EE",
-                    "Unresolved -till date not resolved"
+                    "Unresolved -till date not resolved",
+                    "Resolved"
                 ],
-                ["Low LPCD In Villages Reported", "Low LPCD In Villages", "Low LPCD In Villages", "Low LPCD In Villages"],
-                [alertMatrix.lpcd.reported, alertMatrix.lpcd.resolved || 0, alertMatrix.lpcd.unresolvedEE, alertMatrix.lpcd.unresolvedTillDate || alertMatrix.lpcd.unresolved],
-                ["Low Pressure In ESR", "Low Pressure In ESR", "Low Pressure In ESR", "Low Pressure In ESR"],
-                [alertMatrix.pressure.reported, alertMatrix.pressure.resolved || 0, alertMatrix.pressure.unresolvedEE, alertMatrix.pressure.unresolvedTillDate || alertMatrix.pressure.unresolved],
-                ["Residual Chlorine Out Of Range", "Residual Chlorine Out Of Range", "Residual Chlorine Out Of Range", "Residual Chlorine Out Of Range"],
-                [alertMatrix.chlorine.reported, alertMatrix.chlorine.resolved || 0, alertMatrix.chlorine.unresolvedEE, alertMatrix.chlorine.unresolvedTillDate || alertMatrix.chlorine.unresolved],
+                ["Low LPCD In Villages Reported", "Low LPCD In Villages", "Low LPCD In Villages", "Low LPCD In Villages", "Low LPCD In Villages"],
+                [alertMatrix.lpcd.reported, alertMatrix.lpcd.resolved || 0, alertMatrix.lpcd.unresolvedEE, alertMatrix.lpcd.unresolvedTillDate || alertMatrix.lpcd.unresolved, alertMatrix.lpcd.subsequentResolved || 0],
+                ["Low Pressure In ESR", "Low Pressure In ESR", "Low Pressure In ESR", "Low Pressure In ESR", "Low Pressure In ESR"],
+                [alertMatrix.pressure.reported, alertMatrix.pressure.resolved || 0, alertMatrix.pressure.unresolvedEE, alertMatrix.pressure.unresolvedTillDate || alertMatrix.pressure.unresolved, alertMatrix.pressure.subsequentResolved || 0],
+                ["Residual Chlorine Out Of Range", "Residual Chlorine Out Of Range", "Residual Chlorine Out Of Range", "Residual Chlorine Out Of Range", "Residual Chlorine Out Of Range"],
+                [alertMatrix.chlorine.reported, alertMatrix.chlorine.resolved || 0, alertMatrix.chlorine.unresolvedEE, alertMatrix.chlorine.unresolvedTillDate || alertMatrix.chlorine.unresolved, alertMatrix.chlorine.subsequentResolved || 0],
             ];
 
             const wsSummary = XLSX.utils.aoa_to_sheet(summaryAoa);
@@ -595,16 +596,16 @@ export default function AlertTrackerPage() {
                                     </td>
                                     <td className="p-2 sm:p-2.5 border-r border-[#4A6484] bg-white w-1/4 text-xs sm:text-sm leading-snug text-[#1E293B]">
                                         <div
-                                            onClick={() => handleScopeClick("Partial Completed Schemes", "iotSchemesTotal", physicalProgress.schemes?.partial ?? 174)}
+                                            onClick={() => handleScopeClick("Partial Completed Schemes", "iotSchemesTotal", physicalProgress.schemes?.partial ?? 340)}
                                             className="cursor-pointer hover:text-[#0B3558] hover:underline"
                                         >
-                                            Partial completed schemes - {(physicalProgress.schemes?.partial ?? 174).toLocaleString()}
+                                            Partial completed schemes - {(physicalProgress.schemes?.partial ?? 340).toLocaleString()}
                                         </div>
                                         <div
-                                            onClick={() => handleScopeClick("Fully Completed Schemes", "iotSchemesFully", physicalProgress.schemes?.fully ?? 52)}
+                                            onClick={() => handleScopeClick("Fully Completed Schemes", "iotSchemesFully", physicalProgress.schemes?.fully ?? 49)}
                                             className="cursor-pointer hover:text-[#0B3558] hover:underline"
                                         >
-                                            Fully Completed Schemes - {(physicalProgress.schemes?.fully ?? 52).toLocaleString()}
+                                            Fully Completed Schemes - {(physicalProgress.schemes?.fully ?? 49).toLocaleString()}
                                         </div>
                                     </td>
                                     <td className="p-2 sm:p-2.5 border-r border-[#4A6484] bg-white w-1/4 text-xs sm:text-sm leading-snug text-[#1E293B]">
@@ -736,23 +737,28 @@ export default function AlertTrackerPage() {
                             <thead>
                                 <tr className="border-b border-[#4A6484]">
                                     {/* Col 1: Display result */}
-                                    <th className="p-2.5 sm:p-3 border-r border-[#4A6484] bg-[#EBF3FB] font-bold text-[#0A2540] w-1/4">
+                                    <th className="p-2.5 sm:p-3 border-r border-[#4A6484] bg-[#EBF3FB] font-bold text-[#0A2540] w-1/5">
                                         Data for {headerDateInfo.dayWithOrdinal} {headerDateInfo.month.toLowerCase()}
                                     </th>
 
                                     {/* Col 2: Resolution */}
-                                    <th className="p-2.5 sm:p-3 border-r border-[#4A6484] bg-[#EBF3FB] font-bold text-[#0A2540] w-1/4">
+                                    <th className="p-2.5 sm:p-3 border-r border-[#4A6484] bg-[#EBF3FB] font-bold text-[#0A2540] w-1/5">
                                         {data?.dateMeta?.isNextDayAvailable ? `Resolution - ${data.dateMeta.nextDayDisplayDate}` : "Resolution in 24 hrs"}
                                     </th>
 
                                     {/* Col 3: Escalated to EE */}
-                                    <th className="p-2.5 sm:p-3 border-r border-[#4A6484] bg-[#EBF3FB] font-bold text-[#0A2540] w-1/4">
+                                    <th className="p-2.5 sm:p-3 border-r border-[#4A6484] bg-[#EBF3FB] font-bold text-[#0A2540] w-1/5">
                                         Unresolved for over 24 hrs
                                     </th>
 
-                                    {/* Col 4: Unresolved -till date not resolved */}
-                                    <th className="p-2.5 sm:p-3 bg-[#EBF3FB] font-bold text-[#0A2540] w-1/4">
+                                    {/* Col 4: Pending Resolution */}
+                                    <th className="p-2.5 sm:p-3 border-r border-[#4A6484] bg-[#EBF3FB] font-bold text-[#0A2540] w-1/5">
                                         Pending Resolution
+                                    </th>
+
+                                    {/* Col 5: Resolved (Not in pending resolution) */}
+                                    <th className="p-2.5 sm:p-3 bg-[#EBF3FB] font-bold text-[#0A2540] w-1/5">
+                                        Resolved
                                     </th>
                                 </tr>
                             </thead>
@@ -763,6 +769,9 @@ export default function AlertTrackerPage() {
                                 <tr className="border-b border-[#4A6484] font-semibold text-[#1E293B] bg-white">
                                     <td className="p-2 sm:p-2.5 border-r border-[#4A6484]">
                                         Low LPCD In Villages Reported
+                                    </td>
+                                    <td className="p-2 sm:p-2.5 border-r border-[#4A6484]">
+                                        Low LPCD In Villages
                                     </td>
                                     <td className="p-2 sm:p-2.5 border-r border-[#4A6484]">
                                         Low LPCD In Villages
@@ -800,12 +809,12 @@ export default function AlertTrackerPage() {
                                             "Low LPCD In Villages (Escalated to EE)",
                                             "lpcd",
                                             alertMatrix.lpcd?.escalatedEEItems && alertMatrix.lpcd.escalatedEEItems.length > 0
-                                                ? alertMatrix.lpcd.escalatedEEItems
-                                                : (alertMatrix.lpcd?.items || []).filter((x: any) => x.escalated_to_ee || x.recipient_designation === "Executive Engineer"),
+                                                 ? alertMatrix.lpcd.escalatedEEItems
+                                                 : (alertMatrix.lpcd?.items || []).filter((x: any) => x.escalated_to_ee || x.recipient_designation === "Executive Engineer"),
                                             "escalation"
                                         )}
                                     </td>
-                                    <td className="p-0">
+                                    <td className="border-r border-[#4A6484] p-0">
                                         {renderCellCount(
                                             alertMatrix.lpcd?.unresolvedTillDate !== undefined ? alertMatrix.lpcd?.unresolvedTillDate : alertMatrix.lpcd?.unresolved,
                                             "Low LPCD In Villages (Pending Resolution)",
@@ -816,11 +825,23 @@ export default function AlertTrackerPage() {
                                             "escalation"
                                         )}
                                     </td>
+                                    <td className="p-0">
+                                        {renderCellCount(
+                                            alertMatrix.lpcd?.subsequentResolved !== undefined ? alertMatrix.lpcd.subsequentResolved : 0,
+                                            "Low LPCD In Villages (Resolved)",
+                                            "lpcd",
+                                            alertMatrix.lpcd?.subsequentResolvedItems || [],
+                                            "resolved"
+                                        )}
+                                    </td>
                                 </tr>
 
                                 {/* ROW 2: LOW PRESSURE IN ESR */}
                                 {/* 2A: Metric Labels */}
                                 <tr className="border-b border-[#4A6484] font-semibold text-[#1E293B] bg-white">
+                                    <td className="p-2 sm:p-2.5 border-r border-[#4A6484]">
+                                        Low Pressure In ESR
+                                    </td>
                                     <td className="p-2 sm:p-2.5 border-r border-[#4A6484]">
                                         Low Pressure In ESR
                                     </td>
@@ -865,7 +886,7 @@ export default function AlertTrackerPage() {
                                             "escalation"
                                         )}
                                     </td>
-                                    <td className="p-0">
+                                    <td className="border-r border-[#4A6484] p-0">
                                         {renderCellCount(
                                             alertMatrix.pressure?.unresolvedTillDate !== undefined ? alertMatrix.pressure?.unresolvedTillDate : alertMatrix.pressure?.unresolved,
                                             "Low Pressure In ESR (Pending Resolution)",
@@ -876,11 +897,23 @@ export default function AlertTrackerPage() {
                                             "escalation"
                                         )}
                                     </td>
+                                    <td className="p-0">
+                                        {renderCellCount(
+                                            alertMatrix.pressure?.subsequentResolved !== undefined ? alertMatrix.pressure.subsequentResolved : 0,
+                                            "Low Pressure In ESR (Resolved)",
+                                            "pressure",
+                                            alertMatrix.pressure?.subsequentResolvedItems || [],
+                                            "resolved"
+                                        )}
+                                    </td>
                                 </tr>
 
                                 {/* ROW 3: RESIDUAL CHLORINE OUT OF RANGE */}
                                 {/* 3A: Metric Labels */}
                                 <tr className="border-b border-[#4A6484] font-semibold text-[#1E293B] bg-white">
+                                    <td className="p-2 sm:p-2.5 border-r border-[#4A6484]">
+                                        Residual Chlorine Out Of Range
+                                    </td>
                                     <td className="p-2 sm:p-2.5 border-r border-[#4A6484]">
                                         Residual Chlorine Out Of Range
                                     </td>
@@ -925,7 +958,7 @@ export default function AlertTrackerPage() {
                                             "escalation"
                                         )}
                                     </td>
-                                    <td className="p-0">
+                                    <td className="border-r border-[#4A6484] p-0">
                                         {renderCellCount(
                                             alertMatrix.chlorine?.unresolvedTillDate !== undefined ? alertMatrix.chlorine?.unresolvedTillDate : alertMatrix.chlorine?.unresolved,
                                             "Residual Chlorine Out Of Range (Pending Resolution)",
@@ -934,6 +967,15 @@ export default function AlertTrackerPage() {
                                                 ? alertMatrix.chlorine.unresolvedTillDateItems
                                                 : (alertMatrix.chlorine?.unresolvedItems || []),
                                             "escalation"
+                                        )}
+                                    </td>
+                                    <td className="p-0">
+                                        {renderCellCount(
+                                            alertMatrix.chlorine?.subsequentResolved !== undefined ? alertMatrix.chlorine.subsequentResolved : 0,
+                                            "Residual Chlorine Out Of Range (Resolved)",
+                                            "chlorine",
+                                            alertMatrix.chlorine?.subsequentResolvedItems || [],
+                                            "resolved"
                                         )}
                                     </td>
                                 </tr>
@@ -1544,18 +1586,19 @@ export default function AlertTrackerPage() {
 
                                                                 <div className="font-mono font-bold text-xs text-emerald-700">
                                                                     {(() => {
-                                                                        if (item.val_next !== null && item.val_next !== undefined) {
-                                                                            if (isLpcd) return `${Number(item.val_next).toFixed(1)} LPCD`;
-                                                                            if (isPres) return `${Number(item.val_next).toFixed(2)} Bar`;
-                                                                            if (isChl) return `${Number(item.val_next).toFixed(2)} mg/L`;
-                                                                            return String(item.val_next);
+                                                                        const val = (item.val_latest !== null && item.val_latest !== undefined) ? item.val_latest : item.val_next;
+                                                                        if (val !== null && val !== undefined) {
+                                                                            if (isLpcd) return `${Number(val).toFixed(1)} LPCD`;
+                                                                            if (isPres) return `${Number(val).toFixed(2)} Bar`;
+                                                                            if (isChl) return `${Number(val).toFixed(2)} mg/L`;
+                                                                            return String(val);
                                                                         }
                                                                         return "No Data";
                                                                     })()}
                                                                 </div>
 
                                                                 <div className="text-[10px] text-emerald-600 font-medium flex items-center justify-center gap-1">
-                                                                    <span>{data?.dateMeta?.nextDayDisplayDate || "Resolution Day"}</span>
+                                                                    <span>{item.val_latest !== null && item.val_latest !== undefined ? "Latest Reading" : (data?.dateMeta?.nextDayDisplayDate || "Resolution Day")}</span>
                                                                 </div>
                                                             </div>
                                                         </td>

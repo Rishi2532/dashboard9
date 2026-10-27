@@ -746,14 +746,11 @@ const WaterConsumptionPage: React.FC = () => {
     isVillageCompleted,
   ]);
 
-  // Count schemes where civil work is done (water_supply=Yes) AND IoT is active/in-progress
+  // Count schemes where civil work is done (water_supply=Yes)
   const qualifyingSchemeCount = useMemo(() => {
     if (!schemeStatusData || schemeStatusData.length === 0) return 0;
-    const validStatuses = ["fully completed", "completed", "in progress"];
     return schemeStatusData.filter(
-      (s) =>
-        s.water_supply === "Yes" &&
-        validStatuses.includes(String(s.fully_completion_scheme_status || "").toLowerCase())
+      (s) => String(s.water_supply || "").toLowerCase() === "yes"
     ).length;
   }, [schemeStatusData]);
 

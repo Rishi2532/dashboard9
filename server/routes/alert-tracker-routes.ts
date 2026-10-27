@@ -147,12 +147,12 @@ router.get("/summary", async (req: Request, res: Response) => {
           WHERE operator_name IS NOT NULL AND operator_name != '' AND operator_name != '-' AND LOWER(operator_name) != 'village operator'
           ORDER BY scheme_id, (operator_number IS NOT NULL AND operator_number != '' AND operator_number != '-') DESC
         ) sod ON sod.scheme_id = ss.scheme_id
-        WHERE (LOWER(ss.fully_completion_scheme_status) LIKE '%progress%' OR LOWER(ss.fully_completion_scheme_status) LIKE '%partial%')
+        WHERE (ss.water_supply IS NULL OR TRIM(LOWER(ss.water_supply)) != 'yes')
           ${regionSchemeStatusFilter}
           ${agencySchemeStatusFilter}
         ORDER BY ss.scheme_id, ss.region, ss.scheme_name;
       `),
-      // 2. Fully Completed Schemes
+      // 2. Fully Completed Schemes (water_supply = Yes in scheme_status)
       db.execute(sql`
         SELECT DISTINCT ON (ss.scheme_id)
           ss.scheme_id, ss.scheme_name, ss.region, ss.circle, ss.division, ss.sub_division, ss.block,
@@ -176,7 +176,7 @@ router.get("/summary", async (req: Request, res: Response) => {
           WHERE operator_name IS NOT NULL AND operator_name != '' AND operator_name != '-' AND LOWER(operator_name) != 'village operator'
           ORDER BY scheme_id, (operator_number IS NOT NULL AND operator_number != '' AND operator_number != '-') DESC
         ) sod ON sod.scheme_id = ss.scheme_id
-        WHERE (TRIM(LOWER(ss.fully_completion_scheme_status)) IN ('fully completed', 'completed', 'fully-completed') OR TRIM(LOWER(ss.mjp_fully_completed)) = 'yes')
+        WHERE TRIM(LOWER(ss.water_supply)) = 'yes'
           ${regionSchemeStatusFilter}
           ${agencySchemeStatusFilter}
         ORDER BY ss.scheme_id, ss.region, ss.scheme_name;

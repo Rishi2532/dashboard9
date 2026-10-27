@@ -60,6 +60,8 @@ export interface AlertCategorySummary {
   resolved: number | string;
   unresolvedTillDate: number | string;
   unresolvedTillDateItems?: AlertTrackerItem[];
+  subsequentResolved?: number | string;
+  subsequentResolvedItems?: AlertTrackerItem[];
   items: AlertTrackerItem[];
   resolvedItems?: AlertTrackerItem[];
   unresolvedItems: AlertTrackerItem[];
@@ -79,6 +81,7 @@ export interface AlertTrackerMetricsResult {
     resolved: number;
     unresolvedSince: string;
     unresolvedTillDate?: number | string;
+    subsequentResolved?: number | string;
   };
   dateMeta?: any;
 }
@@ -355,6 +358,8 @@ export async function getAlertTrackerMetrics(params: {
       resolved: isNextDayAvailable ? 0 : unresolvedPendingText,
       unresolvedTillDate: isCol4Available ? 0 : col4PendingText,
       unresolvedTillDateItems: [],
+      subsequentResolved: isCol4Available ? 0 : col4PendingText,
+      subsequentResolvedItems: [],
       items: [],
       resolvedItems: [],
       unresolvedItems: [],
@@ -370,6 +375,8 @@ export async function getAlertTrackerMetrics(params: {
       resolved: isNextDayAvailable ? 0 : unresolvedPendingText,
       unresolvedTillDate: isCol4Available ? 0 : col4PendingText,
       unresolvedTillDateItems: [],
+      subsequentResolved: isCol4Available ? 0 : col4PendingText,
+      subsequentResolvedItems: [],
       items: [],
       resolvedItems: [],
       unresolvedItems: [],
@@ -385,6 +392,8 @@ export async function getAlertTrackerMetrics(params: {
       resolved: isNextDayAvailable ? 0 : unresolvedPendingText,
       unresolvedTillDate: isCol4Available ? 0 : col4PendingText,
       unresolvedTillDateItems: [],
+      subsequentResolved: isCol4Available ? 0 : col4PendingText,
+      subsequentResolvedItems: [],
       items: [],
       resolvedItems: [],
       unresolvedItems: [],
@@ -398,6 +407,8 @@ export async function getAlertTrackerMetrics(params: {
       unresolvedEE: isNextDayAvailable ? 0 : escalatedEEPendingText,
       resolved: isNextDayAvailable ? 0 : unresolvedPendingText,
       unresolvedSince: isNextDayAvailable ? `Since ${evalDisplayDate}` : "-",
+      unresolvedTillDate: isCol4Available ? 0 : col4PendingText,
+      subsequentResolved: isCol4Available ? 0 : col4PendingText,
     },
     allAlerts: [],
     totalDispatchedCount: 0,
@@ -415,23 +426,28 @@ export async function getAlertTrackerMetrics(params: {
     result.lpcd.unresolvedEE = escalatedEEPendingText;
     result.lpcd.resolved = unresolvedPendingText;
     result.lpcd.unresolvedTillDate = col4PendingText;
+    result.lpcd.subsequentResolved = col4PendingText;
 
     result.pressure.reported = 0;
     result.pressure.unresolved = unresolvedPendingText;
     result.pressure.unresolvedEE = escalatedEEPendingText;
     result.pressure.resolved = unresolvedPendingText;
     result.pressure.unresolvedTillDate = col4PendingText;
+    result.pressure.subsequentResolved = col4PendingText;
 
     result.chlorine.reported = 0;
     result.chlorine.unresolved = unresolvedPendingText;
     result.chlorine.unresolvedEE = escalatedEEPendingText;
     result.chlorine.resolved = unresolvedPendingText;
     result.chlorine.unresolvedTillDate = col4PendingText;
+    result.chlorine.subsequentResolved = col4PendingText;
 
     result.total.reported = 0;
     result.total.unresolved = unresolvedPendingText;
     result.total.unresolvedEE = escalatedEEPendingText;
     result.total.resolved = unresolvedPendingText;
+    result.total.unresolvedTillDate = col4PendingText;
+    result.total.subsequentResolved = col4PendingText;
 
     return result;
   }
@@ -839,6 +855,13 @@ export async function getAlertTrackerMetrics(params: {
     result.lpcd.unresolvedTillDate = isCol4Available
       ? lpcdStillUnresolved.length
       : col4PendingText;
+    const lpcdSubsequentResolved = isCol4Available
+      ? result.lpcd.unresolvedItems.filter((r: any) => r.val_latest !== null && Number(r.val_latest) >= 55)
+      : [];
+    result.lpcd.subsequentResolvedItems = lpcdSubsequentResolved;
+    result.lpcd.subsequentResolved = isCol4Available
+      ? lpcdSubsequentResolved.length
+      : col4PendingText;
 
     // Process Pressure Items
     (presRes.rows || []).forEach((row: any) => {
@@ -920,6 +943,13 @@ export async function getAlertTrackerMetrics(params: {
     result.pressure.unresolvedTillDateItems = presStillUnresolved;
     result.pressure.unresolvedTillDate = isCol4Available
       ? presStillUnresolved.length
+      : col4PendingText;
+    const presSubsequentResolved = isCol4Available
+      ? result.pressure.unresolvedItems.filter((r: any) => r.val_latest !== null && Number(r.val_latest) >= 0.20)
+      : [];
+    result.pressure.subsequentResolvedItems = presSubsequentResolved;
+    result.pressure.subsequentResolved = isCol4Available
+      ? presSubsequentResolved.length
       : col4PendingText;
 
     // Process Chlorine Items
@@ -1007,6 +1037,13 @@ export async function getAlertTrackerMetrics(params: {
     result.chlorine.unresolvedTillDate = isCol4Available
       ? chlStillUnresolved.length
       : col4PendingText;
+    const chlSubsequentResolved = isCol4Available
+      ? result.chlorine.unresolvedItems.filter((r: any) => r.val_latest !== null && Number(r.val_latest) >= 0.20 && Number(r.val_latest) <= 0.50)
+      : [];
+    result.chlorine.subsequentResolvedItems = chlSubsequentResolved;
+    result.chlorine.subsequentResolved = isCol4Available
+      ? chlSubsequentResolved.length
+      : col4PendingText;
 
     // Totals
     result.total.reported = result.lpcd.reported + result.pressure.reported + result.chlorine.reported;
@@ -1021,6 +1058,9 @@ export async function getAlertTrackerMetrics(params: {
       : escalatedEEPendingText;
     result.total.unresolvedTillDate = isCol4Available
       ? (Number(result.lpcd.unresolvedTillDate) || 0) + (Number(result.pressure.unresolvedTillDate) || 0) + (Number(result.chlorine.unresolvedTillDate) || 0)
+      : col4PendingText;
+    result.total.subsequentResolved = isCol4Available
+      ? (Number(result.lpcd.subsequentResolved) || 0) + (Number(result.pressure.subsequentResolved) || 0) + (Number(result.chlorine.subsequentResolved) || 0)
       : col4PendingText;
 
     return result;

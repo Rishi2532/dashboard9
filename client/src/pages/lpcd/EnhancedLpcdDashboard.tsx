@@ -607,14 +607,11 @@ const EnhancedLpcdDashboard = () => {
       },
     });
 
-  // Count schemes where civil work is done (water_supply=Yes) AND IoT is active/in-progress
+  // Count schemes where civil work is done (water_supply=Yes)
   const qualifyingSchemeCount = useMemo(() => {
     if (!schemeStatusData || schemeStatusData.length === 0) return 0;
-    const validStatuses = ["fully completed", "completed", "in progress"];
     return schemeStatusData.filter(
-      (s) =>
-        s.water_supply === "Yes" &&
-        validStatuses.includes(String(s.fully_completion_scheme_status || "").toLowerCase())
+      (s) => String(s.water_supply || "").toLowerCase() === "yes"
     ).length;
   }, [schemeStatusData]);
 
@@ -833,10 +830,7 @@ const EnhancedLpcdDashboard = () => {
         if (!status) return false;
 
         if (uiSchemeFilter === "commissioned") {
-          const validStatuses = ["fully completed", "completed", "in progress"];
-          const hasIoT = validStatuses.includes(String(status.fully_completion_scheme_status || "").toLowerCase());
-          const isCivilCompleted = String(status.water_supply || "").toLowerCase() === "yes";
-          return isCivilCompleted && hasIoT;
+          return String(status.water_supply || "").toLowerCase() === "yes";
         }
 
         if (uiSchemeFilter === "fully_completed") {

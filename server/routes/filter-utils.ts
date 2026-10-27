@@ -181,7 +181,7 @@ export async function getFilteredSchemeIds(
   const instrumentedStatusList = ['fully completed', 'completed', 'connected', 'fully-completed', 'fully_completed'];
 
   const ruleAllSchemes = sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN (${sql.raw(allSchemesStatusList.map(s => `'${s}'`).join(','))})`;
-  const ruleCivilWorkCompleted = sql`TRIM(LOWER(${schemeStatuses.water_supply})) = 'yes' AND TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('fully completed', 'completed', 'in progress')`;
+  const ruleCivilWorkCompleted = sql`TRIM(LOWER(${schemeStatuses.water_supply})) = 'yes'`;
   const ruleFullyInstrumented = sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN (${sql.raw(instrumentedStatusList.map(s => `'${s}'`).join(','))})`;
   const rulePartiallyInstrumented = sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) = 'in progress'`;
   const ruleCommonMjpIot = sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN (${sql.raw(instrumentedStatusList.map(s => `'${s}'`).join(','))}) AND TRIM(LOWER(${schemeStatuses.water_supply})) = 'yes'`;
