@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOP - SMS and Email Alerts & Escalation</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 10mm 14mm 10mm 14mm;
+        }
+        @media print {
+            body { 
+                font-size: 8.8pt !important; 
+                line-height: 1.3 !important;
+                background: #ffffff !important; 
+                padding: 0 !important; 
+                margin: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .container {
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                max-width: 100% !important;
+            }
+            .page-break { 
+                page-break-before: always !important; 
+                break-before: page !important;
+                margin-top: 0 !important;
+                padding-top: 0 !important;
+                border-top: none !important;
+            }
+            .no-print { display: none !important; }
+        }
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+            color: #1e293b;
+            line-height: 1.35;
+            margin: 0;
+            padding: 15px;
+            background-color: #f8fafc;
+        }
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 24px 34px;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+        }
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #0b3558;
+            padding-bottom: 6px;
+            margin-bottom: 10px;
+        }
+        .header-title h1 {
+            color: #0b3558;
+            font-size: 16pt;
+            margin: 0 0 2px 0;
+            font-weight: 800;
+        }
+        .header-title h2 {
+            color: #475569;
+            font-size: 9.5pt;
+            margin: 0;
+            font-weight: 600;
+        }
+        .meta-box {
+            text-align: right;
+            font-size: 8pt;
+            color: #64748b;
+            line-height: 1.3;
+        }
+        h3.section-title {
+            color: #0b3558;
+            font-size: 10.5pt;
+            border-bottom: 1px solid #cbd5e1;
+            padding-bottom: 3px;
+            margin-top: 10px;
+            margin-bottom: 6px;
+            font-weight: 700;
+        }
+        .role-box {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-left: 4px solid #0b3558;
+            padding: 7px 12px;
+            margin-bottom: 7px;
+            border-radius: 0 4px 4px 0;
+            font-size: 8.8pt;
+        }
+        .role-box.ee {
+            border-left-color: #b91c1c;
+            background: #fef2f2;
+        }
+        .role-title {
+            font-weight: 700;
+            font-size: 9.5pt;
+            color: #0b3558;
+            margin-bottom: 2px;
+        }
+        .role-box.ee .role-title {
+            color: #991b1b;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8.8pt;
+            margin: 8px 0;
+        }
+        th, td {
+            border: 1px solid #cbd5e1;
+            padding: 5px 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #ebf3fb;
+            color: #0a2540;
+            font-weight: 700;
+        }
+        .flow-box {
+            background: #0f172a;
+            color: #f8fafc;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 8pt;
+            line-height: 1.4;
+            margin: 8px 0;
+        }
+        .report-box {
+            border: 1.5px solid #2563eb;
+            background: #eff6ff;
+            padding: 10px 14px;
+            border-radius: 6px;
+            margin-top: 8px;
+            font-size: 8.8pt;
+        }
+        .report-box h4 {
+            margin: 0 0 5px 0;
+            color: #1e40af;
+            font-size: 9.5pt;
+        }
+        .page-break {
+            page-break-before: always;
+            margin-top: 15px;
+            border-top: 2px dashed #94a3b8;
+            padding-top: 12px;
+        }
+        .footer-note {
+            margin-top: 18px;
+            border-top: 1px solid #cbd5e1;
+            padding-top: 6px;
+            font-size: 7.5pt;
+            color: #64748b;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- PAGE 1 -->
+    <div class="header-bar">
+        <div class="header-title">
+            <h1>STANDARD OPERATING PROCEDURE</h1>
+            <h2>Water Supply Telemetry Alerts & Issue Escalation</h2>
+        </div>
+        <div class="meta-box">
+            <strong>Document:</strong> SOP-ALERT-2026<br>
+            <strong>System:</strong> IoT Water Monitoring<br>
+            <strong>Effective:</strong> October 2026<br>
+            <strong>Page:</strong> 1 of 2
+        </div>
+    </div>
+
+    <h3 class="section-title">1. Definitions and Responsibilities</h3>
+
+    <div class="role-box">
+        <div class="role-title">Village Operator</div>
+        <div>• <strong>Definition:</strong> The operator is responsible for water supply distribution for a particular <strong>Elevated Storage Reservoir (ESR)</strong> and <strong>Village</strong>.</div>
+        <div>• <strong>Responsibility:</strong> Controls local valves, pump running hours, and daily water release to the village.</div>
+        <div>• <strong>Alert Received:</strong> Receives SMS after 24 hours of the value.</div>
+    </div>
+
+    <div class="role-box ee">
+        <div class="role-title">Executive Engineer (EE)</div>
+        <div>• <strong>Definition:</strong> The Executive Engineer is in charge and responsible for a <strong>complete Division or District</strong>.</div>
+        <div>• <strong>Responsibility:</strong> Manages all water schemes, sub-divisions, engineers, and operators across the entire district.</div>
+        <div>• <strong>Escalation:</strong> <strong>Issues which exceed 24 hours are escalated directly to the Executive Engineer.</strong></div>
+        <div>• <strong>Alert Received:</strong> Receives both <strong>SMS and Email</strong> alerts listing all schemes and villages where issues are unresolved for more than 24 hours.</div>
+        <div>• <strong>Action Required:</strong> Review the problem with field staff and submit a mandatory report on the <strong>Issue Reports</strong> page.</div>
+    </div>
+
+    <h3 class="section-title">2. Alert Types and Trigger Conditions</h3>
+    <p style="margin: 4px 0 8px 0; font-size: 9pt;">The system checks daily sensor data every morning at <strong>11:00 AM IST</strong>. If values are outside standard limits, an alert is created:</p>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 32%;">Alert Parameter</th>
+                <th style="width: 30%;">Normal Standard</th>
+                <th style="width: 38%;">Trigger Condition (When Alert is Created)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Low LPCD in Villages</strong></td>
+                <td>55 LPCD or higher</td>
+                <td>Daily water supply drops below <strong>55 LPCD</strong></td>
+            </tr>
+            <tr>
+                <td><strong>Low Pressure in ESR</strong></td>
+                <td>0.20 to 1.20 bar (2m to 12m head)</td>
+                <td>Water pressure drops below <strong>0.20 bar</strong> at ESR</td>
+            </tr>
+            <tr>
+                <td><strong>Residual Chlorine Out of Range</strong></td>
+                <td>0.20 to 0.50 mg/L (PPM)</td>
+                <td>Chlorine is less than <strong>0.20 mg/L</strong> (low) or above <strong>0.50 mg/L</strong> (high)</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3 class="section-title">3. Alert Notification Timeline</h3>
+    <div class="flow-box">
+NEXT DAY (After 24 Hours of the Value)
+Alert is evaluated at 11:00 AM
+└──> SMS sent to Village Operator (responsible for that ESR & Village)
+
+IF UNRESOLVED AFTER 24 HOURS (Next Day onwards)
+└──> Issue is ESCALATED to Executive Engineer (EE)
+     └── SMS sent to Executive Engineer mobile number
+     └── Email sent to Executive Engineer email address
+     └── EE must submit an issue report on the Issue Reports page
+    </div>
+
+    <h3 class="section-title">4. Method and Channels Used</h3>
+    <div style="font-size: 8.8pt;">
+        <div>• <strong>Automatic Daily Schedule:</strong> Telemetry data is evaluated automatically every day at <strong>11:00 AM IST</strong>.</div>
+        <div>• <strong>SMS Method:</strong> Sent through verified SMS gateway directly to mobile numbers stored in database.</div>
+        <div>• <strong>Email Method:</strong> Automated email sent to contact email addresses stored in database with scheme and village details.</div>
+    </div>
+
+    <!-- PAGE 2 -->
+    <div class="page-break"></div>
+
+    <div class="header-bar">
+        <div class="header-title">
+            <h1>STANDARD OPERATING PROCEDURE</h1>
+            <h2>Water Supply Telemetry Alerts & Issue Escalation</h2>
+        </div>
+        <div class="meta-box">
+            <strong>Document:</strong> SOP-ALERT-2026<br>
+            <strong>System:</strong> IoT Water Monitoring<br>
+            <strong>Effective:</strong> October 2026<br>
+            <strong>Page:</strong> 2 of 2
+        </div>
+    </div>
+
+    <h3 class="section-title">5. Who Receives SMS and Email (Summary Table)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 22%;">Recipient</th>
+                <th style="width: 24%;">In How Many Days</th>
+                <th style="width: 20%;">Channel</th>
+                <th style="width: 34%;">Details Sent</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Village Operator</strong></td>
+                <td><strong>Next Day</strong> (After 24 hours of the value)</td>
+                <td><strong>SMS</strong></td>
+                <td>Scheme name, village name, ESR name, observed value, and water supply details.</td>
+            </tr>
+            <tr>
+                <td><strong>Executive Engineer (EE)</strong></td>
+                <td><strong>Next Day onwards</strong> (When issue exceeds 24 hours)</td>
+                <td><strong>SMS + Email</strong></td>
+                <td>List of schemes and villages in the division with issues older than 24 hours, operator contacts, and reminder to submit issue report.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3 class="section-title">6. Mandatory Action for Executive Engineer on Issue Reports Page</h3>
+    <div class="report-box">
+        <h4>Submission of Issue Report for Pending Issues</h4>
+        <p style="margin: 0 0 8px 0;">When an issue exceeds 24 hours, the Executive Engineer must submit an issue report. Field remarks are not added directly to the dashboard table; they must be submitted on the dedicated <strong>Issue Reports</strong> page.</p>
+
+        <div><strong>How to submit the report:</strong></div>
+        <ol style="margin: 6px 0 8px 20px; padding: 0;">
+            <li>Go to the <strong>Issue Reporting</strong> page in the dashboard navigation (<code>/helpdesk/issue-reporting</code>).</li>
+            <li>Select the <strong>Scheme ID</strong>, <strong>Village</strong>, and <strong>ESR</strong> that has the pending issue.</li>
+            <li>Select the <strong>Root Cause</strong> of the issue:
+                <br><em>• Pipeline burst or distribution leakage</em>
+                <br><em>• Pump breakdown or motor fault</em>
+                <br><em>• Power failure (MSEDCL electricity outage)</em>
+                <br><em>• Valve malfunction or chamber blockage</em>
+                <br><em>• Bleaching powder or chlorine stock shortage</em>
+                <br><em>• Sensor calibration or device maintenance</em>
+            </li>
+            <li>Enter the <strong>Action Taken</strong> (e.g. repair team dispatched, spare parts ordered, emergency tanker arranged).</li>
+            <li>Enter the <strong>Expected Resolution Date</strong> when normal supply will be restored.</li>
+            <li>Click <strong>Submit Issue Report</strong>. The report is saved to the central database record.</li>
+        </ol>
+    </div>
+
+    <h3 class="section-title">7. How Issues are Resolved and Closed</h3>
+    <div style="font-size: 9.5pt; line-height: 1.55;">
+        <div>• <strong>Automatic Telemetry Resolution:</strong> Issues cannot be manually marked as resolved by clicking a button. The system only marks an issue as <strong>Resolved</strong> when fresh sensor data meets normal standards at 11:00 AM IST:</div>
+        <div style="padding-left: 15px; margin: 4px 0;">
+            1. LPCD is 55 or higher<br>
+            2. Pressure is between 0.20 and 1.20 bar<br>
+            3. Chlorine is between 0.20 and 0.50 mg/L
+        </div>
+        <div>• <strong>Automatic Escalation Stop:</strong> Once the system verifies normal data, it moves the item to the resolved list and stops sending further SMS and email escalations to the Executive Engineer.</div>
+    </div>
+
+    <div class="footer-note">
+        <span>Water Supply Telemetry Monitoring System</span>
+        <span>Standard Operating Procedure — Version 2.2</span>
+        <span>October 2026</span>
+    </div>
+
+</div>
+
+</body>
+</html>

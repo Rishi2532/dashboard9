@@ -142,6 +142,8 @@ const MONTHS_FULL = [
   "July", "August", "September", "October", "November", "December"
 ];
 
+export const SHORTLY_TODAY_TEXT = "Will be displayed shortly today and will be visible after the data is updated for that date";
+
 function getOrdinal(n: number): string {
   if (n >= 11 && n <= 13) return `${n}th`;
   switch (n % 10) {
@@ -157,9 +159,14 @@ function getOrdinal(n: number): string {
  * and computes forward timeline availability for Unresolved and EE Escalation.
  */
 export function getTelemetryDayIndex(targetDateStr?: string) {
-  let dayNum = 25; // Default to latest telemetry day in database (25-Oct)
-  let monthNum = 10;
-  let yearNum = 2026;
+  // Current local IST date (UTC + 5:30)
+  const now = new Date();
+  const istOffsetMs = 5.5 * 60 * 60 * 1000;
+  const istNow = new Date(now.getTime() + istOffsetMs);
+
+  let dayNum = istNow.getUTCDate();
+  let monthNum = istNow.getUTCMonth() + 1;
+  let yearNum = istNow.getUTCFullYear();
 
   if (targetDateStr) {
     const ddmmyyyy = targetDateStr.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
@@ -177,66 +184,87 @@ export function getTelemetryDayIndex(targetDateStr?: string) {
     }
   }
 
-  // Days 1-7 in water_scheme_data are 19-Oct (day 1) to 25-Oct (day 7)
-  let dayIdx = 7;
-  if (dayNum >= 19 && dayNum <= 25 && monthNum === 10 && yearNum === 2026) {
-    dayIdx = dayNum - 18;
-  } else if (dayNum <= 18) {
-    dayIdx = 1;
-  } else {
-    dayIdx = 7;
-  }
+  // targetDateStr represents the Alert Date (default = current date)
+  const alertDateObj = new Date(Date.UTC(yearNum, monthNum - 1, dayNum));
+  const alertIsoDate = `${yearNum}-${String(monthNum).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
+  const alertDisplayDate = `${String(dayNum).padStart(2, "0")}/${String(monthNum).padStart(2, "0")}/${yearNum}`;
 
-  const isoDate = `${yearNum}-${String(monthNum).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
-  const displayDate = `${String(dayNum).padStart(2, "0")}/${String(monthNum).padStart(2, "0")}/${yearNum}`;
+  // Eval Data Date = Alert Date - 1 day (e.g. 27th Oct alert evaluates 26th Oct data)
+  const evalDateObj = new Date(alertDateObj.getTime() - 86400000);
+  const evalYear = evalDateObj.getUTCFullYear();
+  const evalMonth = evalDateObj.getUTCMonth() + 1;
+  const evalDay = evalDateObj.getUTCDate();
+  const evalIsoDate = `${evalYear}-${String(evalMonth).padStart(2, "0")}-${String(evalDay).padStart(2, "0")}`;
+  const evalDisplayDate = `${String(evalDay).padStart(2, "0")}/${String(evalMonth).padStart(2, "0")}/${evalYear}`;
+  const evalHistoryStr = `${String(evalDay).padStart(2, "0")}-${MONTHS_SHORT[evalMonth - 1]}`;
 
-  const targetDateObj = new Date(Date.UTC(yearNum, monthNum - 1, dayNum));
-  const nextDateObj = new Date(targetDateObj.getTime() + 86400000);
-  const eeEscalationDateObj = new Date(targetDateObj.getTime() + 2 * 86400000);
-  const col4DateObj = new Date(targetDateObj.getTime() + 3 * 86400000);
+  // Next Date for resolution = evalDateObj + 1 day = alertDateObj
+  const nextDateObj = alertDateObj;
+  const nextYear = nextDateObj.getUTCFullYear();
+  const nextMonth = nextDateObj.getUTCMonth() + 1;
+  const nextDay = nextDateObj.getUTCDate();
+  const nextDayIsoDate = `${nextYear}-${String(nextMonth).padStart(2, "0")}-${String(nextDay).padStart(2, "0")}`;
+  const nextDayDisplayDate = `${String(nextDay).padStart(2, "0")}/${String(nextMonth).padStart(2, "0")}/${nextYear}`;
+  const nextHistoryStr = `${String(nextDay).padStart(2, "0")}-${MONTHS_SHORT[nextMonth - 1]}`;
 
-  const nextDayIsoDate = nextDateObj.toISOString().slice(0, 10);
-  const nextDayDisplayDate = `${String(nextDateObj.getUTCDate()).padStart(2, "0")}/${String(nextDateObj.getUTCMonth() + 1).padStart(2, "0")}/${nextDateObj.getUTCFullYear()}`;
+  // Col 2 & 3 target date = alertDateObj + 1 day = evalDateObj + 2 days (24h evaluation window)
+  const col23TargetDateObj = new Date(evalDateObj.getTime() + 2 * 86400000);
+  const col23DayOrdinal = getOrdinal(col23TargetDateObj.getUTCDate());
+  const col23MonthShort = MONTHS_SHORT[col23TargetDateObj.getUTCMonth()];
 
-  // Current local IST date (UTC + 5:30)
-  const now = new Date();
-  const istOffsetMs = 5.5 * 60 * 60 * 1000;
-  const istNow = new Date(now.getTime() + istOffsetMs);
-  const todayIST = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate()));
+  // Col 4 target date = alertDateObj + 2 days = evalDateObj + 3 days (subsequent day evaluation)
+  const col4TargetDateObj = new Date(evalDateObj.getTime() + 3 * 86400000);
+  const col4DayOrdinal = getOrdinal(col4TargetDateObj.getUTCDate());
+  const col4MonthShort = MONTHS_SHORT[col4TargetDateObj.getUTCMonth()];
 
-  // Next day data is in database only if dayIdx < 7 (Day 7 = 25-Oct, the latest day currently in DB)
-  const isNextDayAvailable = dayIdx < 7 && todayIST >= eeEscalationDateObj;
-  const isCol4Available = dayIdx <= 6 && todayIST >= col4DateObj;
+  // Col 4 telemetry data date in history tables = evalDateObj + 2 days = alertDateObj + 1 day
+  const col4DataDateObj = new Date(evalDateObj.getTime() + 2 * 86400000);
+  const col4HistoryStr = `${String(col4DataDateObj.getUTCDate()).padStart(2, "0")}-${MONTHS_SHORT[col4DataDateObj.getUTCMonth()]}`;
 
-  const eeDayOrdinal = getOrdinal(eeEscalationDateObj.getUTCDate());
-  const eeMonthShort = MONTHS_SHORT[eeEscalationDateObj.getUTCMonth()];
-  const col4DayOrdinal = getOrdinal(col4DateObj.getUTCDate());
-  const col4MonthShort = MONTHS_SHORT[col4DateObj.getUTCMonth()];
+  // If selected alert date is on or after the target display date, show shortly today text
+  const unresolvedPendingText = (alertDateObj.getTime() >= col23TargetDateObj.getTime())
+    ? SHORTLY_TODAY_TEXT
+    : `Will be displayed on ${col23DayOrdinal} ${col23MonthShort}`;
 
-  const unresolvedPendingText = `Will be displayed on ${eeDayOrdinal} ${eeMonthShort}`;
-  const escalatedEEPendingText = `Will be displayed on ${eeDayOrdinal} ${eeMonthShort}`;
-  const col4PendingText = `Will be displayed on ${col4DayOrdinal} ${col4MonthShort}`;
+  const escalatedEEPendingText = unresolvedPendingText;
 
-  const dayWithOrdinal = getOrdinal(dayNum);
-  const month = MONTHS_FULL[monthNum - 1];
+  const col4PendingText = (alertDateObj.getTime() >= col4TargetDateObj.getTime())
+    ? SHORTLY_TODAY_TEXT
+    : `Will be displayed on ${col4DayOrdinal} ${col4MonthShort}`;
+
+  const alertDayOrdinal = getOrdinal(dayNum);
+  const alertMonthFull = MONTHS_FULL[monthNum - 1];
+  const evalDayOrdinal = getOrdinal(evalDay);
+  const evalMonthShort = MONTHS_SHORT[evalMonth - 1];
 
   return {
-    dayIdx,
-    isoDate,
-    displayDate,
+    alertDateObj,
+    evalDateObj,
+    alertIsoDate,
+    alertDisplayDate,
+    alertDayOrdinal,
+    alertMonthFull,
+    evalIsoDate,
+    evalDisplayDate,
+    evalHistoryStr,
+    evalDayOrdinal,
+    evalMonthShort,
     nextDayIsoDate,
     nextDayDisplayDate,
-    dayWithOrdinal,
-    month,
-    year: yearNum,
-    isNextDayAvailable,
-    isCol4Available,
+    nextHistoryStr,
+    col4HistoryStr,
+    col23TargetDateObj,
+    col4TargetDateObj,
+    isoDate: alertIsoDate,
+    displayDate: alertDisplayDate,
     unresolvedPendingText,
     escalatedEEPendingText,
     col4PendingText,
-    eeEscalationDateStr: `${eeDayOrdinal} ${eeMonthShort}`,
+    eeEscalationDateStr: `${col23DayOrdinal} ${col23MonthShort}`,
     col4DateStr: `${col4DayOrdinal} ${col4MonthShort}`,
-    prevDisplayDate: displayDate,
+    dayWithOrdinal: evalDayOrdinal,
+    month: evalMonthShort,
+    year: evalYear,
   };
 }
 
@@ -252,15 +280,22 @@ export async function getAlertTrackerMetrics(params: {
   const db = await getDB();
   const meta = getTelemetryDayIndex(params.date);
   const {
-    dayIdx,
-    isoDate,
-    displayDate,
+    alertDateObj,
+    evalDateObj,
+    alertIsoDate,
+    alertDisplayDate,
+    evalIsoDate,
+    evalDisplayDate,
+    evalHistoryStr,
     nextDayDisplayDate,
-    isNextDayAvailable,
-    isCol4Available,
+    nextHistoryStr,
+    col4HistoryStr,
+    col23TargetDateObj,
+    col4TargetDateObj,
     unresolvedPendingText,
     escalatedEEPendingText,
     col4PendingText,
+    displayDate,
   } = meta;
 
   const region = params.region && params.region.toLowerCase() !== "all" ? params.region.trim() : null;
@@ -268,12 +303,54 @@ export async function getAlertTrackerMetrics(params: {
   const isAllAgency = !rawAgency || rawAgency.toUpperCase() === "ALL" || rawAgency.toUpperCase() === "ALL AGENCY" || rawAgency.toLowerCase() === "all agencies";
   const agency = isAllAgency ? null : rawAgency;
 
+  // Current local IST date (UTC + 5:30)
+  const now = new Date();
+  const istOffsetMs = 5.5 * 60 * 60 * 1000;
+  const istNow = new Date(now.getTime() + istOffsetMs);
+  const todayIST = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate()));
+
+  // 1. Check if history tables contain data for evalDate, nextDate, and col4Date
+  const [availRes]: any = await Promise.all([
+    db.execute(sql`
+      SELECT 
+        (SELECT COUNT(*) FROM water_scheme_data_history WHERE data_date = ${evalHistoryStr}) as eval_lpcd_cnt,
+        (SELECT COUNT(*) FROM pressure_history WHERE pressure_date = ${evalHistoryStr}) as eval_pres_cnt,
+        (SELECT COUNT(*) FROM chlorine_history WHERE chlorine_date = ${evalHistoryStr}) as eval_chl_cnt,
+        (SELECT COUNT(*) FROM water_scheme_data_history WHERE data_date = ${nextHistoryStr}) as next_lpcd_cnt,
+        (SELECT COUNT(*) FROM pressure_history WHERE pressure_date = ${nextHistoryStr}) as next_pres_cnt,
+        (SELECT COUNT(*) FROM chlorine_history WHERE chlorine_date = ${nextHistoryStr}) as next_chl_cnt,
+        (SELECT COUNT(*) FROM water_scheme_data_history WHERE data_date = ${col4HistoryStr}) as col4_lpcd_cnt,
+        (SELECT COUNT(*) FROM pressure_history WHERE pressure_date = ${col4HistoryStr}) as col4_pres_cnt,
+        (SELECT COUNT(*) FROM chlorine_history WHERE chlorine_date = ${col4HistoryStr}) as col4_chl_cnt;
+    `)
+  ]);
+
+  const evalLpcdCount = Number(availRes.rows[0]?.eval_lpcd_cnt || 0);
+  const evalPresCount = Number(availRes.rows[0]?.eval_pres_cnt || 0);
+  const evalChlCount = Number(availRes.rows[0]?.eval_chl_cnt || 0);
+  const evalTotal = evalLpcdCount + evalPresCount + evalChlCount;
+
+  const nextLpcdCount = Number(availRes.rows[0]?.next_lpcd_cnt || 0);
+  const nextPresCount = Number(availRes.rows[0]?.next_pres_cnt || 0);
+  const nextChlCount = Number(availRes.rows[0]?.next_chl_cnt || 0);
+  const nextTotal = nextLpcdCount + nextPresCount + nextChlCount;
+
+  const col4LpcdCount = Number(availRes.rows[0]?.col4_lpcd_cnt || 0);
+  const col4PresCount = Number(availRes.rows[0]?.col4_pres_cnt || 0);
+  const col4ChlCount = Number(availRes.rows[0]?.col4_chl_cnt || 0);
+  const col4Total = col4LpcdCount + col4PresCount + col4ChlCount;
+
+  // Check next day availability for 24h evaluation window (Col 2 & 3)
+  const isNextDayAvailable = nextTotal > 0 && todayIST >= col23TargetDateObj;
+  // Check Col 4 availability (needs subsequent day data)
+  const isCol4Available = isNextDayAvailable && col4Total > 0 && todayIST >= col4TargetDateObj;
+
   const result: AlertTrackerMetricsResult & { allAlerts: AlertTrackerItem[]; totalDispatchedCount: number } = {
     lpcd: {
       reported: 0,
       unresolved: isNextDayAvailable ? 0 : unresolvedPendingText,
       unresolvedEE: isNextDayAvailable ? 0 : escalatedEEPendingText,
-      unresolvedSince: isNextDayAvailable ? `Since ${displayDate}` : "-",
+      unresolvedSince: isNextDayAvailable ? `Since ${evalDisplayDate}` : "-",
       resolved: isNextDayAvailable ? 0 : unresolvedPendingText,
       unresolvedTillDate: isCol4Available ? 0 : col4PendingText,
       unresolvedTillDateItems: [],
@@ -288,7 +365,7 @@ export async function getAlertTrackerMetrics(params: {
       reported: 0,
       unresolved: isNextDayAvailable ? 0 : unresolvedPendingText,
       unresolvedEE: isNextDayAvailable ? 0 : escalatedEEPendingText,
-      unresolvedSince: isNextDayAvailable ? `Since ${displayDate}` : "-",
+      unresolvedSince: isNextDayAvailable ? `Since ${evalDisplayDate}` : "-",
       resolved: isNextDayAvailable ? 0 : unresolvedPendingText,
       unresolvedTillDate: isCol4Available ? 0 : col4PendingText,
       unresolvedTillDateItems: [],
@@ -303,7 +380,7 @@ export async function getAlertTrackerMetrics(params: {
       reported: 0,
       unresolved: isNextDayAvailable ? 0 : unresolvedPendingText,
       unresolvedEE: isNextDayAvailable ? 0 : escalatedEEPendingText,
-      unresolvedSince: isNextDayAvailable ? `Since ${displayDate}` : "-",
+      unresolvedSince: isNextDayAvailable ? `Since ${evalDisplayDate}` : "-",
       resolved: isNextDayAvailable ? 0 : unresolvedPendingText,
       unresolvedTillDate: isCol4Available ? 0 : col4PendingText,
       unresolvedTillDateItems: [],
@@ -319,29 +396,47 @@ export async function getAlertTrackerMetrics(params: {
       unresolved: isNextDayAvailable ? 0 : unresolvedPendingText,
       unresolvedEE: isNextDayAvailable ? 0 : escalatedEEPendingText,
       resolved: isNextDayAvailable ? 0 : unresolvedPendingText,
-      unresolvedSince: isNextDayAvailable ? `Since ${displayDate}` : "-",
+      unresolvedSince: isNextDayAvailable ? `Since ${evalDisplayDate}` : "-",
     },
     allAlerts: [],
     totalDispatchedCount: 0,
-    dateMeta: meta,
+    dateMeta: {
+      ...meta,
+      isNextDayAvailable,
+      isCol4Available,
+    },
   };
 
+  // If no data is available for previous date, reported is 0 and resolutions show pending text
+  if (evalTotal === 0) {
+    result.lpcd.reported = 0;
+    result.lpcd.unresolved = unresolvedPendingText;
+    result.lpcd.unresolvedEE = escalatedEEPendingText;
+    result.lpcd.resolved = unresolvedPendingText;
+    result.lpcd.unresolvedTillDate = col4PendingText;
+
+    result.pressure.reported = 0;
+    result.pressure.unresolved = unresolvedPendingText;
+    result.pressure.unresolvedEE = escalatedEEPendingText;
+    result.pressure.resolved = unresolvedPendingText;
+    result.pressure.unresolvedTillDate = col4PendingText;
+
+    result.chlorine.reported = 0;
+    result.chlorine.unresolved = unresolvedPendingText;
+    result.chlorine.unresolvedEE = escalatedEEPendingText;
+    result.chlorine.resolved = unresolvedPendingText;
+    result.chlorine.unresolvedTillDate = col4PendingText;
+
+    result.total.reported = 0;
+    result.total.unresolved = unresolvedPendingText;
+    result.total.unresolvedEE = escalatedEEPendingText;
+    result.total.resolved = unresolvedPendingText;
+
+    return result;
+  }
+
   try {
-    const nextDayIdx = Math.min(7, dayIdx + 1);
-    const lpcdCol = `w.lpcd_value_day${dayIdx}`;
-    const lpcdNextCol = `w.lpcd_value_day${nextDayIdx}`;
-    const lpcdLatestCol = `w.lpcd_value_day7`;
-
-    const chlCol = `c.chlorine_value_${dayIdx}`;
-    const chlNextCol = `c.chlorine_value_${nextDayIdx}`;
-    const chlLatestCol = `c.chlorine_value_7`;
-
-    const presCol = `p.pressure_value_${dayIdx}`;
-    const presNextCol = `p.pressure_value_${nextDayIdx}`;
-    const presLatestCol = `p.pressure_value_7`;
-
-    const waterCol = `wc.water_value_day${dayIdx}`;
-    const waterNextCol = `wc.water_value_day${nextDayIdx}`;
+    const latestHistoryStr = (isCol4Available && col4Total > 0) ? col4HistoryStr : (nextTotal > 0 ? nextHistoryStr : evalHistoryStr);
 
     // Query field issue reports so remarks are viewable just like escalation portal
     const remarksByScheme = new Map<string, any[]>();
@@ -371,15 +466,9 @@ export async function getAlertTrackerMetrics(params: {
       console.warn("Could not query issue_reports in getAlertTrackerMetrics:", err);
     }
 
-    const commSchemeIds = await getFilteredSchemeIds(db, "commissioned");
-    const commSchemeIdsList =
-      commSchemeIds && commSchemeIds.length > 0
-        ? commSchemeIds.map((id: string) => `'${id}'`).join(",")
-        : null;
-
-    const lpcdRegionClause = region ? sql`AND (w.region ILIKE ${`%${region}%`} OR ss.region ILIKE ${`%${region}%`})` : sql``;
-    const presRegionClause = region ? sql`AND (p.region ILIKE ${`%${region}%`} OR ss.region ILIKE ${`%${region}%`})` : sql``;
-    const chlRegionClause = region ? sql`AND (c.region ILIKE ${`%${region}%`} OR ss.region ILIKE ${`%${region}%`})` : sql``;
+    const lpcdRegionClause = region ? sql`AND (t.region ILIKE ${`%${region}%`} OR ss.region ILIKE ${`%${region}%`})` : sql``;
+    const presRegionClause = region ? sql`AND (t.region ILIKE ${`%${region}%`} OR ss.region ILIKE ${`%${region}%`})` : sql``;
+    const chlRegionClause = region ? sql`AND (t.region ILIKE ${`%${region}%`} OR ss.region ILIKE ${`%${region}%`})` : sql``;
 
     let agencyClause = sql``;
     if (agency) {
@@ -400,16 +489,45 @@ export async function getAlertTrackerMetrics(params: {
     }
 
     const [lpcdRes, presRes, chlRes]: any = await Promise.all([
-      db.execute(sql`
-        SELECT DISTINCT ON (w.scheme_id, LOWER(TRIM(w.village_name)))
-          w.scheme_id,
-          COALESCE(ss.scheme_name, w.scheme_name, 'Scheme ' || w.scheme_id) as scheme_name,
-          w.village_name,
-          COALESCE(w.region, ss.region, 'Unknown') as region,
-          w.circle, w.division, w.sub_division, w.block,
-          ${sql.raw(lpcdCol)} as val_today,
-          ${sql.raw(lpcdNextCol)} as val_next,
-          ${sql.raw(lpcdLatestCol)} as val_latest,
+      evalLpcdCount > 0 ? db.execute(sql`
+        WITH today_lpcd AS (
+          SELECT DISTINCT ON (w.scheme_id, LOWER(TRIM(w.village_name)))
+            w.scheme_id, w.scheme_name, w.village_name,
+            w.region, w.circle, w.division, w.sub_division, w.block,
+            w.lpcd_value as val_today,
+            w.water_value as water_today
+          FROM water_scheme_data_history w
+          WHERE w.data_date = ${evalHistoryStr}
+          ORDER BY w.scheme_id, LOWER(TRIM(w.village_name)), w.id DESC
+        ),
+        next_lpcd AS (
+          SELECT DISTINCT ON (w.scheme_id, LOWER(TRIM(w.village_name)))
+            w.scheme_id, w.village_name,
+            w.lpcd_value as val_next,
+            w.water_value as water_next
+          FROM water_scheme_data_history w
+          WHERE w.data_date = ${nextHistoryStr}
+          ORDER BY w.scheme_id, LOWER(TRIM(w.village_name)), w.id DESC
+        ),
+        latest_lpcd AS (
+          SELECT DISTINCT ON (w.scheme_id, LOWER(TRIM(w.village_name)))
+            w.scheme_id, w.village_name,
+            w.lpcd_value as val_latest
+          FROM water_scheme_data_history w
+          WHERE w.data_date = ${latestHistoryStr}
+          ORDER BY w.scheme_id, LOWER(TRIM(w.village_name)), w.id DESC
+        )
+        SELECT 
+          t.scheme_id,
+          COALESCE(ss.scheme_name, t.scheme_name, 'Scheme ' || t.scheme_id) as scheme_name,
+          t.village_name,
+          COALESCE(t.region, ss.region, 'Unknown') as region,
+          t.circle, t.division, t.sub_division, t.block,
+          t.val_today,
+          t.water_today,
+          n.val_next,
+          n.water_next,
+          l.val_latest,
           sod.operator_name,
           sod.operator_number,
           COALESCE(NULLIF(sod.ee_name, '-'), sod_ee.ee_name) as ee_name,
@@ -421,71 +539,81 @@ export async function getAlertTrackerMetrics(params: {
           (
             SELECT a.delivery_status 
             FROM alert_tracker_logs a 
-            WHERE a.scheme_id = w.scheme_id 
+            WHERE a.scheme_id = t.scheme_id 
               AND a.gateway_status IS NOT NULL
-              AND (a.sent_date = ${isoDate}::date OR a.original_alert_date = ${isoDate}::date)
+              AND (a.sent_date = ${alertIsoDate}::date OR a.original_alert_date = ${alertIsoDate}::date)
             ORDER BY a.id DESC LIMIT 1
           ) as sms_delivery_status
-        FROM water_scheme_data w
+        FROM today_lpcd t
         JOIN (
           SELECT DISTINCT ON (scheme_id) scheme_id, scheme_name, region, agency_type, agency
           FROM scheme_status 
           WHERE water_supply = 'Yes'
           ORDER BY scheme_id
-        ) ss ON ss.scheme_id = w.scheme_id
+        ) ss ON ss.scheme_id = t.scheme_id
+        LEFT JOIN next_lpcd n ON n.scheme_id = t.scheme_id AND LOWER(TRIM(n.village_name)) = LOWER(TRIM(t.village_name))
+        LEFT JOIN latest_lpcd l ON l.scheme_id = t.scheme_id AND LOWER(TRIM(l.village_name)) = LOWER(TRIM(t.village_name))
         LEFT JOIN (
           SELECT DISTINCT ON (scheme_id, LOWER(TRIM(village_name))) scheme_id, village_name, operator_name, operator_number, ee_name, ee_number, ee_email, chief_se_name, chief_se_number, operated_by
           FROM scheme_operator_details
           ORDER BY scheme_id, LOWER(TRIM(village_name))
-        ) sod ON sod.scheme_id = w.scheme_id AND LOWER(TRIM(sod.village_name)) = LOWER(TRIM(w.village_name))
+        ) sod ON sod.scheme_id = t.scheme_id AND LOWER(TRIM(sod.village_name)) = LOWER(TRIM(t.village_name))
         LEFT JOIN (
           SELECT DISTINCT ON (scheme_id) scheme_id, ee_name, ee_number, ee_email, chief_se_name, chief_se_number
           FROM scheme_operator_details
           WHERE ee_name IS NOT NULL AND ee_name != '' AND ee_name != '-' AND LOWER(ee_name) != 'executive engineer'
           ORDER BY scheme_id
-        ) sod_ee ON sod_ee.scheme_id = w.scheme_id
-        WHERE ${sql.raw(lpcdCol)} IS NOT NULL AND ${sql.raw(lpcdCol)} >= 0 AND ${sql.raw(lpcdCol)} < 55
+        ) sod_ee ON sod_ee.scheme_id = t.scheme_id
+        WHERE t.val_today IS NOT NULL AND t.val_today >= 0 AND t.val_today < 55
           ${lpcdRegionClause}
           ${agencyClause}
-        ORDER BY w.scheme_id, LOWER(TRIM(w.village_name)), ${sql.raw(lpcdCol)} ASC;
-      `),
-      db.execute(sql`
-        WITH comm_with_water AS (
-          SELECT 
-            cs.region, cs.circle, cs.division, cs.sub_division, cs.block,
-            cs.scheme_id, cs.scheme_name, cs.village_name, cs.esr_name,
-            wc.water_value_day${sql.raw(String(dayIdx))} as water_val,
-            wc.water_value_day${sql.raw(String(nextDayIdx))} as water_next_val
-          FROM communication_status cs
-          LEFT JOIN water_consumption wc ON (
-            cs.region = wc.region AND
-            cs.circle = wc.circle AND
-            cs.division = wc.division AND
-            cs.sub_division = wc.sub_division AND
-            cs.block = wc.block AND
-            cs.scheme_id = wc.scheme_id AND
-            cs.scheme_name = wc.scheme_name AND
-            cs.village_name = wc.village_name AND
-            cs.esr_name = wc.esr_name
-          )
-          WHERE ${commSchemeIdsList ? sql`cs.scheme_id IN (${sql.raw(commSchemeIdsList)})` : sql`1=1`}
-            AND cs.pressure_connected = 'Connected'
-            AND cs.pressure_status = 'Online'
-            AND wc.water_value_day${sql.raw(String(dayIdx))} IS NOT NULL 
-            AND wc.water_value_day${sql.raw(String(dayIdx))} > 0
+        ORDER BY t.scheme_id, LOWER(TRIM(t.village_name)), t.val_today ASC;
+      `) : Promise.resolve({ rows: [] }),
+      evalPresCount > 0 ? db.execute(sql`
+        WITH today_pres AS (
+          SELECT DISTINCT ON (p.scheme_id, LOWER(TRIM(p.village_name)), LOWER(TRIM(p.esr_name)))
+            p.scheme_id, p.scheme_name, p.village_name, p.esr_name,
+            p.region, p.circle, p.division, p.sub_division, p.block,
+            p.pressure_value as val_today
+          FROM pressure_history p
+          WHERE p.pressure_date = ${evalHistoryStr}
+          ORDER BY p.scheme_id, LOWER(TRIM(p.village_name)), LOWER(TRIM(p.esr_name)), p.id DESC
+        ),
+        next_pres AS (
+          SELECT DISTINCT ON (p.scheme_id, LOWER(TRIM(p.village_name)), LOWER(TRIM(p.esr_name)))
+            p.scheme_id, p.village_name, p.esr_name,
+            p.pressure_value as val_next
+          FROM pressure_history p
+          WHERE p.pressure_date = ${nextHistoryStr}
+          ORDER BY p.scheme_id, LOWER(TRIM(p.village_name)), LOWER(TRIM(p.esr_name)), p.id DESC
+        ),
+        latest_pres AS (
+          SELECT DISTINCT ON (p.scheme_id, LOWER(TRIM(p.village_name)), LOWER(TRIM(p.esr_name)))
+            p.scheme_id, p.village_name, p.esr_name,
+            p.pressure_value as val_latest
+          FROM pressure_history p
+          WHERE p.pressure_date = ${latestHistoryStr}
+          ORDER BY p.scheme_id, LOWER(TRIM(p.village_name)), LOWER(TRIM(p.esr_name)), p.id DESC
+        ),
+        next_water AS (
+          SELECT DISTINCT ON (wc.scheme_id, LOWER(TRIM(wc.village_name)), LOWER(TRIM(wc.esr_name)))
+            wc.scheme_id, wc.village_name, wc.esr_name,
+            wc.water_value as water_next
+          FROM water_consumption_history wc
+          WHERE wc.data_date = ${nextHistoryStr}
+          ORDER BY wc.scheme_id, LOWER(TRIM(wc.village_name)), LOWER(TRIM(wc.esr_name)), wc.id DESC
         )
         SELECT 
-          p.scheme_id,
-          COALESCE(ss.scheme_name, p.scheme_name, 'Scheme ' || p.scheme_id) as scheme_name,
-          p.village_name,
-          p.esr_name as reservoir_name,
-          COALESCE(p.region, ss.region, 'Unknown') as region,
-          p.circle, p.division, p.sub_division, p.block,
-          ${sql.raw(presCol)} as val_today,
-          ${sql.raw(presNextCol)} as val_next,
-          ${sql.raw(presLatestCol)} as val_latest,
-          cw.water_val as water_today,
-          cw.water_next_val as water_next,
+          t.scheme_id,
+          COALESCE(ss.scheme_name, t.scheme_name, 'Scheme ' || t.scheme_id) as scheme_name,
+          t.village_name,
+          t.esr_name as reservoir_name,
+          COALESCE(t.region, ss.region, 'Unknown') as region,
+          t.circle, t.division, t.sub_division, t.block,
+          t.val_today,
+          n.val_next,
+          nw.water_next,
+          l.val_latest,
           sod.operator_name,
           sod.operator_number,
           COALESCE(NULLIF(sod.ee_name, '-'), sod_ee.ee_name) as ee_name,
@@ -497,76 +625,88 @@ export async function getAlertTrackerMetrics(params: {
           (
             SELECT a.delivery_status 
             FROM alert_tracker_logs a 
-            WHERE a.scheme_id = p.scheme_id 
+            WHERE a.scheme_id = t.scheme_id 
               AND a.gateway_status IS NOT NULL
-              AND (a.sent_date = ${isoDate}::date OR a.original_alert_date = ${isoDate}::date)
+              AND (a.sent_date = ${alertIsoDate}::date OR a.original_alert_date = ${alertIsoDate}::date)
             ORDER BY a.id DESC LIMIT 1
           ) as sms_delivery_status
-        FROM comm_with_water cw
-        JOIN pressure_data p ON (
-          (cw.scheme_id = p.scheme_id AND LOWER(TRIM(cw.village_name)) = LOWER(TRIM(p.village_name)) AND LOWER(TRIM(cw.esr_name)) = LOWER(TRIM(p.esr_name)))
-          OR
-          (cw.region = p.region AND cw.circle = p.circle AND cw.division = p.division AND cw.sub_division = p.sub_division AND cw.block = p.block AND LOWER(TRIM(cw.village_name)) = LOWER(TRIM(p.village_name)) AND LOWER(TRIM(cw.esr_name)) = LOWER(TRIM(p.esr_name)))
-        )
+        FROM today_pres t
         JOIN (
           SELECT DISTINCT ON (scheme_id) scheme_id, scheme_name, region, agency_type, agency
           FROM scheme_status 
           WHERE water_supply = 'Yes'
           ORDER BY scheme_id
-        ) ss ON ss.scheme_id = p.scheme_id
+        ) ss ON ss.scheme_id = t.scheme_id
+        LEFT JOIN next_pres n ON n.scheme_id = t.scheme_id 
+          AND LOWER(TRIM(n.village_name)) = LOWER(TRIM(t.village_name))
+          AND LOWER(TRIM(n.esr_name)) = LOWER(TRIM(t.esr_name))
+        LEFT JOIN latest_pres l ON l.scheme_id = t.scheme_id 
+          AND LOWER(TRIM(l.village_name)) = LOWER(TRIM(t.village_name))
+          AND LOWER(TRIM(l.esr_name)) = LOWER(TRIM(t.esr_name))
+        LEFT JOIN next_water nw ON nw.scheme_id = t.scheme_id 
+          AND LOWER(TRIM(nw.village_name)) = LOWER(TRIM(t.village_name))
+          AND LOWER(TRIM(nw.esr_name)) = LOWER(TRIM(t.esr_name))
         LEFT JOIN (
           SELECT DISTINCT ON (scheme_id, LOWER(TRIM(village_name))) scheme_id, village_name, operator_name, operator_number, ee_name, ee_number, ee_email, chief_se_name, chief_se_number, operated_by
           FROM scheme_operator_details
           ORDER BY scheme_id, LOWER(TRIM(village_name))
-        ) sod ON sod.scheme_id = p.scheme_id AND LOWER(TRIM(sod.village_name)) = LOWER(TRIM(p.village_name))
+        ) sod ON sod.scheme_id = t.scheme_id AND LOWER(TRIM(sod.village_name)) = LOWER(TRIM(t.village_name))
         LEFT JOIN (
           SELECT DISTINCT ON (scheme_id) scheme_id, ee_name, ee_number, ee_email, chief_se_name, chief_se_number
           FROM scheme_operator_details
           WHERE ee_name IS NOT NULL AND ee_name != '' AND ee_name != '-' AND LOWER(ee_name) != 'executive engineer'
           ORDER BY scheme_id
-        ) sod_ee ON sod_ee.scheme_id = p.scheme_id
-        WHERE ${sql.raw(presCol)} IS NOT NULL AND ${sql.raw(presCol)} < 0.20
+        ) sod_ee ON sod_ee.scheme_id = t.scheme_id
+        WHERE t.val_today IS NOT NULL AND t.val_today >= 0 AND t.val_today < 0.20
           ${presRegionClause}
           ${agencyClause}
-        ORDER BY p.scheme_id, LOWER(TRIM(p.village_name)), LOWER(TRIM(COALESCE(p.esr_name, ''))), ${sql.raw(presCol)} ASC;
-      `),
-      db.execute(sql`
-        WITH comm_with_water AS (
-          SELECT 
-            cs.region, cs.circle, cs.division, cs.sub_division, cs.block,
-            cs.scheme_id, cs.scheme_name, cs.village_name, cs.esr_name,
-            wc.water_value_day${sql.raw(String(dayIdx))} as water_val,
-            wc.water_value_day${sql.raw(String(nextDayIdx))} as water_next_val
-          FROM communication_status cs
-          LEFT JOIN water_consumption wc ON (
-            cs.region = wc.region AND
-            cs.circle = wc.circle AND
-            cs.division = wc.division AND
-            cs.sub_division = wc.sub_division AND
-            cs.block = wc.block AND
-            cs.scheme_id = wc.scheme_id AND
-            cs.scheme_name = wc.scheme_name AND
-            cs.village_name = wc.village_name AND
-            cs.esr_name = wc.esr_name
-          )
-          WHERE ${commSchemeIdsList ? sql`cs.scheme_id IN (${sql.raw(commSchemeIdsList)})` : sql`1=1`}
-            AND cs.chlorine_connected = 'Connected'
-            AND cs.chlorine_status = 'Online'
-            AND wc.water_value_day${sql.raw(String(dayIdx))} IS NOT NULL 
-            AND wc.water_value_day${sql.raw(String(dayIdx))} > 0
+        ORDER BY t.scheme_id, LOWER(TRIM(t.village_name)), LOWER(TRIM(COALESCE(t.esr_name, ''))), t.val_today ASC;
+      `) : Promise.resolve({ rows: [] }),
+      evalChlCount > 0 ? db.execute(sql`
+        WITH today_chl AS (
+          SELECT DISTINCT ON (c.scheme_id, LOWER(TRIM(c.village_name)), LOWER(TRIM(c.esr_name)))
+            c.scheme_id, c.scheme_name, c.village_name, c.esr_name,
+            c.region, c.circle, c.division, c.sub_division, c.block,
+            c.chlorine_value as val_today
+          FROM chlorine_history c
+          WHERE c.chlorine_date = ${evalHistoryStr}
+          ORDER BY c.scheme_id, LOWER(TRIM(c.village_name)), LOWER(TRIM(c.esr_name)), c.id DESC
+        ),
+        next_chl AS (
+          SELECT DISTINCT ON (c.scheme_id, LOWER(TRIM(c.village_name)), LOWER(TRIM(c.esr_name)))
+            c.scheme_id, c.village_name, c.esr_name,
+            c.chlorine_value as val_next
+          FROM chlorine_history c
+          WHERE c.chlorine_date = ${nextHistoryStr}
+          ORDER BY c.scheme_id, LOWER(TRIM(c.village_name)), LOWER(TRIM(c.esr_name)), c.id DESC
+        ),
+        latest_chl AS (
+          SELECT DISTINCT ON (c.scheme_id, LOWER(TRIM(c.village_name)), LOWER(TRIM(c.esr_name)))
+            c.scheme_id, c.village_name, c.esr_name,
+            c.chlorine_value as val_latest
+          FROM chlorine_history c
+          WHERE c.chlorine_date = ${latestHistoryStr}
+          ORDER BY c.scheme_id, LOWER(TRIM(c.village_name)), LOWER(TRIM(c.esr_name)), c.id DESC
+        ),
+        next_water AS (
+          SELECT DISTINCT ON (wc.scheme_id, LOWER(TRIM(wc.village_name)), LOWER(TRIM(wc.esr_name)))
+            wc.scheme_id, wc.village_name, wc.esr_name,
+            wc.water_value as water_next
+          FROM water_consumption_history wc
+          WHERE wc.data_date = ${nextHistoryStr}
+          ORDER BY wc.scheme_id, LOWER(TRIM(wc.village_name)), LOWER(TRIM(wc.esr_name)), wc.id DESC
         )
         SELECT 
-          c.scheme_id,
-          COALESCE(ss.scheme_name, c.scheme_name, 'Scheme ' || c.scheme_id) as scheme_name,
-          c.village_name,
-          c.esr_name as reservoir_name,
-          COALESCE(c.region, ss.region, 'Unknown') as region,
-          c.circle, c.division, c.sub_division, c.block,
-          ${sql.raw(chlCol)} as val_today,
-          ${sql.raw(chlNextCol)} as val_next,
-          ${sql.raw(chlLatestCol)} as val_latest,
-          cw.water_val as water_today,
-          cw.water_next_val as water_next,
+          t.scheme_id,
+          COALESCE(ss.scheme_name, t.scheme_name, 'Scheme ' || t.scheme_id) as scheme_name,
+          t.village_name,
+          t.esr_name as reservoir_name,
+          COALESCE(t.region, ss.region, 'Unknown') as region,
+          t.circle, t.division, t.sub_division, t.block,
+          t.val_today,
+          n.val_next,
+          nw.water_next,
+          l.val_latest,
           sod.operator_name,
           sod.operator_number,
           COALESCE(NULLIF(sod.ee_name, '-'), sod_ee.ee_name) as ee_name,
@@ -578,48 +718,53 @@ export async function getAlertTrackerMetrics(params: {
           (
             SELECT a.delivery_status 
             FROM alert_tracker_logs a 
-            WHERE a.scheme_id = c.scheme_id 
+            WHERE a.scheme_id = t.scheme_id 
               AND a.gateway_status IS NOT NULL
-              AND (a.sent_date = ${isoDate}::date OR a.original_alert_date = ${isoDate}::date)
+              AND (a.sent_date = ${alertIsoDate}::date OR a.original_alert_date = ${alertIsoDate}::date)
             ORDER BY a.id DESC LIMIT 1
           ) as sms_delivery_status
-        FROM comm_with_water cw
-        JOIN chlorine_data c ON (
-          (cw.scheme_id = c.scheme_id AND LOWER(TRIM(cw.village_name)) = LOWER(TRIM(c.village_name)) AND LOWER(TRIM(cw.esr_name)) = LOWER(TRIM(c.esr_name)))
-          OR
-          (cw.region = c.region AND cw.circle = c.circle AND cw.division = c.division AND cw.sub_division = c.sub_division AND cw.block = c.block AND LOWER(TRIM(cw.village_name)) = LOWER(TRIM(c.village_name)) AND LOWER(TRIM(cw.esr_name)) = LOWER(TRIM(c.esr_name)))
-        )
+        FROM today_chl t
         JOIN (
           SELECT DISTINCT ON (scheme_id) scheme_id, scheme_name, region, agency_type, agency
           FROM scheme_status 
           WHERE water_supply = 'Yes'
           ORDER BY scheme_id
-        ) ss ON ss.scheme_id = c.scheme_id
+        ) ss ON ss.scheme_id = t.scheme_id
+        LEFT JOIN next_chl n ON n.scheme_id = t.scheme_id 
+          AND LOWER(TRIM(n.village_name)) = LOWER(TRIM(t.village_name))
+          AND LOWER(TRIM(n.esr_name)) = LOWER(TRIM(t.esr_name))
+        LEFT JOIN latest_chl l ON l.scheme_id = t.scheme_id 
+          AND LOWER(TRIM(l.village_name)) = LOWER(TRIM(t.village_name))
+          AND LOWER(TRIM(l.esr_name)) = LOWER(TRIM(t.esr_name))
+        LEFT JOIN next_water nw ON nw.scheme_id = t.scheme_id 
+          AND LOWER(TRIM(nw.village_name)) = LOWER(TRIM(t.village_name))
+          AND LOWER(TRIM(nw.esr_name)) = LOWER(TRIM(t.esr_name))
         LEFT JOIN (
           SELECT DISTINCT ON (scheme_id, LOWER(TRIM(village_name))) scheme_id, village_name, operator_name, operator_number, ee_name, ee_number, ee_email, chief_se_name, chief_se_number, operated_by
           FROM scheme_operator_details
           ORDER BY scheme_id, LOWER(TRIM(village_name))
-        ) sod ON sod.scheme_id = c.scheme_id AND LOWER(TRIM(sod.village_name)) = LOWER(TRIM(c.village_name))
+        ) sod ON sod.scheme_id = t.scheme_id AND LOWER(TRIM(sod.village_name)) = LOWER(TRIM(t.village_name))
         LEFT JOIN (
           SELECT DISTINCT ON (scheme_id) scheme_id, ee_name, ee_number, ee_email, chief_se_name, chief_se_number
           FROM scheme_operator_details
           WHERE ee_name IS NOT NULL AND ee_name != '' AND ee_name != '-' AND LOWER(ee_name) != 'executive engineer'
           ORDER BY scheme_id
-        ) sod_ee ON sod_ee.scheme_id = c.scheme_id
-        WHERE ${sql.raw(chlCol)} IS NOT NULL AND (${sql.raw(chlCol)} < 0.20 OR ${sql.raw(chlCol)} > 0.50)
+        ) sod_ee ON sod_ee.scheme_id = t.scheme_id
+        WHERE t.val_today IS NOT NULL AND (t.val_today < 0.20 OR t.val_today > 0.50)
           ${chlRegionClause}
           ${agencyClause}
-        ORDER BY c.scheme_id, LOWER(TRIM(c.village_name)), LOWER(TRIM(COALESCE(c.esr_name, ''))), ${sql.raw(chlCol)} ASC;
-      `),
+        ORDER BY t.scheme_id, LOWER(TRIM(t.village_name)), LOWER(TRIM(COALESCE(t.esr_name, ''))), t.val_today ASC;
+      `) : Promise.resolve({ rows: [] }),
     ]);
 
     // Process LPCD Items
     (lpcdRes.rows || []).forEach((row: any) => {
-      const isUnresolvedNextDay = isNextDayAvailable && row.val_next !== null && Number(row.val_next) >= 0 && Number(row.val_next) < 55;
-      const isResolvedNextDay = isNextDayAvailable && !isUnresolvedNextDay;
+      const isResolvedNextDay = isNextDayAvailable && row.val_next !== null && Number(row.val_next) >= 55;
+      const isUnresolvedNextDay = isNextDayAvailable && !isResolvedNextDay;
       const isEE = isUnresolvedNextDay;
       const schemeRemarks = remarksByScheme.get(String(row.scheme_id).trim()) || [];
       const hasActualSmsLog = Boolean(row.sms_delivery_status);
+      const hasEe = Boolean(row.ee_name && row.ee_name !== "-" && row.ee_name.toLowerCase() !== "executive engineer");
 
       const item: AlertTrackerItem = {
         alert_key: `LPCD-${row.scheme_id}-${row.village_name}`,
@@ -633,10 +778,10 @@ export async function getAlertTrackerMetrics(params: {
         sub_division: row.sub_division || "-",
         block: row.block || "-",
         alert_type: "LPCD",
-        original_alert_date: isoDate,
+        original_alert_date: alertIsoDate,
         recipient_designation: isEE ? "Executive Engineer" : "Village Operator",
         recipient_name: isEE
-          ? (row.ee_name && row.ee_name !== "-" && row.ee_name.toLowerCase() !== "executive engineer" ? row.ee_name : "-")
+          ? (hasEe ? row.ee_name : "-")
           : (row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" ? row.operator_name : "-"),
         recipient_contact: isEE ? (row.ee_number || "-") : (row.operator_number || "-"),
         recipient_email: row.ee_email || undefined,
@@ -646,14 +791,14 @@ export async function getAlertTrackerMetrics(params: {
           : DLT_TEMPLATES.LPCD_LOW.render(formatSchemeName(row.scheme_name, row.scheme_id), formatVillageName(row.village_name), parseFloat(row.val_today).toFixed(1)),
         reading_value: `${parseFloat(row.val_today).toFixed(1)} LPCD`,
         delivery_status: row.sms_delivery_status || "NOT_DISPATCHED",
-        sms_sent: hasActualSmsLog,
-        email_sent: isEE && hasActualSmsLog,
+        sms_sent: isEE ? (hasActualSmsLog && hasEe) : hasActualSmsLog,
+        email_sent: isEE && hasActualSmsLog && hasEe,
         resolution_status: isResolvedNextDay ? "RESOLVED" : isUnresolvedNextDay ? "UNRESOLVED" : "ACTIVE",
         escalated_to_ee: isEE,
-        unresolved_since: isUnresolvedNextDay ? `Since ${displayDate}` : "-",
+        unresolved_since: isUnresolvedNextDay ? `Since ${evalDisplayDate}` : "-",
         escalation_date: isEE ? nextDayDisplayDate : undefined,
-        sent_date: isoDate,
-        sent_at: `${isoDate}T10:30:00.000Z`,
+        sent_date: alertIsoDate,
+        sent_at: `${alertIsoDate}T10:30:00.000Z`,
         operator_name: row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" ? row.operator_name : "-",
         operator_number: row.operator_number || "-",
         ee_name: row.ee_name && row.ee_name !== "-" && row.ee_name.toLowerCase() !== "executive engineer" ? row.ee_name : "-",
@@ -686,7 +831,7 @@ export async function getAlertTrackerMetrics(params: {
     result.lpcd.unresolved = isNextDayAvailable ? result.lpcd.unresolvedItems.length : unresolvedPendingText;
     result.lpcd.unresolvedEE = isNextDayAvailable ? result.lpcd.escalatedEEItems.length : escalatedEEPendingText;
     const lpcdStillUnresolved = isCol4Available
-      ? result.lpcd.unresolvedItems.filter((r: any) => r.val_latest !== null && Number(r.val_latest) >= 0 && Number(r.val_latest) < 55)
+      ? result.lpcd.unresolvedItems.filter((r: any) => r.val_latest === null || Number(r.val_latest) < 55)
       : [];
     result.lpcd.unresolvedTillDateItems = lpcdStillUnresolved;
     result.lpcd.unresolvedTillDate = isCol4Available
@@ -695,11 +840,12 @@ export async function getAlertTrackerMetrics(params: {
 
     // Process Pressure Items
     (presRes.rows || []).forEach((row: any) => {
-      const isUnresolvedNextDay = isNextDayAvailable && row.val_next !== null && Number(row.val_next) < 0.20 && row.water_next !== null && Number(row.water_next) > 0;
-      const isResolvedNextDay = isNextDayAvailable && !isUnresolvedNextDay;
+      const isResolvedNextDay = isNextDayAvailable && row.val_next !== null && Number(row.val_next) >= 0.20;
+      const isUnresolvedNextDay = isNextDayAvailable && !isResolvedNextDay;
       const isEE = isUnresolvedNextDay;
       const schemeRemarks = remarksByScheme.get(String(row.scheme_id).trim()) || [];
       const hasActualSmsLog = Boolean(row.sms_delivery_status);
+      const hasEe = Boolean(row.ee_name && row.ee_name !== "-" && row.ee_name.toLowerCase() !== "executive engineer");
 
       const item: AlertTrackerItem = {
         alert_key: `PRES-${row.scheme_id}-${row.village_name}-${row.reservoir_name}`,
@@ -713,10 +859,10 @@ export async function getAlertTrackerMetrics(params: {
         sub_division: row.sub_division || "-",
         block: row.block || "-",
         alert_type: "Pressure",
-        original_alert_date: isoDate,
+        original_alert_date: alertIsoDate,
         recipient_designation: isEE ? "Executive Engineer" : "Village Operator",
         recipient_name: isEE
-          ? (row.ee_name && row.ee_name !== "-" && row.ee_name.toLowerCase() !== "executive engineer" ? row.ee_name : "-")
+          ? (hasEe ? row.ee_name : "-")
           : (row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" ? row.operator_name : "-"),
         recipient_contact: isEE ? (row.ee_number || "-") : (row.operator_number || "-"),
         recipient_email: row.ee_email || undefined,
@@ -726,14 +872,14 @@ export async function getAlertTrackerMetrics(params: {
           : DLT_TEMPLATES.PRESSURE_LOW.render(formatSchemeName(row.scheme_name, row.scheme_id), formatVillageAndEsr(row.village_name, row.reservoir_name), parseFloat(row.val_today).toFixed(2)),
         reading_value: `${parseFloat(row.val_today).toFixed(2)} Bar`,
         delivery_status: row.sms_delivery_status || "NOT_DISPATCHED",
-        sms_sent: hasActualSmsLog,
-        email_sent: isEE && hasActualSmsLog,
+        sms_sent: isEE ? (hasActualSmsLog && hasEe) : hasActualSmsLog,
+        email_sent: isEE && hasActualSmsLog && hasEe,
         resolution_status: isResolvedNextDay ? "RESOLVED" : isUnresolvedNextDay ? "UNRESOLVED" : "ACTIVE",
         escalated_to_ee: isEE,
-        unresolved_since: isUnresolvedNextDay ? `Since ${displayDate}` : "-",
+        unresolved_since: isUnresolvedNextDay ? `Since ${evalDisplayDate}` : "-",
         escalation_date: isEE ? nextDayDisplayDate : undefined,
-        sent_date: isoDate,
-        sent_at: `${isoDate}T10:30:00.000Z`,
+        sent_date: alertIsoDate,
+        sent_at: `${alertIsoDate}T10:30:00.000Z`,
         operator_name: row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" ? row.operator_name : "-",
         operator_number: row.operator_number || "-",
         ee_name: row.ee_name && row.ee_name !== "-" && row.ee_name.toLowerCase() !== "executive engineer" ? row.ee_name : "-",
@@ -766,7 +912,7 @@ export async function getAlertTrackerMetrics(params: {
     result.pressure.unresolved = isNextDayAvailable ? result.pressure.unresolvedItems.length : unresolvedPendingText;
     result.pressure.unresolvedEE = isNextDayAvailable ? result.pressure.escalatedEEItems.length : escalatedEEPendingText;
     const presStillUnresolved = isCol4Available
-      ? result.pressure.unresolvedItems.filter((r: any) => r.val_latest !== null && Number(r.val_latest) < 0.20)
+      ? result.pressure.unresolvedItems.filter((r: any) => r.val_latest === null || Number(r.val_latest) < 0.20)
       : [];
     result.pressure.unresolvedTillDateItems = presStillUnresolved;
     result.pressure.unresolvedTillDate = isCol4Available
@@ -775,11 +921,12 @@ export async function getAlertTrackerMetrics(params: {
 
     // Process Chlorine Items
     (chlRes.rows || []).forEach((row: any) => {
-      const isUnresolvedNextDay = isNextDayAvailable && row.val_next !== null && (Number(row.val_next) < 0.20 || Number(row.val_next) > 0.50) && row.water_next !== null && Number(row.water_next) > 0;
-      const isResolvedNextDay = isNextDayAvailable && !isUnresolvedNextDay;
+      const isResolvedNextDay = isNextDayAvailable && row.val_next !== null && Number(row.val_next) >= 0.20 && Number(row.val_next) <= 0.50;
+      const isUnresolvedNextDay = isNextDayAvailable && !isResolvedNextDay;
       const isEE = isUnresolvedNextDay;
       const schemeRemarks = remarksByScheme.get(String(row.scheme_id).trim()) || [];
       const hasActualSmsLog = Boolean(row.sms_delivery_status);
+      const hasEe = Boolean(row.ee_name && row.ee_name !== "-" && row.ee_name.toLowerCase() !== "executive engineer");
 
       const item: AlertTrackerItem = {
         alert_key: `CHL-${row.scheme_id}-${row.village_name}-${row.reservoir_name}`,
@@ -793,10 +940,10 @@ export async function getAlertTrackerMetrics(params: {
         sub_division: row.sub_division || "-",
         block: row.block || "-",
         alert_type: "Chlorine",
-        original_alert_date: isoDate,
+        original_alert_date: alertIsoDate,
         recipient_designation: isEE ? "Executive Engineer" : "Village Operator",
         recipient_name: isEE
-          ? (row.ee_name && row.ee_name !== "-" && row.ee_name.toLowerCase() !== "executive engineer" ? row.ee_name : "-")
+          ? (hasEe ? row.ee_name : "-")
           : (row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" ? row.operator_name : "-"),
         recipient_contact: isEE ? (row.ee_number || "-") : (row.operator_number || "-"),
         recipient_email: row.ee_email || undefined,
@@ -810,14 +957,14 @@ export async function getAlertTrackerMetrics(params: {
             ),
         reading_value: `${parseFloat(row.val_today).toFixed(2)} ppm`,
         delivery_status: row.sms_delivery_status || "NOT_DISPATCHED",
-        sms_sent: hasActualSmsLog,
-        email_sent: isEE && hasActualSmsLog,
+        sms_sent: isEE ? (hasActualSmsLog && hasEe) : hasActualSmsLog,
+        email_sent: isEE && hasActualSmsLog && hasEe,
         resolution_status: isResolvedNextDay ? "RESOLVED" : isUnresolvedNextDay ? "UNRESOLVED" : "ACTIVE",
         escalated_to_ee: isEE,
-        unresolved_since: isUnresolvedNextDay ? `Since ${displayDate}` : "-",
+        unresolved_since: isUnresolvedNextDay ? `Since ${evalDisplayDate}` : "-",
         escalation_date: isEE ? nextDayDisplayDate : undefined,
-        sent_date: isoDate,
-        sent_at: `${isoDate}T10:30:00.000Z`,
+        sent_date: alertIsoDate,
+        sent_at: `${alertIsoDate}T10:30:00.000Z`,
         operator_name: row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" ? row.operator_name : "-",
         operator_number: row.operator_number || "-",
         ee_name: row.ee_name && row.ee_name !== "-" && row.ee_name.toLowerCase() !== "executive engineer" ? row.ee_name : "-",
@@ -850,7 +997,7 @@ export async function getAlertTrackerMetrics(params: {
     result.chlorine.unresolved = isNextDayAvailable ? result.chlorine.unresolvedItems.length : unresolvedPendingText;
     result.chlorine.unresolvedEE = isNextDayAvailable ? result.chlorine.escalatedEEItems.length : escalatedEEPendingText;
     const chlStillUnresolved = isCol4Available
-      ? result.chlorine.unresolvedItems.filter((r: any) => r.val_latest !== null && (Number(r.val_latest) < 0.20 || Number(r.val_latest) > 0.50))
+      ? result.chlorine.unresolvedItems.filter((r: any) => r.val_latest === null || Number(r.val_latest) < 0.20 || Number(r.val_latest) > 0.50)
       : [];
     result.chlorine.unresolvedTillDateItems = chlStillUnresolved;
     result.chlorine.unresolvedTillDate = isCol4Available

@@ -22,6 +22,7 @@ import {
   TrendingUp,
   Table2,
   Activity,
+  Users,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,7 @@ const navigationItems: NavigationItem[] = [
   { name: "Escalation Portal", href: "/escalation-portal", icon: TrendingUp, adminOnly: true },
   { name: "Alert Tracker", href: "/alert-tracker", icon: Activity, adminOnly: true },
   { name: "Level 5 Portal", href: "/level5-summary", icon: Table2, adminOnly: true },
+  { name: "Engineers", href: "/admin/users", icon: Users, adminOnly: true },
 
   { name: "Village LPCD", href: "/lpcd", icon: Droplet },
   { name: "Scheme LPCD", href: "/scheme-lpcd", icon: Droplet },

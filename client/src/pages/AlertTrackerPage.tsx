@@ -109,9 +109,9 @@ export default function AlertTrackerPage() {
     const [selectedRegion, setSelectedRegion] = useState<string>("All");
     const [selectedAgency, setSelectedAgency] = useState<string>("ALL Agency");
 
-    // Default to latest available data date in DB (25-Oct)
-    const [dataDate, setDataDate] = useState<string>("2026-10-25");
-    const [filterDateInput, setFilterDateInput] = useState<string>("25/10/2026");
+    // Default to current date (Alert Date)
+    const [dataDate, setDataDate] = useState<string>(todayIso);
+    const [filterDateInput, setFilterDateInput] = useState<string>(todayDisplay);
     const [isTriggeringAlerts, setIsTriggeringAlerts] = useState<boolean>(false);
 
     // Modal / Detail state for inspecting records behind any cell
@@ -195,9 +195,19 @@ export default function AlertTrackerPage() {
         refetchInterval: 60 * 1000,
     });
 
-    // Format date display for table headers
+    // Format date display for table headers (Alert Date evaluates previous day's telemetry)
     const headerDateInfo = useMemo(() => {
+        if (data?.dateMeta?.dayWithOrdinal && data?.dateMeta?.month) {
+            return {
+                dayWithOrdinal: data.dateMeta.dayWithOrdinal.toLowerCase(),
+                month: data.dateMeta.month,
+                year: data.dateMeta.year,
+                displayDate: `${data.dateMeta.dayWithOrdinal} ${data.dateMeta.month} ${data.dateMeta.year}`,
+                formattedShort: `${data.dateMeta.dayWithOrdinal.toLowerCase()} ${data.dateMeta.month.toLowerCase()}`,
+            };
+        }
         const dObj = new Date(dataDate);
+        dObj.setDate(dObj.getDate() - 1);
         const day = dObj.getDate() || 24;
         const monthNames = [
             "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -219,7 +229,7 @@ export default function AlertTrackerPage() {
             displayDate: `${day} ${month} ${year}`,
             formattedShort: `${getOrdinal(day).toLowerCase()} ${month.toLowerCase()}`,
         };
-    }, [dataDate]);
+    }, [dataDate, data?.dateMeta]);
 
     // Handle manual date input submission (e.g. 21/10/2026 or 2026-10-22)
     const handleApplyDateInput = (val: string) => {
@@ -280,8 +290,8 @@ export default function AlertTrackerPage() {
 
         if (isPending) {
             return (
-                <div className="w-full h-full min-h-[44px] flex items-center justify-center p-1.5 select-none" title="Awaiting forward date comparison data">
-                    <span className="inline-block px-2.5 py-1 rounded bg-[#F1F5F9] text-[#475569] border border-[#CBD5E1] text-[11px] sm:text-xs font-semibold italic">
+                <div className="w-full h-full min-h-[44px] flex items-center justify-center px-2 sm:px-3 py-1.5 select-none text-center" title="Awaiting forward date comparison data">
+                    <span className="inline-block px-2.5 py-1 rounded bg-[#F1F5F9] text-[#475569] border border-[#CBD5E1] text-[11px] sm:text-xs font-semibold italic max-w-full leading-snug">
                         {displayVal}
                     </span>
                 </div>
@@ -374,7 +384,7 @@ export default function AlertTrackerPage() {
                 ["Physical progress", `Partial completed schemes - ${(physicalProgress.schemes?.partial ?? 174).toLocaleString()} / Fully Completed Schemes - ${(physicalProgress.schemes?.fully ?? 52).toLocaleString()}`, `Partial villages - ${(physicalProgress.villages?.partial ?? 1986).toLocaleString()} / Fully Completed Villages - ${(physicalProgress.villages?.fully ?? 263).toLocaleString()}`, `Partial ESRs - ${(physicalProgress.esr?.partial ?? 2567).toLocaleString()} / Fully Completed ESRs - ${(physicalProgress.esr?.fully ?? 461).toLocaleString()}`],
                 ["Operational", `Scheme - ${operational.schemes || 39}`, `Villages - ${operational.villages || 255}`, `No. Of ESR - ${operational.esr || 325}`],
                 [],
-                ["Data Date :", filterDateInput],
+                ["Alert Date :", filterDateInput],
                 [],
                 [
                     `(Display result for ${headerDateInfo.dayWithOrdinal} ${headerDateInfo.month.toLowerCase()} as per date )`,
@@ -670,7 +680,7 @@ export default function AlertTrackerPage() {
                     <div className="flex flex-wrap items-center gap-2 mb-4 text-xs sm:text-sm">
                         <div className="inline-flex items-center border border-[#4A6484] rounded-sm font-bold bg-white overflow-hidden shadow-xs">
                             <div className="px-3 sm:px-4 py-1.5 border-r border-[#4A6484] text-[#0A2540] select-none bg-white">
-                                Data Date :
+                                Alert Date :
                             </div>
                             <div className="px-3 py-1 flex items-center gap-1.5 bg-white">
                                 <input
@@ -1003,7 +1013,7 @@ export default function AlertTrackerPage() {
                                         {selectedCellDetails?.colType === "resolved" ? (
                                             <>
                                                 <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[150px]">
-                                                    Alert Reading ({filterDateInput})
+                                                    Alert Reading ({data?.dateMeta?.evalDisplayDate || filterDateInput})
                                                 </th>
                                                 <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[170px]">
                                                     Resolved Value ({data?.dateMeta?.nextDayDisplayDate || "Resolution Day"})
@@ -1011,7 +1021,7 @@ export default function AlertTrackerPage() {
                                             </>
                                         ) : (
                                             <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[140px]">
-                                                Date of Value
+                                                Date of Value ({data?.dateMeta?.evalDisplayDate || filterDateInput})
                                             </th>
                                         )}
                                         <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-[#4A6484] min-w-[200px]">
@@ -1092,7 +1102,7 @@ export default function AlertTrackerPage() {
                                             const isDispatched = rawDeliveryStatus && rawDeliveryStatus !== "NOT_DISPATCHED" && rawDeliveryStatus !== "NONE" && rawDeliveryStatus !== "-";
                                             const isSmsDelivered = isDispatched && (rawDeliveryStatus === "DELIVERY_SUCCESS" || rawDeliveryStatus === "SUCCESS");
                                             const isSmsFailed = isDispatched && (rawDeliveryStatus.includes("FAIL") || rawDeliveryStatus.includes("SUBMIT_FAILED") || rawDeliveryStatus.includes("FAILED"));
-                                            const isEmailSent = Boolean(item.email_sent);
+                                            const isEmailSent = Boolean(item.email_sent && actualEeName);
 
                                             return (
                                                 <tr
@@ -1169,7 +1179,7 @@ export default function AlertTrackerPage() {
 
                                                             <div className="text-[10px] text-[#64748B] font-normal flex items-center justify-center gap-1">
                                                                 <Calendar className="h-3 w-3 text-[#4A6484] shrink-0" />
-                                                                <span>{filterDateInput}</span>
+                                                                <span>{data?.dateMeta?.evalDisplayDate || filterDateInput}</span>
                                                             </div>
                                                         </div>
                                                     </td>
@@ -1191,7 +1201,7 @@ export default function AlertTrackerPage() {
                                                                             if (isChl) return `${Number(item.val_next).toFixed(2)} mg/L`;
                                                                             return String(item.val_next);
                                                                         }
-                                                                        return "Normal Range";
+                                                                        return "No Data";
                                                                     })()}
                                                                 </div>
 
@@ -1247,7 +1257,7 @@ export default function AlertTrackerPage() {
                                                                 ) : (
                                                                     contactName ? <span className="text-[10px] text-slate-400 italic">No mobile</span> : null
                                                                 )}
-                                                                {isEE && (item.ee_email || item.recipient_email) && (
+                                                                {isEE && contactName && (item.ee_email || item.recipient_email) && (
                                                                     <span className="text-[10px] text-[#475569] font-mono">
                                                                         {item.ee_email || item.recipient_email}
                                                                     </span>
@@ -1259,7 +1269,9 @@ export default function AlertTrackerPage() {
                                                     {/* 5. Email Sent (Only shown for Escalation / EE when not in resolved view) */}
                                                     {!isResolvedModal && isEscalationModal && (
                                                         <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
-                                                            {isEmailSent ? (
+                                                            {!actualEeName ? (
+                                                                <span className="text-slate-400 font-bold select-none">-</span>
+                                                            ) : isEmailSent ? (
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => {
@@ -1304,7 +1316,9 @@ export default function AlertTrackerPage() {
                                                     {/* 6. SMS Sent (Hidden in resolved view) */}
                                                     {!isResolvedModal && (
                                                         <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
-                                                            {(() => {
+                                                            {isEscalationModal && !actualEeName ? (
+                                                                <span className="text-slate-400 font-bold select-none">-</span>
+                                                            ) : (() => {
                                                                 const openSmsModal = () => {
                                                                     const defaultSms = {
                                                                         recipient_name: contactName || "-",

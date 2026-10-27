@@ -1,0 +1,135 @@
+
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b; }
+        .card { max-width: 720px; margin: 0 auto; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); border: 1px solid #cbd5e1; overflow: hidden; }
+        .header { background: linear-gradient(135deg, #581c87 0%, #3b0764 100%); color: #ffffff; padding: 26px 30px; text-align: left; }
+        .header h1 { margin: 0 0 6px 0; font-size: 21px; font-weight: 700; letter-spacing: -0.02em; }
+        .header p { margin: 0; font-size: 13.5px; opacity: 0.95; }
+        .badge { display: inline-block; background: rgba(255,255,255,0.22); color: #fff; padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 700; margin-top: 10px; text-transform: uppercase; }
+        .content { padding: 26px 30px; }
+        .scheme-meta { background: #faf5ff; border: 1px solid #e9d5ff; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; line-height: 1.6; }
+        .kpi-row { display: flex; gap: 12px; margin-bottom: 24px; }
+        .kpi-box { flex: 1; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #e2e8f0; background: #f8fafc; }
+        .kpi-num { font-size: 20px; font-weight: 700; color: #6b21a8; }
+        .kpi-label { font-size: 10.5px; color: #64748b; font-weight: 600; text-transform: uppercase; margin-top: 2px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12.5px; }
+        th { background: #f8fafc; padding: 10px 12px; text-align: left; color: #475569; font-weight: 600; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+        .footer { background: #f8fafc; padding: 16px 24px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+        .alert-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .tag-lpcd { background: #fee2e2; color: #991b1b; }
+        .tag-cl { background: #fef3c7; color: #92400e; }
+        .tag-pr { background: #e0f2fe; color: #075985; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="header">
+          <h1>🚨 Member Secretary (MS) — Level 4 Escalation Notice</h1>
+          <p>Critical non-compliance persisting for <strong>96 consecutive days</strong> across multi-tier alerts</p>
+          <span class="badge">Level 4 Escalation • 96 Days Unresolved</span>
+        </div>
+        <div class="content">
+          <div class="scheme-meta">
+            <strong>Scheme:</strong> Kurha & 2 Villages RRWSS (ID: 20021409)<br>
+            <strong>Region:</strong> Amravati &nbsp;|&nbsp; <strong>Division:</strong> Buldhana<br>
+            <strong>Executive Engineer (EE Civil):</strong> Aditi Patil (8275949770)<br>
+            <strong>Chief Engineer (CE):</strong> N/A (N/A)<br>
+            <strong>Superintending Engineer (SE):</strong> Advait Pagar (N/A)
+          </div>
+
+          <div class="kpi-row">
+            <div class="kpi-box">
+              <div class="kpi-num">3</div>
+              <div class="kpi-label">Villages &lt; 55 LPCD</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-num">3</div>
+              <div class="kpi-label">ESRs Low Cl</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-num">0</div>
+              <div class="kpi-label">ESRs High Cl</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-num">0</div>
+              <div class="kpi-label">ESRs Low Press</div>
+            </div>
+          </div>
+
+          <h3 style="font-size: 14px; margin: 18px 0 8px 0; color: #0f172a;">Persistent Defect Breakdown</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Location</th>
+                <th>Issue Type</th>
+                <th>Active Streak</th>
+                <th>Recorded Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td><strong>Hanwatkhed</strong> (Village)</td>
+                  <td><span class="alert-tag tag-lpcd">Low LPCD (&lt;55)</span></td>
+                  <td>7 Days</td>
+                  <td>48.56 LPCD LPCD</td>
+                </tr>
+              
+                <tr>
+                  <td><strong>Gotmara</strong> (Village)</td>
+                  <td><span class="alert-tag tag-lpcd">Low LPCD (&lt;55)</span></td>
+                  <td>14 Days</td>
+                  <td>0 LPCD LPCD</td>
+                </tr>
+              
+                <tr>
+                  <td><strong>Kurha</strong> (Village)</td>
+                  <td><span class="alert-tag tag-lpcd">Low LPCD (&lt;55)</span></td>
+                  <td>1 Days</td>
+                  <td>41.78 LPCD LPCD</td>
+                </tr>
+              
+              
+                <tr>
+                  <td>Hanwatkhed - <strong>Existing 0.30 LL GSR</strong></td>
+                  <td><span class="alert-tag tag-cl">Low Chlorine (&lt;0.2)</span></td>
+                  <td>4 Days</td>
+                  <td>0 mg/L mg/L</td>
+                </tr>
+              
+                <tr>
+                  <td>Kurha - <strong>Existing 0.50 LL ESR</strong></td>
+                  <td><span class="alert-tag tag-cl">Low Chlorine (&lt;0.2)</span></td>
+                  <td>8 Days</td>
+                  <td>0 mg/L mg/L</td>
+                </tr>
+              
+                <tr>
+                  <td>Kurha - <strong>Proposed 0.75 LL ESR</strong></td>
+                  <td><span class="alert-tag tag-cl">Low Chlorine (&lt;0.2)</span></td>
+                  <td>8 Days</td>
+                  <td>0 mg/L mg/L</td>
+                </tr>
+              
+              
+              
+            </tbody>
+          </table>
+
+          <p style="margin-top: 24px; font-size: 13px; color: #64748b; line-height: 1.5;">
+            Escalation Note: This scheme has exceeded 14 consecutive days of unresolved issues despite Sub-Division (DE), Division (EE), and Regional (CE/SE) alerts. Direct administrative review by the Member Secretary is initiated.
+          </p>
+        </div>
+        <div class="footer">
+          Jal Jeevan Mission IoT Cell — Maharashtra Jeevan Pradhikaran (MJP)<br>
+          Escalation Matrix Monitoring System
+        </div>
+      </div>
+    </body>
+    </html>
+  

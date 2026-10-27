@@ -17,7 +17,7 @@ const CACHE_TTL_MS = 30 * 1000; // 30 seconds
 router.get("/summary", async (req: Request, res: Response) => {
   try {
     const selectedRegion = (req.query.region as string) || "All";
-    const requestedDate = (req.query.date as string) || "2026-10-22";
+    const requestedDate = (req.query.date as string) || new Date().toISOString().slice(0, 10);
     const rawAgency = (req.query.agency as string) || "ALL";
     const forceRefresh = req.query.refresh === "true";
 

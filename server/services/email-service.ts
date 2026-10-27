@@ -469,8 +469,8 @@ export async function sendDailyAlertEmail(
   customSubject?: string,
 ): Promise<boolean> {
   const schemeTitle = alertsData[0]?.scheme_name ? `${alertsData[0]?.scheme_name} (ID: ${alertsData[0]?.scheme_id})` : '';
-  const subject = customSubject || (schemeTitle 
-    ? `🚨 Critical Water Scheme Alert - ${schemeTitle}` 
+  const subject = customSubject || (schemeTitle
+    ? `🚨 Critical Water Scheme Alert - ${schemeTitle}`
     : `🚨 Critical Water Scheme Alerts - Action Required`);
   const baseUrl = process.env.APP_BASE_URL || 'https://dashboard1.mahajaliot.in';
 
@@ -575,7 +575,7 @@ export async function sendDailyAlertEmail(
 
       <div style="padding: 30px; background-color: #ffffff;">
         <h2 style="color: #1f2937; margin-top: 0;">Hello ${engineerName},</h2>
-        <p style="color: #374151; font-size: 16px;">The following schemes assigned to you have critical parameters falling below acceptable thresholds as of today.</p>
+        <p style="color: #374151; font-size: 16px;">The following schemes assigned to you have critical parameters falling below acceptable thresholds as of.</p>
 
         ${alertsHtml}
 

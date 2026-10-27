@@ -1846,7 +1846,7 @@ export function renderMsSchemeEscalationEmail(scheme: SchemeEscalationItem): { s
                   <td><strong>${v.village_name}</strong> (Village)</td>
                   <td><span class="alert-tag tag-lpcd">Low LPCD (&lt;55)</span></td>
                   <td>${v.days_count} Days</td>
-                  <td>${v.avg_val ? `${v.avg_val} LPCD` : '&lt;55 LPCD'}</td>
+                  <td>${v.avg_val ? (String(v.avg_val).toLowerCase().includes('lpcd') ? v.avg_val : `${v.avg_val} LPCD`) : '&lt;55 LPCD'}</td>
                 </tr>
               `).join('')}
               ${scheme.chlorine_low_esrs.map(c => `
@@ -1854,7 +1854,7 @@ export function renderMsSchemeEscalationEmail(scheme: SchemeEscalationItem): { s
                   <td>${c.village_name} - <strong>${c.esr_name}</strong></td>
                   <td><span class="alert-tag tag-cl">Low Chlorine (&lt;0.2)</span></td>
                   <td>${c.days_count} Days</td>
-                  <td>${c.val ? `${c.val} mg/L` : '&lt;0.2 mg/L'}</td>
+                  <td>${c.val ? (String(c.val).toLowerCase().includes('mg/l') ? c.val : `${c.val} mg/L`) : '&lt;0.2 mg/L'}</td>
                 </tr>
               `).join('')}
               ${scheme.chlorine_high_esrs.map(c => `
@@ -1862,7 +1862,7 @@ export function renderMsSchemeEscalationEmail(scheme: SchemeEscalationItem): { s
                   <td>${c.village_name} - <strong>${c.esr_name}</strong></td>
                   <td><span class="alert-tag tag-cl">High Chlorine (&gt;0.5)</span></td>
                   <td>${c.days_count} Days</td>
-                  <td>${c.val ? `${c.val} mg/L` : '&gt;0.5 mg/L'}</td>
+                  <td>${c.val ? (String(c.val).toLowerCase().includes('mg/l') ? c.val : `${c.val} mg/L`) : '&gt;0.5 mg/L'}</td>
                 </tr>
               `).join('')}
               ${scheme.pressure_low_esrs.map(p => `
@@ -1870,7 +1870,7 @@ export function renderMsSchemeEscalationEmail(scheme: SchemeEscalationItem): { s
                   <td>${p.village_name} - <strong>${p.esr_name}</strong></td>
                   <td><span class="alert-tag tag-pr">Low Pressure (&lt;0.2)</span></td>
                   <td>${p.days_count} Days</td>
-                  <td>${p.val ? `${p.val} bar` : '&lt;0.2 bar'}</td>
+                  <td>${p.val ? (String(p.val).toLowerCase().includes('bar') ? p.val : `${p.val} bar`) : '&lt;0.2 bar'}</td>
                 </tr>
               `).join('')}
             </tbody>
