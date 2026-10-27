@@ -1257,21 +1257,6 @@ export async function runDailyAlertTrackerEscalation(options?: {
               </table>
             `;
 
-            const sampleAlert = alerts[0];
-            let dataDateDisplay = "";
-            if (sampleAlert?.unresolved_since && sampleAlert.unresolved_since.startsWith("Since ")) {
-              dataDateDisplay = sampleAlert.unresolved_since.replace("Since ", "").trim();
-            } else if (sampleAlert?.original_alert_date) {
-              const parts = String(sampleAlert.original_alert_date).split(/[-T/]/);
-              if (parts.length >= 3) {
-                dataDateDisplay = parts[0].length === 4 ? `${parts[2]}/${parts[1]}/${parts[0]}` : `${parts[0]}/${parts[1]}/${parts[2]}`;
-              } else {
-                dataDateDisplay = String(sampleAlert.original_alert_date);
-              }
-            } else {
-              dataDateDisplay = displayDate;
-            }
-
             const emailHtml = `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0;">
                 <div style="background-color: #dc2626; color: white; padding: 20px; text-align: center;">
@@ -1281,7 +1266,7 @@ export async function runDailyAlertTrackerEscalation(options?: {
 
                 <div style="padding: 30px; background-color: #ffffff;">
                   <h2 style="color: #1f2937; margin-top: 0;">Hello ${eeName},</h2>
-                  <p style="color: #374151; font-size: 16px;">The following schemes assigned to you have critical parameters falling below acceptable thresholds as of data date (${dataDateDisplay}).</p>
+                  <p style="color: #374151; font-size: 16px;">The following schemes assigned to you have critical parameters falling below acceptable thresholds as of (${displayDate}).</p>
 
                   ${alertsHtml}
 
