@@ -566,6 +566,13 @@ export async function sendDailyAlertEmail(
     </div>
   `;
 
+  const rawAlertDate = alertsData[0]?.telemetry_date || new Date().toISOString().slice(0, 10);
+  let emailDataDateDisplay = rawAlertDate;
+  const dateParts = String(rawAlertDate).split(/[-T/]/);
+  if (dateParts.length >= 3) {
+    emailDataDateDisplay = dateParts[0].length === 4 ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}` : `${dateParts[0]}/${dateParts[1]}/${dateParts[2]}`;
+  }
+
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
       <div style="background-color: #dc2626; color: white; padding: 20px; text-align: center;">
@@ -575,7 +582,7 @@ export async function sendDailyAlertEmail(
 
       <div style="padding: 30px; background-color: #ffffff;">
         <h2 style="color: #1f2937; margin-top: 0;">Hello ${engineerName},</h2>
-        <p style="color: #374151; font-size: 16px;">The following schemes assigned to you have critical parameters falling below acceptable thresholds as of.</p>
+        <p style="color: #374151; font-size: 16px;">The following schemes assigned to you have critical parameters falling below acceptable thresholds as of data date (${emailDataDateDisplay}).</p>
 
         ${alertsHtml}
 

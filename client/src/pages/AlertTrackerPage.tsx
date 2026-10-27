@@ -1037,7 +1037,7 @@ export default function AlertTrackerPage() {
                                                     </th>
                                                 )}
                                                 <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[150px]">
-                                                    SMS Timestamp
+                                                    SMS Sent
                                                 </th>
                                                 <th className="py-2.5 px-3 text-[11px] font-bold text-center min-w-[140px]">
                                                     Field Remarks
@@ -1102,6 +1102,36 @@ export default function AlertTrackerPage() {
                                             const isDispatched = rawDeliveryStatus && rawDeliveryStatus !== "NOT_DISPATCHED" && rawDeliveryStatus !== "NONE" && rawDeliveryStatus !== "-";
                                             const isSmsDelivered = isDispatched && (rawDeliveryStatus === "DELIVERY_SUCCESS" || rawDeliveryStatus === "SUCCESS");
                                             const isSmsFailed = isDispatched && (rawDeliveryStatus.includes("FAIL") || rawDeliveryStatus.includes("SUBMIT_FAILED") || rawDeliveryStatus.includes("FAILED"));
+                                            const emailSentDateStr = (isEE && (item.ee_dispatch_date || data?.dateMeta?.eeEscalationDateStr))
+                                                ? (item.ee_dispatch_date || data?.dateMeta?.eeEscalationDateStr)
+                                                : (() => {
+                                                    const raw = item.sent_date || item.sent_at || filterDateInput;
+                                                const ddmmyyyy = String(raw).match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})/);
+                                                let d = 27, m = 9;
+                                                if (ddmmyyyy) {
+                                                    d = parseInt(ddmmyyyy[1], 10);
+                                                    m = parseInt(ddmmyyyy[2], 10) - 1;
+                                                } else {
+                                                    const yyyymmdd = String(raw).match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})/);
+                                                    if (yyyymmdd) {
+                                                        d = parseInt(yyyymmdd[3], 10);
+                                                        m = parseInt(yyyymmdd[2], 10) - 1;
+                                                    } else {
+                                                        const dt = new Date(raw);
+                                                        if (!isNaN(dt.getTime())) {
+                                                            d = dt.getDate();
+                                                            m = dt.getMonth();
+                                                        }
+                                                    }
+                                                }
+                                                const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                                                const s = ["th", "st", "nd", "rd"];
+                                                const v = d % 100;
+                                                const ordinal = d + (s[(v - 20) % 10] || s[v] || s[0]);
+                                                return `${ordinal} ${months[m] || 'Oct'}`;
+                                            })();
+
+                                            const smsSentDateStr = emailSentDateStr;
                                             const isEmailSent = Boolean(item.email_sent && actualEeName);
 
                                             return (
@@ -1286,8 +1316,8 @@ export default function AlertTrackerPage() {
                                                                                 officer_email: item.ee_email || item.recipient_email || "ee.mjp@mahagov.in",
                                                                                 officer_mobile: contactMobile,
                                                                             },
-                                                                            emailDate: filterDateInput,
-                                                                            emailTime: formattedTime,
+                                                                            emailDate: emailSentDateStr,
+                                                                            emailTime: "",
                                                                             targetTier: "Tier 1 - Executive Engineer",
                                                                         });
                                                                     }}
@@ -1297,10 +1327,10 @@ export default function AlertTrackerPage() {
                                                                     <div className="flex items-center gap-1.5">
                                                                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 group-hover:bg-blue-100 transition-colors shadow-2xs">
                                                                             <Mail className="w-2.5 h-2.5 text-blue-600" />
-                                                                            Sent (1)
+                                                                            Sent
                                                                         </span>
-                                                                        <span className="text-[10px] text-slate-500 font-normal">
-                                                                            {formattedTime}
+                                                                        <span className="text-[11px] text-[#0A2540] font-semibold">
+                                                                            {emailSentDateStr}
                                                                         </span>
                                                                     </div>
                                                                     <span className="text-[10px] font-medium text-slate-500 group-hover:text-blue-700">
@@ -1349,8 +1379,8 @@ export default function AlertTrackerPage() {
                                                                         })(),
                                                                         alert_title: alertBadgeText,
                                                                         delivery_status: rawDeliveryStatus,
-                                                                        sent_time: formattedTime,
-                                                                        sent_date: filterDateInput,
+                                                                        sent_time: "",
+                                                                        sent_date: smsSentDateStr,
                                                                     };
                                                                     setSelectedSmsItem({
                                                                         item: {
@@ -1360,6 +1390,7 @@ export default function AlertTrackerPage() {
                                                                             officer_name: contactName || "-",
                                                                             officer_role: isEE ? "Executive Engineer" : "Village Operator",
                                                                             officer_mobile: contactMobile,
+                                                                            sms_date: smsSentDateStr,
                                                                         },
                                                                         smsList: [defaultSms],
                                                                     });
@@ -1378,8 +1409,8 @@ export default function AlertTrackerPage() {
                                                                                     <MessageSquare className="w-2.5 h-2.5 text-current" />
                                                                                     Delivered (1/1)
                                                                                 </span>
-                                                                                <span className="text-[10px] text-slate-500 font-normal">
-                                                                                    {formattedTime}
+                                                                                <span className="text-[11px] text-[#0A2540] font-semibold">
+                                                                                    {smsSentDateStr}
                                                                                 </span>
                                                                             </div>
                                                                             <span className="text-[10px] text-slate-500 group-hover:text-emerald-800">
@@ -1402,8 +1433,8 @@ export default function AlertTrackerPage() {
                                                                                     <MessageSquare className="w-2.5 h-2.5 text-current" />
                                                                                     Failed (1)
                                                                                 </span>
-                                                                                <span className="text-[10px] text-slate-500 font-normal">
-                                                                                    {formattedTime}
+                                                                                <span className="text-[11px] text-[#0A2540] font-semibold">
+                                                                                    {smsSentDateStr}
                                                                                 </span>
                                                                             </div>
                                                                             <span className="text-[10px] text-rose-600 font-medium">
@@ -1805,8 +1836,8 @@ export default function AlertTrackerPage() {
                                                         Success (Sent Via SMTP)
                                                     </span>
                                                     <span className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
-                                                        <Clock className="w-3 h-3 text-slate-400" />
-                                                        Dispatched: {selectedEmailItem.emailDate} at {selectedEmailItem.emailTime || "11:00 am"}
+                                                        <Calendar className="w-3 h-3 text-slate-400" />
+                                                        Dispatched: {selectedEmailItem.emailDate}
                                                     </span>
                                                 </>
                                             ) : (
@@ -1985,8 +2016,8 @@ export default function AlertTrackerPage() {
                                             </div>
                                             <span className="text-slate-300">•</span>
                                             <div className="flex items-center gap-1">
-                                                <Clock className="h-3 w-3 text-slate-400" />
-                                                <span>{selectedSmsItem.item.sent_time || "11:00 am"}</span>
+                                                <Calendar className="h-3 w-3 text-slate-400" />
+                                                <span className="font-semibold text-slate-700">{selectedSmsItem.item.sms_date || selectedSmsItem.item.sent_date || "26th Oct"}</span>
                                             </div>
                                         </div>
                                     </div>

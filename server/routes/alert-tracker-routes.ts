@@ -331,7 +331,7 @@ router.get("/summary", async (req: Request, res: Response) => {
 router.post("/escalate", async (req: Request, res: Response) => {
   try {
     const targetDate = (req.body?.date as string) || (req.query?.date as string);
-    const dryRun = req.body?.dryRun === true;
+    const dryRun = req.body?.dryRun === true || req.query?.dryRun === "true";
     trackerCache.clear(); // Invalidate cache so newly dispatched logs appear immediately
     const result = await runDailyAlertTrackerEscalation({ targetDate, dryRun });
     return res.json(result);

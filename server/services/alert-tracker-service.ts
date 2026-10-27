@@ -45,6 +45,7 @@ export interface AlertTrackerItem {
   remarks_count?: number;
   email_sent?: boolean;
   sms_sent?: boolean;
+  ee_dispatch_date?: string;
   water_value?: number | string;
   val_latest?: number | null;
   val_today?: number | null;
@@ -797,6 +798,7 @@ export async function getAlertTrackerMetrics(params: {
         escalated_to_ee: isEE,
         unresolved_since: isUnresolvedNextDay ? `Since ${evalDisplayDate}` : "-",
         escalation_date: isEE ? nextDayDisplayDate : undefined,
+        ee_dispatch_date: isEE ? meta.eeEscalationDateStr : undefined,
         sent_date: alertIsoDate,
         sent_at: `${alertIsoDate}T10:30:00.000Z`,
         operator_name: row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" ? row.operator_name : "-",
@@ -878,6 +880,7 @@ export async function getAlertTrackerMetrics(params: {
         escalated_to_ee: isEE,
         unresolved_since: isUnresolvedNextDay ? `Since ${evalDisplayDate}` : "-",
         escalation_date: isEE ? nextDayDisplayDate : undefined,
+        ee_dispatch_date: isEE ? meta.eeEscalationDateStr : undefined,
         sent_date: alertIsoDate,
         sent_at: `${alertIsoDate}T10:30:00.000Z`,
         operator_name: row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" ? row.operator_name : "-",
@@ -963,6 +966,7 @@ export async function getAlertTrackerMetrics(params: {
         escalated_to_ee: isEE,
         unresolved_since: isUnresolvedNextDay ? `Since ${evalDisplayDate}` : "-",
         escalation_date: isEE ? nextDayDisplayDate : undefined,
+        ee_dispatch_date: isEE ? meta.eeEscalationDateStr : undefined,
         sent_date: alertIsoDate,
         sent_at: `${alertIsoDate}T10:30:00.000Z`,
         operator_name: row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" ? row.operator_name : "-",
@@ -1036,7 +1040,7 @@ export async function runDailyAlertTrackerEscalation(options?: {
   await ensureAlertTrackerTables();
   const db = await getDB();
   const dryRun = options?.dryRun ?? false;
-  const { isoDate, displayDate, dayIdx } = getTelemetryDayIndex(options?.targetDate);
+  const { isoDate, displayDate, dayIdx, alertDateObj } = getTelemetryDayIndex(options?.targetDate);
 
   console.log(`[AlertTracker] Running daily alert evaluation for date: ${isoDate} (dryRun=${dryRun})`);
 
@@ -1051,13 +1055,15 @@ export async function runDailyAlertTrackerEscalation(options?: {
     const alertsByEE = new Map<string, { eeName: string; eeMobile: string; eeEmail: string; alerts: AlertTrackerItem[] }>();
 
     // Collect alerts for EE escalation:
-    // If the selected date has alerts already flagged for EE, use them.
-    // If the selected date is the latest reported day (where alerts are still in their 24-hr operator window),
-    // fetch the unresolved alerts from the prior observation day (e.g. 23-Oct) which are due for EE escalation today!
+    // If the evaluated date has alerts already flagged for EE, use them.
+    // If the evaluated date's alerts are still in their initial 24-hr operator window (e.g. evaluating 27th Oct),
+    // fetch the unresolved alerts from the prior observation day (e.g. 26th Oct, which evaluated 25th data)
+    // which have completed their 24-hr window and are due for EE escalation TODAY!
     let eeEscalationAlerts = allAlerts.filter((item) => item.escalated_to_ee);
-    if (eeEscalationAlerts.length === 0 && dayIdx > 1) {
-      const prevDate = `2026-10-${String(dayIdx + 18 - 1).padStart(2, "0")}`;
-      const prevMetrics = await getAlertTrackerMetrics({ date: prevDate });
+    if (eeEscalationAlerts.length === 0) {
+      const prevDateObj = new Date(alertDateObj.getTime() - 86400000);
+      const prevIsoDate = `${prevDateObj.getUTCFullYear()}-${String(prevDateObj.getUTCMonth() + 1).padStart(2, "0")}-${String(prevDateObj.getUTCDate()).padStart(2, "0")}`;
+      const prevMetrics = await getAlertTrackerMetrics({ date: prevIsoDate });
       eeEscalationAlerts = (prevMetrics.allAlerts || []).filter((item) => item.escalated_to_ee);
     }
 
@@ -1251,6 +1257,21 @@ export async function runDailyAlertTrackerEscalation(options?: {
               </table>
             `;
 
+            const sampleAlert = alerts[0];
+            let dataDateDisplay = "";
+            if (sampleAlert?.unresolved_since && sampleAlert.unresolved_since.startsWith("Since ")) {
+              dataDateDisplay = sampleAlert.unresolved_since.replace("Since ", "").trim();
+            } else if (sampleAlert?.original_alert_date) {
+              const parts = String(sampleAlert.original_alert_date).split(/[-T/]/);
+              if (parts.length >= 3) {
+                dataDateDisplay = parts[0].length === 4 ? `${parts[2]}/${parts[1]}/${parts[0]}` : `${parts[0]}/${parts[1]}/${parts[2]}`;
+              } else {
+                dataDateDisplay = String(sampleAlert.original_alert_date);
+              }
+            } else {
+              dataDateDisplay = displayDate;
+            }
+
             const emailHtml = `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0;">
                 <div style="background-color: #dc2626; color: white; padding: 20px; text-align: center;">
@@ -1260,7 +1281,7 @@ export async function runDailyAlertTrackerEscalation(options?: {
 
                 <div style="padding: 30px; background-color: #ffffff;">
                   <h2 style="color: #1f2937; margin-top: 0;">Hello ${eeName},</h2>
-                  <p style="color: #374151; font-size: 16px;">The following schemes assigned to you have critical parameters falling below acceptable thresholds as of today (${displayDate}).</p>
+                  <p style="color: #374151; font-size: 16px;">The following schemes assigned to you have critical parameters falling below acceptable thresholds as of data date (${dataDateDisplay}).</p>
 
                   ${alertsHtml}
 
