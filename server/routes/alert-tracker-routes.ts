@@ -123,110 +123,301 @@ router.get("/summary", async (req: Request, res: Response) => {
       opVillagesRes,
       opEsrsRes,
     ]: any = await Promise.all([
+      // 1. Partial Schemes
       db.execute(sql`
         SELECT DISTINCT ON (ss.scheme_id)
           ss.scheme_id, ss.scheme_name, ss.region, ss.circle, ss.division, ss.sub_division, ss.block,
-          ss.total_villages_integrated, ss.total_esr_integrated,
+          COALESCE(ss.number_of_village, ss.total_villages_integrated, 0) as total_villages,
+          COALESCE(ss.total_number_of_esr, ss.total_esr_integrated, 0) as total_esrs,
+          COALESCE(sp.total_population, 0) as population,
           ss.fully_completion_scheme_status as status,
-          ss.water_supply, ss.agency_type
+          ss.water_supply, ss.agency_type,
+          COALESCE(sod.operator_name, '-') as operator_name,
+          COALESCE(sod.operator_number, '-') as operator_number
         FROM scheme_status ss
+        LEFT JOIN (
+          SELECT scheme_id, SUM(COALESCE(population, 0)) as total_population
+          FROM water_scheme_data
+          GROUP BY scheme_id
+        ) sp ON sp.scheme_id = ss.scheme_id
+        LEFT JOIN (
+          SELECT DISTINCT ON (scheme_id)
+            scheme_id, operator_name, operator_number
+          FROM scheme_operator_details
+          WHERE operator_name IS NOT NULL AND operator_name != '' AND operator_name != '-' AND LOWER(operator_name) != 'village operator'
+          ORDER BY scheme_id, (operator_number IS NOT NULL AND operator_number != '' AND operator_number != '-') DESC
+        ) sod ON sod.scheme_id = ss.scheme_id
         WHERE (LOWER(ss.fully_completion_scheme_status) LIKE '%progress%' OR LOWER(ss.fully_completion_scheme_status) LIKE '%partial%')
           ${regionSchemeStatusFilter}
           ${agencySchemeStatusFilter}
         ORDER BY ss.scheme_id, ss.region, ss.scheme_name;
       `),
+      // 2. Fully Completed Schemes
       db.execute(sql`
         SELECT DISTINCT ON (ss.scheme_id)
           ss.scheme_id, ss.scheme_name, ss.region, ss.circle, ss.division, ss.sub_division, ss.block,
-          ss.fully_completed_villages, ss.no_fully_completed_esr,
+          COALESCE(ss.fully_completed_villages, ss.number_of_village, ss.total_villages_integrated, 0) as total_villages,
+          COALESCE(ss.no_fully_completed_esr, ss.total_number_of_esr, ss.total_esr_integrated, 0) as total_esrs,
+          COALESCE(sp.total_population, 0) as population,
           ss.fully_completion_scheme_status as status,
-          ss.water_supply, ss.agency_type
+          ss.water_supply, ss.agency_type,
+          COALESCE(sod.operator_name, '-') as operator_name,
+          COALESCE(sod.operator_number, '-') as operator_number
         FROM scheme_status ss
+        LEFT JOIN (
+          SELECT scheme_id, SUM(COALESCE(population, 0)) as total_population
+          FROM water_scheme_data
+          GROUP BY scheme_id
+        ) sp ON sp.scheme_id = ss.scheme_id
+        LEFT JOIN (
+          SELECT DISTINCT ON (scheme_id)
+            scheme_id, operator_name, operator_number
+          FROM scheme_operator_details
+          WHERE operator_name IS NOT NULL AND operator_name != '' AND operator_name != '-' AND LOWER(operator_name) != 'village operator'
+          ORDER BY scheme_id, (operator_number IS NOT NULL AND operator_number != '' AND operator_number != '-') DESC
+        ) sod ON sod.scheme_id = ss.scheme_id
         WHERE (TRIM(LOWER(ss.fully_completion_scheme_status)) IN ('fully completed', 'completed', 'fully-completed') OR TRIM(LOWER(ss.mjp_fully_completed)) = 'yes')
           ${regionSchemeStatusFilter}
           ${agencySchemeStatusFilter}
         ORDER BY ss.scheme_id, ss.region, ss.scheme_name;
       `),
+      // 3. Partial Villages
       db.execute(sql`
         SELECT DISTINCT ON (v.scheme_id, LOWER(TRIM(v.village_name)))
           v.scheme_id, v.scheme_name, v.village_name, v.region, v.circle, v.division, v.sub_division, v.block,
+          COALESCE(ve.esr_count, 0) as total_esrs,
           COALESCE(ws.population, 0) as population,
-          COALESCE(ws.lpcd_value_day7::text, ws.lpcd_value_day1::text, '-') as lpcd_value,
-          'In Progress' as status, ss.agency_type
+          'In Progress' as status, ss.agency_type,
+          COALESCE(sod.operator_name, sod_sch.operator_name, '-') as operator_name,
+          COALESCE(sod.operator_number, sod_sch.operator_number, '-') as operator_number
         FROM village v
         JOIN scheme_status ss ON ss.scheme_id = v.scheme_id AND (LOWER(ss.fully_completion_scheme_status) LIKE '%progress%' OR LOWER(ss.fully_completion_scheme_status) LIKE '%partial%')
         LEFT JOIN water_scheme_data ws ON ws.scheme_id = v.scheme_id AND LOWER(TRIM(ws.village_name)) = LOWER(TRIM(v.village_name))
+        LEFT JOIN (
+          SELECT scheme_id, LOWER(TRIM(village_name)) as v_name, COUNT(DISTINCT esr_name) as esr_count
+          FROM communication_status
+          WHERE esr_name IS NOT NULL AND esr_name != '-'
+          GROUP BY scheme_id, LOWER(TRIM(village_name))
+        ) ve ON ve.scheme_id = v.scheme_id AND ve.v_name = LOWER(TRIM(v.village_name))
+        LEFT JOIN (
+          SELECT DISTINCT ON (scheme_id, LOWER(TRIM(village_name)))
+            scheme_id, LOWER(TRIM(village_name)) as v_name, operator_name, operator_number
+          FROM scheme_operator_details
+          WHERE operator_name IS NOT NULL AND operator_name != '' AND operator_name != '-' AND LOWER(operator_name) != 'village operator'
+          ORDER BY scheme_id, LOWER(TRIM(village_name)), (operator_number IS NOT NULL AND operator_number != '' AND operator_number != '-') DESC
+        ) sod ON sod.scheme_id = v.scheme_id AND sod.v_name = LOWER(TRIM(v.village_name))
+        LEFT JOIN (
+          SELECT DISTINCT ON (scheme_id)
+            scheme_id, operator_name, operator_number
+          FROM scheme_operator_details
+          WHERE operator_name IS NOT NULL AND operator_name != '' AND operator_name != '-' AND LOWER(operator_name) != 'village operator'
+          ORDER BY scheme_id, (operator_number IS NOT NULL AND operator_number != '' AND operator_number != '-') DESC
+        ) sod_sch ON sod_sch.scheme_id = v.scheme_id
         WHERE 1=1
           ${regionVillageFilter}
           ${agencySchemeStatusFilter}
         ORDER BY v.scheme_id, LOWER(TRIM(v.village_name));
       `),
+      // 4. Fully Completed Villages
       db.execute(sql`
         SELECT DISTINCT ON (v.scheme_id, LOWER(TRIM(v.village_name)))
           v.scheme_id, v.scheme_name, v.village_name, v.region, v.circle, v.division, v.sub_division, v.block,
+          COALESCE(ve.esr_count, 0) as total_esrs,
           COALESCE(ws.population, 0) as population,
-          COALESCE(ws.lpcd_value_day7::text, ws.lpcd_value_day1::text, '-') as lpcd_value,
-          'Fully Completed' as status, ss.agency_type
+          'Fully Completed' as status, ss.agency_type,
+          COALESCE(sod.operator_name, sod_sch.operator_name, '-') as operator_name,
+          COALESCE(sod.operator_number, sod_sch.operator_number, '-') as operator_number
         FROM village v
         JOIN scheme_status ss ON ss.scheme_id = v.scheme_id AND (TRIM(LOWER(ss.fully_completion_scheme_status)) IN ('fully completed', 'completed', 'fully-completed') OR TRIM(LOWER(ss.mjp_fully_completed)) = 'yes')
         LEFT JOIN water_scheme_data ws ON ws.scheme_id = v.scheme_id AND LOWER(TRIM(ws.village_name)) = LOWER(TRIM(v.village_name))
+        LEFT JOIN (
+          SELECT scheme_id, LOWER(TRIM(village_name)) as v_name, COUNT(DISTINCT esr_name) as esr_count
+          FROM communication_status
+          WHERE esr_name IS NOT NULL AND esr_name != '-'
+          GROUP BY scheme_id, LOWER(TRIM(village_name))
+        ) ve ON ve.scheme_id = v.scheme_id AND ve.v_name = LOWER(TRIM(v.village_name))
+        LEFT JOIN (
+          SELECT DISTINCT ON (scheme_id, LOWER(TRIM(village_name)))
+            scheme_id, LOWER(TRIM(village_name)) as v_name, operator_name, operator_number
+          FROM scheme_operator_details
+          WHERE operator_name IS NOT NULL AND operator_name != '' AND operator_name != '-' AND LOWER(operator_name) != 'village operator'
+          ORDER BY scheme_id, LOWER(TRIM(village_name)), (operator_number IS NOT NULL AND operator_number != '' AND operator_number != '-') DESC
+        ) sod ON sod.scheme_id = v.scheme_id AND sod.v_name = LOWER(TRIM(v.village_name))
+        LEFT JOIN (
+          SELECT DISTINCT ON (scheme_id)
+            scheme_id, operator_name, operator_number
+          FROM scheme_operator_details
+          WHERE operator_name IS NOT NULL AND operator_name != '' AND operator_name != '-' AND LOWER(operator_name) != 'village operator'
+          ORDER BY scheme_id, (operator_number IS NOT NULL AND operator_number != '' AND operator_number != '-') DESC
+        ) sod_sch ON sod_sch.scheme_id = v.scheme_id
         WHERE 1=1
           ${regionVillageFilter}
           ${agencySchemeStatusFilter}
         ORDER BY v.scheme_id, LOWER(TRIM(v.village_name));
       `),
+      // 5. Partial ESRs
       db.execute(sql`
         SELECT DISTINCT ON (cs.scheme_id, LOWER(TRIM(cs.village_name)), LOWER(TRIM(cs.esr_name)))
           cs.scheme_id, cs.scheme_name, cs.village_name, cs.esr_name, cs.region, cs.circle, cs.division, cs.sub_division, cs.block,
-          cs.chlorine_connected, cs.pressure_connected, cs.flow_meter_connected,
-          cs.overall_status as status, ss.agency_type
+          COALESCE(cs.chlorine_connected, 'Not') as chlorine_connected,
+          COALESCE(cs.pressure_connected, 'Not') as pressure_connected,
+          COALESCE(cs.flow_meter_connected, 'Not') as flow_meter_connected,
+          COALESCE(ss.residual_chlorine_analyzer_connected, 0) as scheme_chlorine,
+          COALESCE(ss.pressure_transmitter_connected, 0) as scheme_pressure,
+          COALESCE(ss.flow_meters_connected, 0) as scheme_flow_meters,
+          cs.overall_status as status, ss.agency_type,
+          COALESCE(sod.operator_name, sod_sch.operator_name, '-') as operator_name,
+          COALESCE(sod.operator_number, sod_sch.operator_number, '-') as operator_number
         FROM communication_status cs
         JOIN scheme_status ss ON ss.scheme_id = cs.scheme_id AND (LOWER(ss.fully_completion_scheme_status) LIKE '%progress%' OR LOWER(ss.fully_completion_scheme_status) LIKE '%partial%')
+        LEFT JOIN (
+          SELECT DISTINCT ON (scheme_id, LOWER(TRIM(village_name)))
+            scheme_id, LOWER(TRIM(village_name)) as v_name, operator_name, operator_number
+          FROM scheme_operator_details
+          WHERE operator_name IS NOT NULL AND operator_name != '' AND operator_name != '-' AND LOWER(operator_name) != 'village operator'
+          ORDER BY scheme_id, LOWER(TRIM(village_name)), (operator_number IS NOT NULL AND operator_number != '' AND operator_number != '-') DESC
+        ) sod ON sod.scheme_id = cs.scheme_id AND sod.v_name = LOWER(TRIM(cs.village_name))
+        LEFT JOIN (
+          SELECT DISTINCT ON (scheme_id)
+            scheme_id, operator_name, operator_number
+          FROM scheme_operator_details
+          WHERE operator_name IS NOT NULL AND operator_name != '' AND operator_name != '-' AND LOWER(operator_name) != 'village operator'
+          ORDER BY scheme_id, (operator_number IS NOT NULL AND operator_number != '' AND operator_number != '-') DESC
+        ) sod_sch ON sod_sch.scheme_id = cs.scheme_id
         WHERE cs.esr_name IS NOT NULL AND cs.esr_name != '-'
           ${regionCommFilter}
           ${agencySchemeStatusFilter}
         ORDER BY cs.scheme_id, LOWER(TRIM(cs.village_name)), LOWER(TRIM(cs.esr_name));
       `),
+      // 6. Fully Completed ESRs
       db.execute(sql`
         SELECT DISTINCT ON (cs.scheme_id, LOWER(TRIM(cs.village_name)), LOWER(TRIM(cs.esr_name)))
           cs.scheme_id, cs.scheme_name, cs.village_name, cs.esr_name, cs.region, cs.circle, cs.division, cs.sub_division, cs.block,
-          cs.chlorine_connected, cs.pressure_connected, cs.flow_meter_connected,
-          cs.overall_status as status, ss.agency_type
+          COALESCE(cs.chlorine_connected, 'Not') as chlorine_connected,
+          COALESCE(cs.pressure_connected, 'Not') as pressure_connected,
+          COALESCE(cs.flow_meter_connected, 'Not') as flow_meter_connected,
+          COALESCE(ss.residual_chlorine_analyzer_connected, 0) as scheme_chlorine,
+          COALESCE(ss.pressure_transmitter_connected, 0) as scheme_pressure,
+          COALESCE(ss.flow_meters_connected, 0) as scheme_flow_meters,
+          cs.overall_status as status, ss.agency_type,
+          COALESCE(sod.operator_name, sod_sch.operator_name, '-') as operator_name,
+          COALESCE(sod.operator_number, sod_sch.operator_number, '-') as operator_number
         FROM communication_status cs
         JOIN scheme_status ss ON ss.scheme_id = cs.scheme_id AND (TRIM(LOWER(ss.fully_completion_scheme_status)) IN ('fully completed', 'completed', 'fully-completed') OR TRIM(LOWER(ss.mjp_fully_completed)) = 'yes')
+        LEFT JOIN (
+          SELECT DISTINCT ON (scheme_id, LOWER(TRIM(village_name)))
+            scheme_id, LOWER(TRIM(village_name)) as v_name, operator_name, operator_number
+          FROM scheme_operator_details
+          WHERE operator_name IS NOT NULL AND operator_name != '' AND operator_name != '-' AND LOWER(operator_name) != 'village operator'
+          ORDER BY scheme_id, LOWER(TRIM(village_name)), (operator_number IS NOT NULL AND operator_number != '' AND operator_number != '-') DESC
+        ) sod ON sod.scheme_id = cs.scheme_id AND sod.v_name = LOWER(TRIM(cs.village_name))
+        LEFT JOIN (
+          SELECT DISTINCT ON (scheme_id)
+            scheme_id, operator_name, operator_number
+          FROM scheme_operator_details
+          WHERE operator_name IS NOT NULL AND operator_name != '' AND operator_name != '-' AND LOWER(operator_name) != 'village operator'
+          ORDER BY scheme_id, (operator_number IS NOT NULL AND operator_number != '' AND operator_number != '-') DESC
+        ) sod_sch ON sod_sch.scheme_id = cs.scheme_id
         WHERE cs.esr_name IS NOT NULL AND cs.esr_name != '-'
           ${regionCommFilter}
           ${agencySchemeStatusFilter}
         ORDER BY cs.scheme_id, LOWER(TRIM(cs.village_name)), LOWER(TRIM(cs.esr_name));
       `),
+      // 7. Operational Connected Schemes
       db.execute(sql`
         SELECT DISTINCT ON (ss.scheme_id)
           ss.scheme_id, ss.scheme_name, ss.region, ss.circle, ss.division, ss.sub_division, ss.block,
-          ss.water_supply as status, ss.agency_type
+          COALESCE(ss.number_of_village, ss.total_villages_integrated, 0) as total_villages,
+          COALESCE(ss.total_number_of_esr, ss.total_esr_integrated, 0) as total_esrs,
+          COALESCE(sp.total_population, 0) as population,
+          ss.water_supply as status, ss.agency_type,
+          COALESCE(sod.operator_name, '-') as operator_name,
+          COALESCE(sod.operator_number, '-') as operator_number
         FROM scheme_status ss
+        LEFT JOIN (
+          SELECT scheme_id, SUM(COALESCE(population, 0)) as total_population
+          FROM water_scheme_data
+          GROUP BY scheme_id
+        ) sp ON sp.scheme_id = ss.scheme_id
+        LEFT JOIN (
+          SELECT DISTINCT ON (scheme_id)
+            scheme_id, operator_name, operator_number
+          FROM scheme_operator_details
+          WHERE operator_name IS NOT NULL AND operator_name != '' AND operator_name != '-' AND LOWER(operator_name) != 'village operator'
+          ORDER BY scheme_id, (operator_number IS NOT NULL AND operator_number != '' AND operator_number != '-') DESC
+        ) sod ON sod.scheme_id = ss.scheme_id
         WHERE ss.water_supply = 'Yes'
           AND (ss.total_villages_integrated > 0 OR ss.total_esr_integrated > 0)
           ${regionSchemeStatusFilter}
           ${agencySchemeStatusFilter}
         ORDER BY ss.scheme_id, ss.region, ss.scheme_name;
       `),
+      // 8. Operational Connected Villages
       db.execute(sql`
         SELECT DISTINCT ON (ws.scheme_id, LOWER(TRIM(ws.village_name)))
           ws.scheme_id, ws.scheme_name, ws.village_name, ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
-          ws.population, ws.lpcd_value_day7 as lpcd_value, 'Yes' as status, ss.agency_type
+          COALESCE(ve.esr_count, 0) as total_esrs,
+          COALESCE(ws.population, 0) as population,
+          'Yes' as status, ss.agency_type,
+          COALESCE(sod.operator_name, sod_sch.operator_name, '-') as operator_name,
+          COALESCE(sod.operator_number, sod_sch.operator_number, '-') as operator_number
         FROM water_scheme_data ws
         JOIN scheme_status ss ON ss.scheme_id = ws.scheme_id AND ss.water_supply = 'Yes' AND (ss.total_villages_integrated > 0 OR ss.total_esr_integrated > 0)
+        LEFT JOIN (
+          SELECT scheme_id, LOWER(TRIM(village_name)) as v_name, COUNT(DISTINCT esr_name) as esr_count
+          FROM communication_status
+          WHERE esr_name IS NOT NULL AND esr_name != '-'
+          GROUP BY scheme_id, LOWER(TRIM(village_name))
+        ) ve ON ve.scheme_id = ws.scheme_id AND ve.v_name = LOWER(TRIM(ws.village_name))
+        LEFT JOIN (
+          SELECT DISTINCT ON (scheme_id, LOWER(TRIM(village_name)))
+            scheme_id, LOWER(TRIM(village_name)) as v_name, operator_name, operator_number
+          FROM scheme_operator_details
+          WHERE operator_name IS NOT NULL AND operator_name != '' AND operator_name != '-' AND LOWER(operator_name) != 'village operator'
+          ORDER BY scheme_id, LOWER(TRIM(village_name)), (operator_number IS NOT NULL AND operator_number != '' AND operator_number != '-') DESC
+        ) sod ON sod.scheme_id = ws.scheme_id AND sod.v_name = LOWER(TRIM(ws.village_name))
+        LEFT JOIN (
+          SELECT DISTINCT ON (scheme_id)
+            scheme_id, operator_name, operator_number
+          FROM scheme_operator_details
+          WHERE operator_name IS NOT NULL AND operator_name != '' AND operator_name != '-' AND LOWER(operator_name) != 'village operator'
+          ORDER BY scheme_id, (operator_number IS NOT NULL AND operator_number != '' AND operator_number != '-') DESC
+        ) sod_sch ON sod_sch.scheme_id = ws.scheme_id
         WHERE ws.village_name IS NOT NULL
           ${regionWaterFilter}
           ${agencySchemeStatusFilter}
         ORDER BY ws.scheme_id, LOWER(TRIM(ws.village_name));
       `),
+      // 9. Operational Connected ESRs
       db.execute(sql`
         SELECT DISTINCT ON (c.scheme_id, LOWER(TRIM(c.village_name)), LOWER(TRIM(c.esr_name)))
           c.scheme_id, c.scheme_name, c.village_name, c.esr_name, c.region, c.circle, c.division, c.sub_division, c.block,
-          'Yes' as status, ss.agency_type
+          COALESCE(cs.chlorine_connected, 'Connected') as chlorine_connected,
+          COALESCE(cs.pressure_connected, 'Connected') as pressure_connected,
+          COALESCE(cs.flow_meter_connected, 'Connected') as flow_meter_connected,
+          COALESCE(ss.residual_chlorine_analyzer_connected, 0) as scheme_chlorine,
+          COALESCE(ss.pressure_transmitter_connected, 0) as scheme_pressure,
+          COALESCE(ss.flow_meters_connected, 0) as scheme_flow_meters,
+          'Yes' as status, ss.agency_type,
+          COALESCE(sod.operator_name, sod_sch.operator_name, '-') as operator_name,
+          COALESCE(sod.operator_number, sod_sch.operator_number, '-') as operator_number
         FROM chlorine_data c
         JOIN scheme_status ss ON ss.scheme_id = c.scheme_id AND ss.water_supply = 'Yes' AND (ss.total_villages_integrated > 0 OR ss.total_esr_integrated > 0)
+        LEFT JOIN communication_status cs ON cs.scheme_id = c.scheme_id AND LOWER(TRIM(cs.village_name)) = LOWER(TRIM(c.village_name)) AND LOWER(TRIM(cs.esr_name)) = LOWER(TRIM(c.esr_name))
+        LEFT JOIN (
+          SELECT DISTINCT ON (scheme_id, LOWER(TRIM(village_name)))
+            scheme_id, LOWER(TRIM(village_name)) as v_name, operator_name, operator_number
+          FROM scheme_operator_details
+          WHERE operator_name IS NOT NULL AND operator_name != '' AND operator_name != '-' AND LOWER(operator_name) != 'village operator'
+          ORDER BY scheme_id, LOWER(TRIM(village_name)), (operator_number IS NOT NULL AND operator_number != '' AND operator_number != '-') DESC
+        ) sod ON sod.scheme_id = c.scheme_id AND sod.v_name = LOWER(TRIM(c.village_name))
+        LEFT JOIN (
+          SELECT DISTINCT ON (scheme_id)
+            scheme_id, operator_name, operator_number
+          FROM scheme_operator_details
+          WHERE operator_name IS NOT NULL AND operator_name != '' AND operator_name != '-' AND LOWER(operator_name) != 'village operator'
+          ORDER BY scheme_id, (operator_number IS NOT NULL AND operator_number != '' AND operator_number != '-') DESC
+        ) sod_sch ON sod_sch.scheme_id = c.scheme_id
         WHERE c.esr_name IS NOT NULL AND c.esr_name != '-'
           ${regionChlorineFilter}
           ${agencySchemeStatusFilter}

@@ -122,6 +122,7 @@ export default function AlertTrackerPage() {
         count: number | string;
         items: any[];
         colType?: "operator" | "escalation" | "resolved";
+        scopeType?: "scheme" | "village" | "esr";
     } | null>(null);
 
     const [modalSearch, setModalSearch] = useState<string>("");
@@ -325,10 +326,14 @@ export default function AlertTrackerPage() {
     const handleScopeClick = (title: string, itemsKey: string, countVal: number | string) => {
         const details = data?.details || {};
         const items = details[itemsKey] || [];
+        const isScheme = itemsKey.toLowerCase().includes("scheme");
+        const isVillage = itemsKey.toLowerCase().includes("village");
+        const isEsr = itemsKey.toLowerCase().includes("esr");
         setSelectedCellDetails({
             title,
             metric: itemsKey,
             category: "scope",
+            scopeType: isScheme ? "scheme" : isVillage ? "village" : "esr",
             count: countVal,
             items,
         });
@@ -444,7 +449,17 @@ export default function AlertTrackerPage() {
                 String(item.recipient_name || item.operator_name || item.ee_name || "").toLowerCase().includes(q) ||
                 String(item.recipient_contact || item.operator_number || item.ee_number || "").toLowerCase().includes(q) ||
                 String(item.region || "").toLowerCase().includes(q) ||
-                String(item.reading_value || item.telemetry_value || "").toLowerCase().includes(q)
+                String(item.division || "").toLowerCase().includes(q) ||
+                String(item.block || "").toLowerCase().includes(q) ||
+                String(item.total_villages || "").toLowerCase().includes(q) ||
+                String(item.total_esrs || "").toLowerCase().includes(q) ||
+                String(item.population || "").toLowerCase().includes(q) ||
+                String(item.flow_meter_connected || "").toLowerCase().includes(q) ||
+                String(item.pressure_connected || "").toLowerCase().includes(q) ||
+                String(item.chlorine_connected || "").toLowerCase().includes(q) ||
+                String(item.reading_value || item.telemetry_value || "").toLowerCase().includes(q) ||
+                String(item.latest_lpcd || "").toLowerCase().includes(q) ||
+                String(item.latest_water || "").toLowerCase().includes(q)
             );
         });
     }, [selectedCellDetails, modalSearch]);
@@ -625,7 +640,7 @@ export default function AlertTrackerPage() {
                                 {/* Row 3: Operational */}
                                 <tr>
                                     <td className="p-2 sm:p-2.5 font-bold border-r border-[#4A6484] bg-[#EBF3FB] text-[#0A2540] w-1/4 text-center sm:text-left">
-                                        Operational
+                                        IoT Operational
                                     </td>
                                     <td
                                         onClick={() => handleScopeClick("Operational Connected Schemes", "operationalSchemes", operational.schemes || 39)}
@@ -1003,59 +1018,363 @@ export default function AlertTrackerPage() {
                         <div className="w-full overflow-x-auto border border-[#4A6484] rounded-md shadow-sm">
                             <table className="w-full text-left text-xs border-collapse">
                                 <thead className="bg-[#EBF3FB] text-[#0A2540] font-bold border-b border-[#4A6484]">
-                                    <tr>
-                                        <th className="py-2.5 px-2 text-[11px] font-bold text-center border-r border-[#4A6484] w-14">
-                                            Sr. No.
-                                        </th>
-                                        <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-[#4A6484] min-w-[240px]">
-                                            Scheme & Location Details
-                                        </th>
-                                        {selectedCellDetails?.colType === "resolved" ? (
-                                            <>
-                                                <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[150px]">
-                                                    Alert Reading ({data?.dateMeta?.evalDisplayDate || filterDateInput})
-                                                </th>
-                                                <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[170px]">
-                                                    Resolved Value ({data?.dateMeta?.nextDayDisplayDate || "Resolution Day"})
-                                                </th>
-                                            </>
-                                        ) : (
-                                            <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[140px]">
-                                                Date of Value ({data?.dateMeta?.evalDisplayDate || filterDateInput})
+                                    {selectedCellDetails?.category === "scope" ? (
+                                        <tr>
+                                            <th className="py-2.5 px-2 text-[11px] font-bold text-center border-r border-[#4A6484] w-14">
+                                                Sr. No.
                                             </th>
-                                        )}
-                                        <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-[#4A6484] min-w-[200px]">
-                                            {selectedCellDetails?.colType === "escalation"
-                                                ? "Executive Engineer & Contact"
-                                                : "Assigned Operator  & Contact Details"}
-                                        </th>
-                                        {selectedCellDetails?.colType !== "resolved" && (
-                                            <>
-                                                {selectedCellDetails?.colType === "escalation" && (
-                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[150px]">
-                                                        Email Sent
+                                            <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-[#4A6484] min-w-[260px]">
+                                                {selectedCellDetails?.scopeType === "scheme"
+                                                    ? "Scheme & Location Details"
+                                                    : selectedCellDetails?.scopeType === "village"
+                                                        ? "Village & Scheme Details"
+                                                        : "ESR & Scheme Details"}
+                                            </th>
+                                            {selectedCellDetails?.scopeType === "scheme" && (
+                                                <>
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[120px]">
+                                                        No. of Villages
                                                     </th>
-                                                )}
-                                                <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[150px]">
-                                                    SMS Sent
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[120px]">
+                                                        No. of ESRs
+                                                    </th>
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[130px]">
+                                                        Total Population
+                                                    </th>
+                                                </>
+                                            )}
+                                            {selectedCellDetails?.scopeType === "village" && (
+                                                <>
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[120px]">
+                                                        No. of ESRs
+                                                    </th>
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[130px]">
+                                                        Population
+                                                    </th>
+                                                </>
+                                            )}
+                                            {selectedCellDetails?.scopeType === "esr" && (
+                                                <>
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[130px]">
+                                                        Flow Meters
+                                                    </th>
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[130px]">
+                                                        Pressure Sensors
+                                                    </th>
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[130px]">
+                                                        Chlorine Analyzers
+                                                    </th>
+                                                </>
+                                            )}
+                                            <th className="py-2.5 px-3 text-[11px] font-bold text-left min-w-[200px]">
+                                                Assigned Operator & Contact
+                                            </th>
+                                        </tr>
+                                    ) : (
+                                        <tr>
+                                            <th className="py-2.5 px-2 text-[11px] font-bold text-center border-r border-[#4A6484] w-14">
+                                                Sr. No.
+                                            </th>
+                                            <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-[#4A6484] min-w-[240px]">
+                                                Scheme & Location Details
+                                            </th>
+                                            {selectedCellDetails?.colType === "resolved" ? (
+                                                <>
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[150px]">
+                                                        Alert Reading ({data?.dateMeta?.evalDisplayDate || filterDateInput})
+                                                    </th>
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[170px]">
+                                                        Resolved Value ({data?.dateMeta?.nextDayDisplayDate || "Resolution Day"})
+                                                    </th>
+                                                </>
+                                            ) : (
+                                                <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[140px]">
+                                                    Date of Value ({data?.dateMeta?.evalDisplayDate || filterDateInput})
                                                 </th>
-                                                <th className="py-2.5 px-3 text-[11px] font-bold text-center min-w-[140px]">
-                                                    Field Remarks
-                                                </th>
-                                            </>
-                                        )}
-                                    </tr>
+                                            )}
+                                            <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-[#4A6484] min-w-[200px]">
+                                                {selectedCellDetails?.colType === "escalation"
+                                                    ? "Executive Engineer & Contact"
+                                                    : "Assigned Operator  & Contact Details"}
+                                            </th>
+                                            {selectedCellDetails?.colType !== "resolved" && (
+                                                <>
+                                                    {selectedCellDetails?.colType === "escalation" && (
+                                                        <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[150px]">
+                                                            Email Sent
+                                                        </th>
+                                                    )}
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[150px]">
+                                                        SMS Sent
+                                                    </th>
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center min-w-[140px]">
+                                                        Field Remarks
+                                                    </th>
+                                                </>
+                                            )}
+                                        </tr>
+                                    )}
                                 </thead>
                                 <tbody className="divide-y divide-[#CBD5E1]">
                                     {paginatedModalItems.length === 0 ? (
                                         <tr>
-                                            <td colSpan={selectedCellDetails?.colType === "resolved" ? 5 : selectedCellDetails?.colType === "escalation" ? 7 : 6} className="p-8 text-center text-[#64748B] font-medium bg-white">
+                                            <td
+                                                colSpan={
+                                                    selectedCellDetails?.category === "scope"
+                                                        ? (selectedCellDetails?.scopeType === "village" ? 5 : 6)
+                                                        : (selectedCellDetails?.colType === "resolved" ? 5 : selectedCellDetails?.colType === "escalation" ? 7 : 6)
+                                                }
+                                                className="p-8 text-center text-[#64748B] font-medium bg-white"
+                                            >
                                                 No itemized records found for this filter.
                                             </td>
                                         </tr>
                                     ) : (
                                         paginatedModalItems.map((item: any, idx: number) => {
                                             const rowNum = (modalPage - 1) * modalPageSize + idx + 1;
+                                            const isScope = selectedCellDetails?.category === "scope";
+                                            const scopeType = selectedCellDetails?.scopeType || (selectedCellDetails?.metric?.toLowerCase().includes("scheme") ? "scheme" : selectedCellDetails?.metric?.toLowerCase().includes("village") ? "village" : "esr");
+
+                                            if (isScope) {
+                                                const rawOpName = item.operator_name && item.operator_name !== "-" ? item.operator_name.trim() : null;
+                                                const isGenericName = !rawOpName || rawOpName.toLowerCase() === "village operator";
+                                                const opNumber = item.operator_number && item.operator_number !== "-" ? item.operator_number.trim() : null;
+                                                const opName = !isGenericName ? rawOpName : (opNumber ? "Assigned Operator" : null);
+
+                                                return (
+                                                    <tr
+                                                        key={item.id || `${item.scheme_id}-${item.village_name || ""}-${item.esr_name || ""}-${idx}`}
+                                                        className="hover:bg-[#EBF3FB]/50 transition-colors bg-white even:bg-[#F8FAFC]"
+                                                    >
+                                                        {/* 1. Sr. No. */}
+                                                        <td className="py-2.5 px-2 text-center border-r border-[#CBD5E1] align-middle">
+                                                            <span className="text-xs font-semibold text-[#0A2540]">{rowNum}</span>
+                                                        </td>
+
+                                                        {/* 2. Entity Details */}
+                                                        <td className="py-2.5 px-3 border-r border-[#CBD5E1] align-middle">
+                                                            {scopeType === "scheme" && (
+                                                                <div>
+                                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                                        <span className="font-bold text-xs text-[#0A2540] leading-tight">
+                                                                            {item.scheme_name || `Scheme #${item.scheme_id}`}
+                                                                        </span>
+                                                                        <span className="text-[11px] text-[#64748B] font-mono">
+                                                                            (#{item.scheme_id})
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="text-[11px] text-[#64748B] font-normal mt-0.5 flex items-center gap-1.5 flex-wrap">
+                                                                        <MapPin className="h-3 w-3 text-[#4A6484] shrink-0 inline" />
+                                                                        {item.region && <span>Region: <strong className="text-[#0A2540] font-semibold">{item.region}</strong></span>}
+                                                                        {item.division && (
+                                                                            <>
+                                                                                <span className="text-[#94A3B8]">•</span>
+                                                                                <span>Div: <strong className="text-[#0A2540] font-semibold">{item.division}</strong></span>
+                                                                            </>
+                                                                        )}
+                                                                        {item.block && (
+                                                                            <>
+                                                                                <span className="text-[#94A3B8]">•</span>
+                                                                                <span>Block: <strong className="text-[#0A2540] font-semibold">{item.block}</strong></span>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {scopeType === "village" && (
+                                                                <div>
+                                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                                        <span className="font-bold text-xs text-[#0A2540] leading-tight">
+                                                                            {item.village_name}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="text-[11px] text-[#64748B] font-normal mt-0.5 flex items-center gap-1.5 flex-wrap">
+                                                                        <MapPin className="h-3 w-3 text-[#4A6484] shrink-0 inline" />
+                                                                        <span>Scheme: <strong className="text-[#0A2540] font-semibold">{item.scheme_name || item.scheme_id}</strong> <span className="font-mono text-[10px] text-[#64748B]">({item.scheme_id})</span></span>
+                                                                        {item.region && (
+                                                                            <>
+                                                                                <span className="text-[#94A3B8]">•</span>
+                                                                                <span>{item.region}</span>
+                                                                            </>
+                                                                        )}
+                                                                        {item.block && (
+                                                                            <>
+                                                                                <span className="text-[#94A3B8]">•</span>
+                                                                                <span>{item.block}</span>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {scopeType === "esr" && (
+                                                                <div>
+                                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                                        <span className="font-bold text-xs text-[#0A2540] leading-tight">
+                                                                            {item.esr_name || item.reservoir_name || "ESR"}
+                                                                        </span>
+                                                                        {item.village_name && (
+                                                                            <span className="text-[11px] text-[#0B3558] font-medium">
+                                                                                ({item.village_name})
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="text-[11px] text-[#64748B] font-normal mt-0.5 flex items-center gap-1.5 flex-wrap">
+                                                                        <MapPin className="h-3 w-3 text-[#4A6484] shrink-0 inline" />
+                                                                        <span>Scheme: <strong className="text-[#0A2540] font-semibold">{item.scheme_name || item.scheme_id}</strong> <span className="font-mono text-[10px] text-[#64748B]">({item.scheme_id})</span></span>
+                                                                        {item.region && (
+                                                                            <>
+                                                                                <span className="text-[#94A3B8]">•</span>
+                                                                                <span>{item.region}</span>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </td>
+
+                                                        {/* Scheme Columns: No. of Villages, No. of ESRs, Total Population */}
+                                                        {scopeType === "scheme" && (
+                                                            <>
+                                                                <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
+                                                                    <div className="font-bold text-xs text-[#0A2540]">
+                                                                        {Number(item.total_villages || 0).toLocaleString()}
+                                                                    </div>
+                                                                    <div className="text-[10px] text-[#64748B]">Villages</div>
+                                                                </td>
+                                                                <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
+                                                                    <div className="font-bold text-xs text-[#0A2540]">
+                                                                        {Number(item.total_esrs || 0).toLocaleString()}
+                                                                    </div>
+                                                                    <div className="text-[10px] text-[#64748B]">ESRs</div>
+                                                                </td>
+                                                                <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
+                                                                    <div className="font-bold text-xs text-[#0A2540]">
+                                                                        {Number(item.population || 0).toLocaleString()}
+                                                                    </div>
+                                                                    <div className="text-[10px] text-[#64748B]">Beneficiaries</div>
+                                                                </td>
+                                                            </>
+                                                        )}
+
+                                                        {/* Village Columns: No. of ESRs, Population */}
+                                                        {scopeType === "village" && (
+                                                            <>
+                                                                <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
+                                                                    <div className="font-bold text-xs text-[#0A2540]">
+                                                                        {Number(item.total_esrs || 0).toLocaleString()}
+                                                                    </div>
+                                                                    <div className="text-[10px] text-[#64748B]">ESRs in Village</div>
+                                                                </td>
+                                                                <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
+                                                                    <div className="font-bold text-xs text-[#0A2540]">
+                                                                        {Number(item.population || 0).toLocaleString()}
+                                                                    </div>
+                                                                    <div className="text-[10px] text-[#64748B]">Beneficiaries</div>
+                                                                </td>
+                                                            </>
+                                                        )}
+
+                                                        {/* ESR Columns: Flow Meters, Pressure Sensors, Chlorine Analyzers */}
+                                                        {scopeType === "esr" && (
+                                                            <>
+                                                                <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
+                                                                    {(() => {
+                                                                        const isConnected = String(item.flow_meter_connected || "").toLowerCase().includes("connect") || String(item.flow_meter_connected || "").toLowerCase() === "yes" || String(item.flow_meter_connected || "") === "1";
+                                                                        return isConnected ? (
+                                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Connected (1)
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-slate-100 text-slate-500 border border-slate-200">
+                                                                                0 Connected
+                                                                            </span>
+                                                                        );
+                                                                    })()}
+                                                                </td>
+
+                                                                <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
+                                                                    {(() => {
+                                                                        const isConnected = String(item.pressure_connected || "").toLowerCase().includes("connect") || String(item.pressure_connected || "").toLowerCase() === "yes" || String(item.pressure_connected || "") === "1";
+                                                                        return isConnected ? (
+                                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                                                                <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" /> Connected (1)
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-slate-100 text-slate-500 border border-slate-200">
+                                                                                0 Connected
+                                                                            </span>
+                                                                        );
+                                                                    })()}
+                                                                </td>
+
+                                                                <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
+                                                                    {(() => {
+                                                                        const isConnected = String(item.chlorine_connected || "").toLowerCase().includes("connect") || String(item.chlorine_connected || "").toLowerCase() === "yes" || String(item.chlorine_connected || "") === "1";
+                                                                        return isConnected ? (
+                                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                                                                <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" /> Connected (1)
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-slate-100 text-slate-500 border border-slate-200">
+                                                                                0 Connected
+                                                                            </span>
+                                                                        );
+                                                                    })()}
+                                                                </td>
+                                                            </>
+                                                        )}
+
+                                                        {/* 4. Assigned Operator & Contact */}
+                                                        <td className="py-2.5 px-3 align-middle">
+                                                            <div>
+                                                                {opName ? (
+                                                                    <div className="font-bold text-xs text-[#0A2540] leading-tight">
+                                                                        <span className="text-[#64748B] font-semibold">[Operator]</span> {opName}
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="text-xs text-slate-400 font-normal italic leading-tight">
+                                                                        Not Assigned
+                                                                    </div>
+                                                                )}
+                                                                {opNumber && (
+                                                                    <div className="mt-0.5 flex items-center gap-2 flex-wrap">
+                                                                        <div className="flex items-center gap-1">
+                                                                            <a
+                                                                                href={`tel:${opNumber}`}
+                                                                                className="text-xs text-[#0B3558] font-medium hover:underline flex items-center gap-1"
+                                                                            >
+                                                                                <Phone className="h-3 w-3" />
+                                                                                <span>{opNumber}</span>
+                                                                            </a>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    if (opNumber) {
+                                                                                        navigator.clipboard.writeText(opNumber);
+                                                                                        setCopiedMobile(opNumber);
+                                                                                        setTimeout(() => setCopiedMobile(null), 2000);
+                                                                                    }
+                                                                                }}
+                                                                                className="p-0.5 text-[#64748B] hover:text-[#0A2540] rounded cursor-pointer"
+                                                                                title="Copy mobile number"
+                                                                            >
+                                                                                {copiedMobile === opNumber ? (
+                                                                                    <Check className="h-3 w-3 text-emerald-600" />
+                                                                                ) : (
+                                                                                    <Copy className="h-3 w-3" />
+                                                                                )}
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            }
                                             const isEscalationModal = selectedCellDetails?.colType === "escalation";
                                             const isResolvedModal = selectedCellDetails?.colType === "resolved";
                                             const isEE = isEscalationModal;
@@ -1106,30 +1425,30 @@ export default function AlertTrackerPage() {
                                                 ? (item.ee_dispatch_date || data?.dateMeta?.eeEscalationDateStr)
                                                 : (() => {
                                                     const raw = item.sent_date || item.sent_at || filterDateInput;
-                                                const ddmmyyyy = String(raw).match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})/);
-                                                let d = 27, m = 9;
-                                                if (ddmmyyyy) {
-                                                    d = parseInt(ddmmyyyy[1], 10);
-                                                    m = parseInt(ddmmyyyy[2], 10) - 1;
-                                                } else {
-                                                    const yyyymmdd = String(raw).match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})/);
-                                                    if (yyyymmdd) {
-                                                        d = parseInt(yyyymmdd[3], 10);
-                                                        m = parseInt(yyyymmdd[2], 10) - 1;
+                                                    const ddmmyyyy = String(raw).match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})/);
+                                                    let d = 27, m = 9;
+                                                    if (ddmmyyyy) {
+                                                        d = parseInt(ddmmyyyy[1], 10);
+                                                        m = parseInt(ddmmyyyy[2], 10) - 1;
                                                     } else {
-                                                        const dt = new Date(raw);
-                                                        if (!isNaN(dt.getTime())) {
-                                                            d = dt.getDate();
-                                                            m = dt.getMonth();
+                                                        const yyyymmdd = String(raw).match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})/);
+                                                        if (yyyymmdd) {
+                                                            d = parseInt(yyyymmdd[3], 10);
+                                                            m = parseInt(yyyymmdd[2], 10) - 1;
+                                                        } else {
+                                                            const dt = new Date(raw);
+                                                            if (!isNaN(dt.getTime())) {
+                                                                d = dt.getDate();
+                                                                m = dt.getMonth();
+                                                            }
                                                         }
                                                     }
-                                                }
-                                                const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                                                const s = ["th", "st", "nd", "rd"];
-                                                const v = d % 100;
-                                                const ordinal = d + (s[(v - 20) % 10] || s[v] || s[0]);
-                                                return `${ordinal} ${months[m] || 'Oct'}`;
-                                            })();
+                                                    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                                                    const s = ["th", "st", "nd", "rd"];
+                                                    const v = d % 100;
+                                                    const ordinal = d + (s[(v - 20) % 10] || s[v] || s[0]);
+                                                    return `${ordinal} ${months[m] || 'Oct'}`;
+                                                })();
 
                                             const smsSentDateStr = emailSentDateStr;
                                             const isEmailSent = Boolean(item.email_sent && actualEeName);
