@@ -946,7 +946,6 @@ const PressureDashboard: React.FC = () => {
       optimal,
       above,
       totalCount,
-      sumRanges,
       noData,
     });
     return { belowRange, optimal, above, totalCount, noData };
