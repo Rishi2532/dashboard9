@@ -25,6 +25,8 @@ export interface AlertTrackerItem {
   recipient_email?: string;
   notification_channel: "SMS" | "Email";
   message_text?: string;
+  operator_message_text?: string;
+  ee_message_text?: string;
   reading_value: string;
   delivery_status: string;
   resolution_status: "ACTIVE" | "UNRESOLVED" | "RESOLVED";
@@ -805,6 +807,8 @@ export async function getAlertTrackerMetrics(params: {
         recipient_contact: isEE ? (row.ee_number || "-") : (row.operator_number || "-"),
         recipient_email: row.ee_email || undefined,
         notification_channel: isEE ? ("SMS & Email" as any) : "SMS",
+        operator_message_text: DLT_TEMPLATES.LPCD_LOW.render(formatSchemeName(row.scheme_name, row.scheme_id), formatVillageName(row.village_name), parseFloat(row.val_today).toFixed(1)),
+        ee_message_text: DLT_TEMPLATES.ESCALATION_EE_CE.render(formatSchemeName(row.scheme_name, row.scheme_id), 1, 1, "तांत्रिक बाबी प्रलंबित आहेत"),
         message_text: isEE
           ? DLT_TEMPLATES.ESCALATION_EE_CE.render(formatSchemeName(row.scheme_name, row.scheme_id), 1, 1, "तांत्रिक बाबी प्रलंबित आहेत")
           : DLT_TEMPLATES.LPCD_LOW.render(formatSchemeName(row.scheme_name, row.scheme_id), formatVillageName(row.village_name), parseFloat(row.val_today).toFixed(1)),
@@ -894,8 +898,10 @@ export async function getAlertTrackerMetrics(params: {
         recipient_contact: isEE ? (row.ee_number || "-") : (row.operator_number || "-"),
         recipient_email: row.ee_email || undefined,
         notification_channel: isEE ? ("SMS & Email" as any) : "SMS",
+        operator_message_text: DLT_TEMPLATES.PRESSURE_LOW.render(formatSchemeName(row.scheme_name, row.scheme_id), formatVillageAndEsr(row.village_name, row.reservoir_name), parseFloat(row.val_today).toFixed(2)),
+        ee_message_text: `सूचना: JJM MVS ${formatSchemeName(row.scheme_name, row.scheme_id)} अंतर्गत ${formatVillageAndEsr(row.village_name, row.reservoir_name)} येथील वितरण व्यवस्थेतील Pressure Sensor नुसार पाण्याचा दाब 0.2 bar पेक्षा कमी असून सध्याचा दाब ${parseFloat(row.val_today).toFixed(2)} bar इतका आहे. तसेच, तांत्रिक बाबी प्रलंबित आहेत. कृपया तपासणी करून त्वरित आवश्यक कार्यवाही करावी. – मजीप्रा`,
         message_text: isEE
-          ? DLT_TEMPLATES.ESCALATION_EE_CE.render(formatSchemeName(row.scheme_name, row.scheme_id), 1, 1, "तांत्रिक बाबी प्रलंबित आहेत")
+          ? `सूचना: JJM MVS ${formatSchemeName(row.scheme_name, row.scheme_id)} अंतर्गत ${formatVillageAndEsr(row.village_name, row.reservoir_name)} येथील वितरण व्यवस्थेतील Pressure Sensor नुसार पाण्याचा दाब 0.2 bar पेक्षा कमी असून सध्याचा दाब ${parseFloat(row.val_today).toFixed(2)} bar इतका आहे. तसेच, तांत्रिक बाबी प्रलंबित आहेत. कृपया तपासणी करून त्वरित आवश्यक कार्यवाही करावी. – मजीप्रा`
           : DLT_TEMPLATES.PRESSURE_LOW.render(formatSchemeName(row.scheme_name, row.scheme_id), formatVillageAndEsr(row.village_name, row.reservoir_name), parseFloat(row.val_today).toFixed(2)),
         reading_value: `${parseFloat(row.val_today).toFixed(2)} Bar`,
         delivery_status: row.sms_delivery_status || "NOT_DISPATCHED",
@@ -983,14 +989,20 @@ export async function getAlertTrackerMetrics(params: {
         recipient_contact: isEE ? (row.ee_number || "-") : (row.operator_number || "-"),
         recipient_email: row.ee_email || undefined,
         notification_channel: isEE ? ("SMS & Email" as any) : "SMS",
+        operator_message_text: (parseFloat(row.val_today) > 0.50 ? DLT_TEMPLATES.CHLORINE_HIGH : DLT_TEMPLATES.CHLORINE_LOW).render(
+          formatSchemeName(row.scheme_name, row.scheme_id),
+          formatVillageAndEsr(row.village_name, row.reservoir_name),
+          parseFloat(row.val_today).toFixed(2)
+        ),
+        ee_message_text: `सूचना: JJM MVS ${formatSchemeName(row.scheme_name, row.scheme_id)} अंतर्गत ${formatVillageAndEsr(row.village_name, row.reservoir_name)} येथील वितरण व्यवस्थेत Residual Chlorine ची मात्रा विहित मर्यादेबाहेर असून सध्याची मात्रा ${parseFloat(row.val_today).toFixed(2)} mg/l इतकी आहे. तसेच, तांत्रिक बाबी प्रलंबित आहेत. कृपया तपासणी करून त्वरित आवश्यक कार्यवाही करावी. – मजीप्रा`,
         message_text: isEE
-          ? DLT_TEMPLATES.ESCALATION_EE_CE.render(formatSchemeName(row.scheme_name, row.scheme_id), 1, 1, "तांत्रिक बाबी प्रलंबित आहेत")
+          ? `सूचना: JJM MVS ${formatSchemeName(row.scheme_name, row.scheme_id)} अंतर्गत ${formatVillageAndEsr(row.village_name, row.reservoir_name)} येथील वितरण व्यवस्थेत Residual Chlorine ची मात्रा विहित मर्यादेबाहेर असून सध्याची मात्रा ${parseFloat(row.val_today).toFixed(2)} mg/l इतकी आहे. तसेच, तांत्रिक बाबी प्रलंबित आहेत. कृपया तपासणी करून त्वरित आवश्यक कार्यवाही करावी. – मजीप्रा`
           : (parseFloat(row.val_today) > 0.50 ? DLT_TEMPLATES.CHLORINE_HIGH : DLT_TEMPLATES.CHLORINE_LOW).render(
               formatSchemeName(row.scheme_name, row.scheme_id),
               formatVillageAndEsr(row.village_name, row.reservoir_name),
               parseFloat(row.val_today).toFixed(2)
             ),
-        reading_value: `${parseFloat(row.val_today).toFixed(2)} ppm`,
+        reading_value: `${parseFloat(row.val_today).toFixed(2)} mg/L`,
         delivery_status: row.sms_delivery_status || "NOT_DISPATCHED",
         sms_sent: isEE ? (hasActualSmsLog && hasEe) : hasActualSmsLog,
         email_sent: isEE && hasActualSmsLog && hasEe,
