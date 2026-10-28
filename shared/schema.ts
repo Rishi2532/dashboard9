@@ -1357,10 +1357,13 @@ export const issueReports = pgTable("issue_reports", {
   esr_name: text("esr_name"),
   status_value: text("status_value").notNull(), // LPCD value or Water Consumption status
   reason: text("reason").notNull(),
+  agency_issue: text("agency_issue"),
+  department_issue: text("department_issue"),
   sensor_type: text("sensor_type"),
   status: text("status").default("Active").notNull(), // 'Active', 'Resolved'
   resolution_remark: text("resolution_remark"),
   resolved_at: timestamp("resolved_at", { withTimezone: true }),
+  expected_resolution_date: text("expected_resolution_date"), // YYYY-MM-DD calendar deadline
   created_by: integer("created_by")
     .references(() => users.id)
     .notNull(),
@@ -1377,6 +1380,49 @@ export const insertIssueReportSchema = createInsertSchema(issueReports).omit({
 
 export type InsertIssueReport = z.infer<typeof insertIssueReportSchema>;
 export type IssueReport = typeof issueReports.$inferSelect;
+
+// Action Taken history for issue reports
+export const issueActionTaken = pgTable("issue_action_taken", {
+  id: serial("id").primaryKey(),
+  issue_id: integer("issue_id")
+    .references(() => issueReports.id, { onDelete: "cascade" })
+    .notNull(),
+  action_description: text("action_description").notNull(),
+  created_by: integer("created_by").references(() => users.id),
+  creator_name: text("creator_name"),
+  created_at: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const insertIssueActionTakenSchema = createInsertSchema(issueActionTaken).omit({
+  id: true,
+  created_at: true,
+});
+export type InsertIssueActionTaken = z.infer<typeof insertIssueActionTakenSchema>;
+export type IssueActionTaken = typeof issueActionTaken.$inferSelect;
+
+// Expected Resolution Date audit history
+export const issueResolutionDateHistory = pgTable("issue_resolution_date_history", {
+  id: serial("id").primaryKey(),
+  issue_id: integer("issue_id")
+    .references(() => issueReports.id, { onDelete: "cascade" })
+    .notNull(),
+  previous_date: text("previous_date"),
+  new_date: text("new_date").notNull(),
+  changed_by: integer("changed_by").references(() => users.id),
+  changer_name: text("changer_name"),
+  created_at: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const insertIssueResolutionDateHistorySchema = createInsertSchema(issueResolutionDateHistory).omit({
+  id: true,
+  created_at: true,
+});
+export type InsertIssueResolutionDateHistory = z.infer<typeof insertIssueResolutionDateHistorySchema>;
+export type IssueResolutionDateHistory = typeof issueResolutionDateHistory.$inferSelect;
 
 // Scheme Progress Summary table
 export const schemeProgressSummary = pgTable("scheme_progress_summary", {

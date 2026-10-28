@@ -3,12 +3,15 @@ import { getDB } from "../db";
 import {
     issueReports,
     insertIssueReportSchema,
+    issueActionTaken,
+    issueResolutionDateHistory,
     schemeStatuses,
     waterSchemeData,
     waterConsumption,
     waterConsumptionHistory,
     users
 } from "@shared/schema";
+import { evaluateIssueDeadline, getIstDateStr, formatReadableDate } from "../../shared/issue-deadline-utils";
 import { eq, and, desc, sql } from "drizzle-orm";
 import * as XLSX from "xlsx";
 
@@ -59,7 +62,7 @@ router.get("/villages/:schemeId", async (req, res) => {
 // 3. Get ESRs for a village
 router.get("/esrs", async (req, res) => {
     const { schemeId, villageName } = req.query;
-    
+
     if (!schemeId || !villageName) {
         return res.status(400).json({ message: "schemeId and villageName are required" });
     }
@@ -119,14 +122,14 @@ router.get("/status", async (req, res) => {
                 const lpcdValue = Math.round((totalWater * 100000) / totalPop * 100) / 100;
                 const achieved = lpcdValue >= 55;
 
-                const statusStr = achieved ? `[VERIFIED] Achieved: ${lpcdValue} LPCD ✅` : `[VERIFIED] Not Achieved: ${lpcdValue} LPCD ❌`;
+                const statusStr = `${lpcdValue} LPCD`;
                 res.json({
                     status: statusStr,
                     value: lpcdValue,
                     should_require_reason: Boolean(!achieved)
                 });
             } else {
-                res.json({ status: "No Data Available ❌", value: 0, should_require_reason: true });
+                res.json({ status: "No Data Available", value: 0, should_require_reason: true });
             }
         }
         else if (level === "Village" && villageName) {
@@ -149,7 +152,7 @@ router.get("/status", async (req, res) => {
             if (results.length > 0) {
                 const lpcdValue = results[0].lpcd ? parseFloat(results[0].lpcd.toString()) : 0;
                 const achieved = lpcdValue >= 55;
-                const statusStr = achieved ? `[VERIFIED] Achieved: ${lpcdValue} LPCD ✅` : `[VERIFIED] Not Achieved: ${lpcdValue} LPCD ❌`;
+                const statusStr = `${lpcdValue} LPCD`;
                 console.log(`[STATUS-DEBUG] Village LPCD=${lpcdValue}, Achieved=${achieved}`);
 
                 res.json({
@@ -159,7 +162,7 @@ router.get("/status", async (req, res) => {
                 });
             } else {
                 res.json({
-                    status: "Status: No Record for Village ❌",
+                    status: "No Record for Village",
                     value: 0,
                     should_require_reason: true
                 });
@@ -191,14 +194,14 @@ router.get("/status", async (req, res) => {
                 let should_require_reason = false;
 
                 if (consumption === 0) {
-                    statusText = "No Water ❌";
+                    statusText = "0 LL (No Water)";
                     should_require_reason = true;
                 } else if (capacity > 0 && consumption < (0.5 * capacity)) {
                     const percentage = Math.round((consumption / capacity) * 1000) / 10;
-                    statusText = `Low Water (${consumption} LL / ${capacity} LL - ${percentage}%) ⚠️`;
+                    statusText = `${consumption} LL / ${capacity} LL (${percentage}%)`;
                     should_require_reason = true;
                 } else {
-                    statusText = `Sufficient (${consumption} LL) ✅`;
+                    statusText = `${consumption} LL`;
                     should_require_reason = false;
                 }
 
@@ -212,7 +215,7 @@ router.get("/status", async (req, res) => {
                 });
             } else {
                 res.json({
-                    status: "Status: No ESR Data found ❌",
+                    status: "No ESR Data found",
                     value: 0,
                     should_require_reason: true
                 });
@@ -249,8 +252,31 @@ router.post("/submit", async (req: any, res) => {
 
         const creatorName = user ? (user.name || user.username) : "Unknown";
 
+        const agencyIssue = req.body.agency_issue?.trim() || null;
+        const departmentIssue = req.body.department_issue?.trim() || null;
+
+        // Build human-readable reason from agency and department issues
+        let derivedReason = req.body.reason?.trim();
+        if (!derivedReason) {
+            const parts = [];
+            if (agencyIssue) parts.push(`[Agency]: ${agencyIssue}`);
+            if (departmentIssue) parts.push(`[Department]: ${departmentIssue}`);
+            derivedReason = parts.join(" | ") || "Issue reported";
+        }
+
+        const rawExpectedDate = typeof req.body.expected_resolution_date === "string"
+            ? req.body.expected_resolution_date.trim()
+            : null;
+        const validExpectedDate = rawExpectedDate && /^\d{4}-\d{2}-\d{2}$/.test(rawExpectedDate)
+            ? rawExpectedDate
+            : null;
+
         const payload = insertIssueReportSchema.parse({
             ...req.body,
+            agency_issue: agencyIssue,
+            department_issue: departmentIssue,
+            reason: derivedReason,
+            expected_resolution_date: validExpectedDate,
             created_by: userId,
             creator_name: creatorName,
             status: "Active"
@@ -260,6 +286,17 @@ router.post("/submit", async (req: any, res) => {
             .insert(issueReports)
             .values(payload)
             .returning();
+
+        // If an initial Expected Resolution Date was selected, create initial audit record
+        if (validExpectedDate) {
+            await db.insert(issueResolutionDateHistory).values({
+                issue_id: newReport.id,
+                previous_date: null,
+                new_date: validExpectedDate,
+                changed_by: userId,
+                changer_name: creatorName,
+            }).catch((err: any) => console.error("Could not record initial deadline history:", err));
+        }
 
         res.json(newReport);
     } catch (error: any) {
@@ -283,14 +320,17 @@ router.get("/active", async (req, res) => {
                 village_name: issueReports.village_name,
                 esr_name: issueReports.esr_name,
                 reason: issueReports.reason,
+                agency_issue: issueReports.agency_issue,
+                department_issue: issueReports.department_issue,
                 status_value: issueReports.status_value,
                 status: issueReports.status,
                 resolution_remark: issueReports.resolution_remark,
                 resolved_at: issueReports.resolved_at,
                 created_at: issueReports.created_at,
-                // Prefer stored name, fallback to join if null
+                created_by: issueReports.created_by,
                 creator_name: sql`COALESCE(${issueReports.creator_name}, ${users.name}, ${users.username})`,
-                sensor_type: issueReports.sensor_type
+                sensor_type: issueReports.sensor_type,
+                expected_resolution_date: issueReports.expected_resolution_date
             })
             .from(issueReports)
             .leftJoin(users, eq(issueReports.created_by, users.id))
@@ -319,14 +359,18 @@ router.get("/all", async (req, res) => {
                 village_name: issueReports.village_name,
                 esr_name: issueReports.esr_name,
                 reason: issueReports.reason,
+                agency_issue: issueReports.agency_issue,
+                department_issue: issueReports.department_issue,
                 status_value: issueReports.status_value,
                 status: issueReports.status,
                 resolution_remark: issueReports.resolution_remark,
                 created_at: issueReports.created_at,
                 resolved_at: issueReports.resolved_at,
+                created_by: issueReports.created_by,
                 // Prefer stored name, fallback to join if null
                 creator_name: sql`COALESCE(${issueReports.creator_name}, ${users.name}, ${users.username})`,
-                sensor_type: issueReports.sensor_type
+                sensor_type: issueReports.sensor_type,
+                expected_resolution_date: issueReports.expected_resolution_date
             })
             .from(issueReports)
             .leftJoin(users, eq(issueReports.created_by, users.id))
@@ -372,13 +416,17 @@ router.get("/list", async (req: any, res) => {
                 esr_name: issueReports.esr_name,
                 status_value: issueReports.status_value,
                 reason: issueReports.reason,
+                agency_issue: issueReports.agency_issue,
+                department_issue: issueReports.department_issue,
                 status: issueReports.status,
                 resolution_remark: issueReports.resolution_remark,
                 created_at: issueReports.created_at,
                 resolved_at: issueReports.resolved_at,
+                created_by: issueReports.created_by,
                 // Prefer stored name, fallback to join if null (backward compatibility)
                 creator_name: sql`COALESCE(${issueReports.creator_name}, ${users.name}, ${users.username})`,
-                sensor_type: issueReports.sensor_type
+                sensor_type: issueReports.sensor_type,
+                expected_resolution_date: issueReports.expected_resolution_date
             })
             .from(issueReports)
             .leftJoin(users, eq(issueReports.created_by, users.id))
@@ -417,13 +465,16 @@ router.get("/export-excel", async (req: any, res) => {
                 village_name: issueReports.village_name,
                 esr_name: issueReports.esr_name,
                 reason: issueReports.reason,
+                agency_issue: issueReports.agency_issue,
+                department_issue: issueReports.department_issue,
                 status_value: issueReports.status_value,
                 status: issueReports.status,
                 resolution_remark: issueReports.resolution_remark,
                 created_at: issueReports.created_at,
                 resolved_at: issueReports.resolved_at,
                 creator_name: sql`COALESCE(${issueReports.creator_name}, ${users.name}, ${users.username})`,
-                sensor_type: issueReports.sensor_type
+                sensor_type: issueReports.sensor_type,
+                expected_resolution_date: issueReports.expected_resolution_date
             })
             .from(issueReports)
             .leftJoin(users, eq(issueReports.created_by, users.id))
@@ -453,10 +504,13 @@ router.get("/export-excel", async (req: any, res) => {
                 "ESR / Location Name": item.esr_name || "-",
                 "Sensor Type": item.sensor_type || "-",
                 "Status / Value": item.status_value || "-",
+                "Agency Issue": item.agency_issue || "-",
+                "Department Issue": item.department_issue || "-",
                 "Issue Reason / Justification": item.reason || "-",
                 "Issue Status": item.status || "Active",
                 "Submitted By": item.creator_name || "Unknown",
                 "Submitted At": createdDate,
+                "Expected Resolution Date": item.expected_resolution_date ? (formatReadableDate(item.expected_resolution_date) || item.expected_resolution_date) : "-",
                 "Resolution Status": item.status === "Resolved" ? "Resolved" : "Pending",
                 "Resolution Remark": item.resolution_remark || "-",
                 "Resolved At": resolvedDate
@@ -568,6 +622,175 @@ router.patch("/resolve/:id", async (req: any, res) => {
         console.error("Error resolving issue:", error);
         res.status(500).json({ message: "Failed to resolve issue" });
     }
+});
+
+// 11. Get Action Taken history for an issue (Chronological, newest first)
+router.get("/:id/actions", async (req: any, res) => {
+    try {
+        const db = await getDB();
+        const issueId = parseInt(req.params.id);
+        if (isNaN(issueId)) {
+            return res.status(400).json({ message: "Invalid issue ID" });
+        }
+
+        const actions = await db
+            .select({
+                id: issueActionTaken.id,
+                issue_id: issueActionTaken.issue_id,
+                action_description: issueActionTaken.action_description,
+                created_by: issueActionTaken.created_by,
+                creator_name: sql`COALESCE(${issueActionTaken.creator_name}, ${users.name}, ${users.username}, 'Authorized User')`,
+                created_at: issueActionTaken.created_at,
+            })
+            .from(issueActionTaken)
+            .leftJoin(users, eq(issueActionTaken.created_by, users.id))
+            .where(eq(issueActionTaken.issue_id, issueId))
+            .orderBy(desc(issueActionTaken.created_at));
+
+        res.json(actions);
+    } catch (error) {
+        console.error("Error fetching action history:", error);
+        res.status(500).json({ message: "Failed to fetch action history" });
+    }
+});
+
+// 12. Add Action Taken entry (Enforcing strict deadline in Asia/Kolkata timezone)
+router.post("/:id/actions", async (req: any, res) => {
+    try {
+        const db = await getDB();
+        const userId = req.session.userId;
+
+        if (!userId && !req.session?.isAdmin) {
+            return res.status(401).json({ message: "Unauthorized. Please log in to record an action." });
+        }
+
+        const issueId = parseInt(req.params.id);
+        if (isNaN(issueId)) {
+            return res.status(400).json({ message: "Invalid issue ID" });
+        }
+
+        const actionDescription = typeof req.body.action_description === "string"
+            ? req.body.action_description.trim()
+            : "";
+
+        if (!actionDescription) {
+            return res.status(400).json({ message: "Action description cannot be empty or whitespace only." });
+        }
+
+        // Authoritative issue lookup from DB
+        const [issue] = await db
+            .select()
+            .from(issueReports)
+            .where(eq(issueReports.id, issueId))
+            .limit(1);
+
+        if (!issue) {
+            return res.status(404).json({ message: "Issue report not found" });
+        }
+
+        // CRITICAL BUSINESS RULE: Only the person who submitted this issue can input Action Taken
+        if (issue.created_by && Number(issue.created_by) !== Number(userId)) {
+            return res.status(403).json({
+                message: "Only the person who submitted this issue can record actions taken.",
+                code: "FORBIDDEN_NOT_REPORTER"
+            });
+        }
+
+        // CRITICAL BUSINESS RULE: Evaluate deadline using authoritative DB date in Asia/Kolkata
+        const deadlineEval = evaluateIssueDeadline(issue.expected_resolution_date);
+
+        if (deadlineEval.status === "not_set") {
+            return res.status(422).json({
+                message: "Set an Expected Resolution Date before recording an action.",
+                code: "MISSING_DEADLINE"
+            });
+        }
+
+        if (deadlineEval.isExpired) {
+            return res.status(409).json({
+                message: "The expected resolution date has passed. Adding or modifying actions for this issue is no longer permitted.",
+                code: "DEADLINE_PASSED",
+                expected_resolution_date: issue.expected_resolution_date,
+            });
+        }
+
+        // Fetch user name
+        const [u] = await db
+            .select({ name: users.name, username: users.username })
+            .from(users)
+            .where(eq(users.id, userId))
+            .limit(1);
+        const creatorName = u ? (u.name || u.username) : (req.session?.username || "Authorized User");
+
+        const [newAction] = await db
+            .insert(issueActionTaken)
+            .values({
+                issue_id: issueId,
+                action_description: actionDescription,
+                created_by: userId,
+                creator_name: creatorName,
+            })
+            .returning();
+
+        res.status(201).json(newAction);
+    } catch (error: any) {
+        console.error("Error recording action taken:", error);
+        res.status(500).json({ message: error.message || "Failed to record action" });
+    }
+});
+
+// 13. Get Expected Resolution Date details & audit history for an issue
+router.get("/:id/deadline", async (req: any, res) => {
+    try {
+        const db = await getDB();
+        const issueId = parseInt(req.params.id);
+        if (isNaN(issueId)) {
+            return res.status(400).json({ message: "Invalid issue ID" });
+        }
+
+        const [issue] = await db
+            .select()
+            .from(issueReports)
+            .where(eq(issueReports.id, issueId))
+            .limit(1);
+
+        if (!issue) {
+            return res.status(404).json({ message: "Issue report not found" });
+        }
+
+        const deadlineEval = evaluateIssueDeadline(issue.expected_resolution_date);
+
+        const history = await db
+            .select({
+                id: issueResolutionDateHistory.id,
+                issue_id: issueResolutionDateHistory.issue_id,
+                previous_date: issueResolutionDateHistory.previous_date,
+                new_date: issueResolutionDateHistory.new_date,
+                changed_by: issueResolutionDateHistory.changed_by,
+                changer_name: sql`COALESCE(${issueResolutionDateHistory.changer_name}, ${users.name}, ${users.username}, 'Authorized User')`,
+                created_at: issueResolutionDateHistory.created_at,
+            })
+            .from(issueResolutionDateHistory)
+            .leftJoin(users, eq(issueResolutionDateHistory.changed_by, users.id))
+            .where(eq(issueResolutionDateHistory.issue_id, issueId))
+            .orderBy(desc(issueResolutionDateHistory.created_at));
+
+        res.json({
+            ...deadlineEval,
+            history,
+        });
+    } catch (error) {
+        console.error("Error fetching deadline details:", error);
+        res.status(500).json({ message: "Failed to fetch deadline details" });
+    }
+});
+
+// 14. Update Expected Resolution Date (Blocked: immutable once issue is reported)
+router.patch("/:id/expected-resolution-date", async (req: any, res) => {
+    return res.status(403).json({
+        message: "Expected Resolution Date cannot be modified once the issue has been reported.",
+        code: "DEADLINE_IMMUTABLE"
+    });
 });
 
 export default router;

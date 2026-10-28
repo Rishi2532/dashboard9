@@ -127,14 +127,15 @@ router.get("/summary", async (req: Request, res: Response) => {
       db.execute(sql`
         SELECT DISTINCT ON (ss.scheme_id)
           ss.scheme_id, ss.scheme_name, ss.region, ss.circle, ss.division, ss.sub_division, ss.block,
-          COALESCE(ss.number_of_village, ss.total_villages_integrated, 0) as total_villages,
-          COALESCE(ss.total_number_of_esr, ss.total_esr_integrated, 0) as total_esrs,
+          COALESCE(sps.number_of_villages, ss.number_of_village, 0) as total_villages,
+          COALESCE(sps.number_of_esr, ss.total_number_of_esr, 0) as total_esrs,
           COALESCE(sp.total_population, 0) as population,
           ss.fully_completion_scheme_status as status,
           ss.water_supply, ss.agency_type,
           COALESCE(sod.operator_name, '-') as operator_name,
           COALESCE(sod.operator_number, '-') as operator_number
         FROM scheme_status ss
+        LEFT JOIN scheme_progress_summary sps ON sps.scheme_id::text = ss.scheme_id
         LEFT JOIN (
           SELECT scheme_id, SUM(COALESCE(population, 0)) as total_population
           FROM water_scheme_data
@@ -156,14 +157,15 @@ router.get("/summary", async (req: Request, res: Response) => {
       db.execute(sql`
         SELECT DISTINCT ON (ss.scheme_id)
           ss.scheme_id, ss.scheme_name, ss.region, ss.circle, ss.division, ss.sub_division, ss.block,
-          COALESCE(ss.fully_completed_villages, ss.number_of_village, ss.total_villages_integrated, 0) as total_villages,
-          COALESCE(ss.no_fully_completed_esr, ss.total_number_of_esr, ss.total_esr_integrated, 0) as total_esrs,
+          COALESCE(sps.number_of_villages, ss.number_of_village, 0) as total_villages,
+          COALESCE(sps.number_of_esr, ss.total_number_of_esr, 0) as total_esrs,
           COALESCE(sp.total_population, 0) as population,
           ss.fully_completion_scheme_status as status,
           ss.water_supply, ss.agency_type,
           COALESCE(sod.operator_name, '-') as operator_name,
           COALESCE(sod.operator_number, '-') as operator_number
         FROM scheme_status ss
+        LEFT JOIN scheme_progress_summary sps ON sps.scheme_id::text = ss.scheme_id
         LEFT JOIN (
           SELECT scheme_id, SUM(COALESCE(population, 0)) as total_population
           FROM water_scheme_data
@@ -435,6 +437,11 @@ router.get("/summary", async (req: Request, res: Response) => {
     const opVillagesList = opVillagesRes.rows || [];
     const opEsrsList = opEsrsRes.rows || [];
 
+    const totalVillagesPartial = iotSchemesTotalList.reduce((sum: number, item: any) => sum + (Number(item.total_villages) || 0), 0);
+    const totalVillagesFully = iotSchemesFullyList.reduce((sum: number, item: any) => sum + (Number(item.total_villages) || 0), 0);
+    const totalEsrPartial = iotSchemesTotalList.reduce((sum: number, item: any) => sum + (Number(item.total_esrs) || 0), 0);
+    const totalEsrFully = iotSchemesFullyList.reduce((sum: number, item: any) => sum + (Number(item.total_esrs) || 0), 0);
+
     const physicalProgress = {
       schemes: {
         partial: iotSchemesTotalList.length,
@@ -443,16 +450,16 @@ router.get("/summary", async (req: Request, res: Response) => {
         fullyIntegrated: iotSchemesFullyList.length,
       },
       villages: {
-        partial: iotVillagesTotalList.length,
-        fully: iotVillagesFullyList.length,
-        totalIntegrated: iotVillagesTotalList.length,
-        fullyIntegrated: iotVillagesFullyList.length,
+        partial: totalVillagesPartial,
+        fully: totalVillagesFully,
+        totalIntegrated: totalVillagesPartial,
+        fullyIntegrated: totalVillagesFully,
       },
       esr: {
-        partial: iotEsrTotalList.length,
-        fully: iotEsrFullyList.length,
-        totalIntegrated: iotEsrTotalList.length,
-        fullyIntegrated: iotEsrFullyList.length,
+        partial: totalEsrPartial,
+        fully: totalEsrFully,
+        totalIntegrated: totalEsrPartial,
+        fullyIntegrated: totalEsrFully,
       },
     };
 

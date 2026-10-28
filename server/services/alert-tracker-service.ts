@@ -224,6 +224,7 @@ export function getTelemetryDayIndex(targetDateStr?: string) {
   // Col 4 telemetry data date in history tables = evalDateObj + 2 days = alertDateObj + 1 day
   const col4DataDateObj = new Date(evalDateObj.getTime() + 2 * 86400000);
   const col4HistoryStr = `${String(col4DataDateObj.getUTCDate()).padStart(2, "0")}-${MONTHS_SHORT[col4DataDateObj.getUTCMonth()]}`;
+  const col4DisplayDate = `${String(col4DataDateObj.getUTCDate()).padStart(2, "0")}/${String(col4DataDateObj.getUTCMonth() + 1).padStart(2, "0")}/${col4DataDateObj.getUTCFullYear()}`;
 
   // If selected alert date is on or after the target display date, show shortly today text
   const unresolvedPendingText = (alertDateObj.getTime() >= col23TargetDateObj.getTime())
@@ -257,6 +258,7 @@ export function getTelemetryDayIndex(targetDateStr?: string) {
     nextDayDisplayDate,
     nextHistoryStr,
     col4HistoryStr,
+    col4DisplayDate,
     col23TargetDateObj,
     col4TargetDateObj,
     isoDate: alertIsoDate,

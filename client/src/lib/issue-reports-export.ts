@@ -10,9 +10,12 @@ export interface IssueReportExportItem {
   esr_name?: string;
   status_value: string;
   reason: string;
+  agency_issue?: string;
+  department_issue?: string;
   sensor_type?: string;
   status: "Active" | "Resolved" | string;
   resolution_remark?: string;
+  expected_resolution_date?: string;
   created_at: string;
   resolved_at?: string;
   creator_name?: string;
@@ -48,10 +51,13 @@ export function exportIssueReportsToExcel(
       "ESR / Location Name": item.esr_name || "-",
       "Sensor Type": item.sensor_type || "-",
       "Status / Value": item.status_value || "-",
+      "Agency Issue": item.agency_issue || "-",
+      "Department Issue": item.department_issue || "-",
       "Issue Reason / Justification": item.reason || "-",
       "Issue Status": item.status || "Active",
       "Submitted By": item.creator_name || "Unknown",
       "Submitted At": createdDate,
+      "Expected Resolution Date": item.expected_resolution_date || "-",
       "Resolution Status": item.status === "Resolved" ? "Resolved" : "Pending",
       "Resolution Remark": item.resolution_remark || "-",
       "Resolved At": resolvedDate,

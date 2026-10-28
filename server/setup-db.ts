@@ -41,7 +41,7 @@ export function setupDatabase() {
   const isReplit = process.env.REPL_ID || process.env.REPLIT;
   if (isReplit) {
     console.log("Replit environment detected!");
-    
+
     // In Replit, try to construct DATABASE_URL from individual components if not available
     if (!process.env.DATABASE_URL && process.env.PGHOST && process.env.PGUSER && process.env.PGPASSWORD && process.env.PGDATABASE) {
       console.log("Constructing DATABASE_URL from individual Replit environment variables...");
@@ -363,7 +363,7 @@ export async function initializeTables(db: any) {
         FROM information_schema.columns 
         WHERE table_name = 'users' AND column_name = 'email';
       `);
-      
+
       if (emailColumnCheck.rows.length === 0) {
         console.log("Adding email column to existing users table...");
         await db.execute(`ALTER TABLE "users" ADD COLUMN "email" TEXT;`);
@@ -375,7 +375,7 @@ export async function initializeTables(db: any) {
         FROM information_schema.columns 
         WHERE table_name = 'users' AND column_name = 'phone';
       `);
-      
+
       if (phoneColumnCheck.rows.length === 0) {
         console.log("Adding phone column to existing users table...");
         await db.execute(`ALTER TABLE "users" ADD COLUMN "phone" TEXT;`);
@@ -902,7 +902,7 @@ export async function initializeTables(db: any) {
     // Check and fix water_consumption table schema to prevent CSV import issues
     try {
       console.log("Checking water_consumption table schema for compatibility...");
-      
+
       // Check if flow_meter_connected is boolean (needs to be varchar)
       const booleanCheckResult = await db.execute(`
         SELECT column_name, data_type
@@ -911,7 +911,7 @@ export async function initializeTables(db: any) {
         AND column_name = 'flow_meter_connected'
         AND data_type = 'boolean';
       `);
-      
+
       if (booleanCheckResult.rows.length > 0) {
         console.log("Converting flow_meter_connected from boolean to varchar...");
         await db.execute(
@@ -928,12 +928,12 @@ export async function initializeTables(db: any) {
         AND column_name LIKE 'water_date_day%'
         AND data_type = 'date';
       `);
-      
+
       if (dateFieldsResult.rows.length > 0) {
         console.log("Converting date fields from DATE to VARCHAR...");
-        const dateColumns = ['water_date_day1', 'water_date_day2', 'water_date_day3', 
-                            'water_date_day4', 'water_date_day5', 'water_date_day6', 'water_date_day7'];
-        
+        const dateColumns = ['water_date_day1', 'water_date_day2', 'water_date_day3',
+          'water_date_day4', 'water_date_day5', 'water_date_day6', 'water_date_day7'];
+
         for (const column of dateColumns) {
           try {
             await db.execute(
@@ -954,13 +954,13 @@ export async function initializeTables(db: any) {
         AND data_type = 'numeric' 
         AND numeric_precision IS NOT NULL;
       `);
-      
+
       if (numericFieldsResult.rows.length > 0) {
         console.log("Removing precision constraints from numeric fields...");
-        const numericColumns = ['flow_rate_m3', 'esr_capacity', 'water_value_day1', 'water_value_day2', 
-                               'water_value_day3', 'water_value_day4', 'water_value_day5', 'water_value_day6', 
-                               'water_value_day7', 'percentage_consumption_previous_day'];
-        
+        const numericColumns = ['flow_rate_m3', 'esr_capacity', 'water_value_day1', 'water_value_day2',
+          'water_value_day3', 'water_value_day4', 'water_value_day5', 'water_value_day6',
+          'water_value_day7', 'percentage_consumption_previous_day'];
+
         for (const column of numericColumns) {
           try {
             await db.execute(
@@ -1515,6 +1515,31 @@ export async function initializeTables(db: any) {
         "creator_name" TEXT,
         "created_at" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
       );
+
+      ALTER TABLE "issue_reports" ADD COLUMN IF NOT EXISTS "agency_issue" TEXT;
+      ALTER TABLE "issue_reports" ADD COLUMN IF NOT EXISTS "department_issue" TEXT;
+      ALTER TABLE "issue_reports" ADD COLUMN IF NOT EXISTS "expected_resolution_date" TEXT;
+
+      CREATE TABLE IF NOT EXISTS "issue_action_taken" (
+        "id" SERIAL PRIMARY KEY,
+        "issue_id" INTEGER NOT NULL REFERENCES "issue_reports"("id") ON DELETE CASCADE,
+        "action_description" TEXT NOT NULL,
+        "created_by" INTEGER REFERENCES "users"("id"),
+        "creator_name" TEXT,
+        "created_at" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS "idx_issue_action_taken_issue" ON "issue_action_taken"("issue_id");
+
+      CREATE TABLE IF NOT EXISTS "issue_resolution_date_history" (
+        "id" SERIAL PRIMARY KEY,
+        "issue_id" INTEGER NOT NULL REFERENCES "issue_reports"("id") ON DELETE CASCADE,
+        "previous_date" TEXT,
+        "new_date" TEXT NOT NULL,
+        "changed_by" INTEGER REFERENCES "users"("id"),
+        "changer_name" TEXT,
+        "created_at" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS "idx_issue_res_date_hist_issue" ON "issue_resolution_date_history"("issue_id");
     `);
 
     // Create MQTT topics last seen table with proper timezone handling
@@ -1544,7 +1569,7 @@ export async function initializeTables(db: any) {
     // CRITICAL FIX: Normalize any IST-shifted timestamps to proper UTC
     // This migration handles existing data that may have been written with +5.5h offset
     console.log("🔧 Checking for IST-shifted timestamps in topics_last_seen table...");
-    
+
     try {
       // Check if there are timestamps in the future (indicating IST-shifted data)
       const futureTimestampsResult = await db.execute(`
@@ -1552,19 +1577,19 @@ export async function initializeTables(db: any) {
         FROM "topics_last_seen" 
         WHERE "last_seen" > NOW() + INTERVAL '1 hour'
       `);
-      
+
       const futureCount = futureTimestampsResult.rows[0]?.future_count || 0;
-      
+
       if (futureCount > 0) {
         console.log(`🔧 Found ${futureCount} IST-shifted timestamps, normalizing to UTC...`);
-        
+
         // Normalize IST-shifted timestamps by subtracting 5.5 hours
         await db.execute(`
           UPDATE "topics_last_seen" 
           SET "last_seen" = "last_seen" - INTERVAL '5.5 hours'
           WHERE "last_seen" > NOW() + INTERVAL '1 hour'
         `);
-        
+
         console.log("✅ Successfully normalized IST-shifted timestamps to UTC");
       } else {
         console.log("✅ No IST-shifted timestamps found, no migration needed");
@@ -1630,7 +1655,7 @@ export async function initializeTables(db: any) {
     // Check for region_name uniqueness constraint
     try {
       console.log("Checking for unique constraints on region and scheme_status tables...");
-      
+
       // First, check for duplicates in region table
       const regionDuplicatesResult = await db.execute(`
         SELECT region_name, COUNT(*) as count 
@@ -1707,13 +1732,13 @@ export async function initializeTables(db: any) {
     // Add last_seen column to communication_status table for offline duration tracking
     try {
       console.log("Checking for last_seen column in communication_status table...");
-      
+
       const columnCheck = await db.execute(`
         SELECT column_name 
         FROM information_schema.columns 
         WHERE table_name = 'communication_status' AND column_name = 'last_seen';
       `);
-      
+
       if (columnCheck.rows.length === 0) {
         console.log("Adding last_seen column to communication_status table...");
         await db.execute(`
@@ -1721,7 +1746,7 @@ export async function initializeTables(db: any) {
           ADD COLUMN "last_seen" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
         `);
         console.log("✅ Successfully added last_seen column to communication_status table");
-        
+
         // Populate with sample data (7-30 days ago) for existing records
         console.log("Populating last_seen with sample dates for existing records...");
         // Use age() to check if last_seen was just set by the DEFAULT (within last minute)
@@ -1745,13 +1770,13 @@ export async function initializeTables(db: any) {
     // Add pressure_last_seen column to communication_status table for pressure sensor offline duration tracking
     try {
       console.log("Checking for pressure_last_seen column in communication_status table...");
-      
+
       const pressureColumnCheck = await db.execute(`
         SELECT column_name 
         FROM information_schema.columns 
         WHERE table_name = 'communication_status' AND column_name = 'pressure_last_seen';
       `);
-      
+
       if (pressureColumnCheck.rows.length === 0) {
         console.log("Adding pressure_last_seen column to communication_status table...");
         await db.execute(`
@@ -1759,7 +1784,7 @@ export async function initializeTables(db: any) {
           ADD COLUMN "pressure_last_seen" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
         `);
         console.log("✅ Successfully added pressure_last_seen column to communication_status table");
-        
+
         // Populate with sample data (7-30 days ago) for existing records with offline pressure sensors
         console.log("Populating pressure_last_seen with sample dates for existing offline pressure records...");
         await db.execute(`
@@ -1798,7 +1823,7 @@ export async function initializeTables(db: any) {
 export async function synchronizeSequences(db: any) {
   try {
     console.log("🔄 Synchronizing database sequences with actual data...");
-    
+
     // This dynamic SQL block finds all columns with nextval() defaults and resets their sequences
     await db.execute(`
       DO $$ 
@@ -1831,7 +1856,7 @@ export async function synchronizeSequences(db: any) {
           END LOOP;
       END $$;
     `);
-    
+
     console.log("✅ All database sequences synchronized successfully");
   } catch (error) {
     console.error("❌ Error synchronizing database sequences:", error);
