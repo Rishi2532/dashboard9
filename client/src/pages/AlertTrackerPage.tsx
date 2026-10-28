@@ -261,9 +261,9 @@ export default function AlertTrackerPage() {
     };
 
     const physicalProgress = data?.physicalProgress || {
-        schemes: { partial: 226, fully: 52 },
-        villages: { partial: 2249, fully: 1269 },
-        esr: { partial: 3024, fully: 2255 },
+        schemes: { partial: 340, fully: 49 },
+        villages: { partial: 5579, fully: 391 },
+        esr: { partial: 9628, fully: 612 },
     };
 
     const operational = data?.operational || {
@@ -386,7 +386,7 @@ export default function AlertTrackerPage() {
                 ["Region", selectedRegion, "Filter Agency", selectedAgency],
                 [],
                 ["Project Scope", `Scheme in Scope - ${projectScope.schemes.toLocaleString()}`, `Village covered - ${projectScope.villages.toLocaleString()}`, `ESR+ GSR+MBR - ${projectScope.esr.toLocaleString()}`],
-                ["Physical progress", `Partial completed schemes - ${(physicalProgress.schemes?.partial ?? 340).toLocaleString()} / Fully Completed Schemes - ${(physicalProgress.schemes?.fully ?? 49).toLocaleString()}`, `Villages covered in Partial schemes - ${(physicalProgress.villages?.partial ?? 5579).toLocaleString()} / Villages covered in fully completed schemes - ${(physicalProgress.villages?.fully ?? 391).toLocaleString()}`, `ESRs covered in Partial schemes - ${(physicalProgress.esr?.partial ?? 8316).toLocaleString()} / ESRs covered in fully completed schemes - ${(physicalProgress.esr?.fully ?? 530).toLocaleString()}`],
+                ["Physical progress", `Partial completed schemes - ${(physicalProgress.schemes?.partial ?? 340).toLocaleString()} / Fully Completed Schemes - ${(physicalProgress.schemes?.fully ?? 49).toLocaleString()}`, `Villages covered in Partial schemes - ${(physicalProgress.villages?.partial ?? 5579).toLocaleString()} / Villages covered in fully completed schemes - ${(physicalProgress.villages?.fully ?? 391).toLocaleString()}`, `ESRs covered in Partial schemes - ${(physicalProgress.esr?.partial ?? 9628).toLocaleString()} / ESRs covered in fully completed schemes - ${(physicalProgress.esr?.fully ?? 612).toLocaleString()}`],
                 ["Operational", `Scheme - ${operational.schemes || 39}`, `Villages - ${operational.villages || 255}`, `No. Of ESR - ${operational.esr || 325}`],
                 [],
                 ["Alert Date :", filterDateInput],
@@ -625,16 +625,16 @@ export default function AlertTrackerPage() {
                                     </td>
                                     <td className="p-2 sm:p-2.5 bg-white w-1/4 text-xs sm:text-sm leading-snug text-[#1E293B]">
                                         <div
-                                            onClick={() => handleScopeClick("ESRs covered in Partial schemes", "iotSchemesTotal", physicalProgress.esr?.partial ?? 8316)}
+                                            onClick={() => handleScopeClick("ESRs covered in Partial schemes", "iotSchemesTotal", physicalProgress.esr?.partial ?? 9628)}
                                             className="cursor-pointer hover:text-[#0B3558] hover:underline"
                                         >
-                                            ESRs covered in Partial schemes - {(physicalProgress.esr?.partial ?? 8316).toLocaleString()}
+                                            ESRs covered in Partial schemes - {(physicalProgress.esr?.partial ?? 9628).toLocaleString()}
                                         </div>
                                         <div
-                                            onClick={() => handleScopeClick("ESRs covered in fully completed schemes", "iotSchemesFully", physicalProgress.esr?.fully ?? 530)}
+                                            onClick={() => handleScopeClick("ESRs covered in fully completed schemes", "iotSchemesFully", physicalProgress.esr?.fully ?? 612)}
                                             className="cursor-pointer hover:text-[#0B3558] hover:underline"
                                         >
-                                            ESRs covered in fully completed schemes - {(physicalProgress.esr?.fully ?? 530).toLocaleString()}
+                                            ESRs covered in fully completed schemes - {(physicalProgress.esr?.fully ?? 612).toLocaleString()}
                                         </div>
                                     </td>
                                 </tr>

@@ -130,7 +130,10 @@ router.get("/summary", async (req: Request, res: Response) => {
         SELECT DISTINCT ON (ss.scheme_id)
           ss.scheme_id, ss.scheme_name, ss.region, ss.circle, ss.division, ss.sub_division, ss.block,
           COALESCE(sps.number_of_villages, ss.number_of_village, 0) as total_villages,
-          COALESCE(sps.number_of_esr, ss.total_number_of_esr, 0) as total_esrs,
+          CASE
+            WHEN sps.scheme_id IS NOT NULL THEN (COALESCE(sps.number_of_esr, 0) + COALESCE(sps.number_of_gsr, 0) + COALESCE(sps.number_of_mbr, 0))
+            ELSE COALESCE(ss.total_number_of_esr, 0)
+          END as total_esrs,
           COALESCE(sp.total_population, 0) as population,
           ss.fully_completion_scheme_status as status,
           ss.water_supply, ss.agency_type,
@@ -160,7 +163,10 @@ router.get("/summary", async (req: Request, res: Response) => {
         SELECT DISTINCT ON (ss.scheme_id)
           ss.scheme_id, ss.scheme_name, ss.region, ss.circle, ss.division, ss.sub_division, ss.block,
           COALESCE(sps.number_of_villages, ss.number_of_village, 0) as total_villages,
-          COALESCE(sps.number_of_esr, ss.total_number_of_esr, 0) as total_esrs,
+          CASE
+            WHEN sps.scheme_id IS NOT NULL THEN (COALESCE(sps.number_of_esr, 0) + COALESCE(sps.number_of_gsr, 0) + COALESCE(sps.number_of_mbr, 0))
+            ELSE COALESCE(ss.total_number_of_esr, 0)
+          END as total_esrs,
           COALESCE(sp.total_population, 0) as population,
           ss.fully_completion_scheme_status as status,
           ss.water_supply, ss.agency_type,
