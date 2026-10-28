@@ -59,13 +59,15 @@ router.get("/summary", async (req: Request, res: Response) => {
 
     let agencySchemeStatusFilter = sql``;
     if (!isAllAgency) {
-      const a = agency.toLowerCase();
-      if (a === "zp") {
-        agencySchemeStatusFilter = sql`AND (COALESCE(ss.agency, ss.agency_type) ILIKE 'ZP%' OR COALESCE(ss.agency, ss.agency_type) ILIKE '%ZP%')`;
+      const a = agency.toLowerCase().trim();
+      if (a === "zp-self" || a === "zpself" || a === "zp self") {
+        agencySchemeStatusFilter = sql`AND COALESCE(ss.agency, ss.agency_type) ILIKE '%ZP-Self%'`;
       } else if (a.includes("shikhar") || a.includes("shikar")) {
         agencySchemeStatusFilter = sql`AND (COALESCE(ss.agency, ss.agency_type) ILIKE '%shikhar%' OR COALESCE(ss.agency, ss.agency_type) ILIKE '%shikar%')`;
+      } else if (a === "zp") {
+        agencySchemeStatusFilter = sql`AND (COALESCE(ss.agency, ss.agency_type) ILIKE 'ZP%' OR COALESCE(ss.agency, ss.agency_type) ILIKE '%ZP%')`;
       } else if (a.includes("gram") || a === "gp") {
-        agencySchemeStatusFilter = sql`AND (COALESCE(ss.agency, ss.agency_type) ILIKE 'GP%' OR COALESCE(ss.agency, ss.agency_type) ILIKE '%gram%')`;
+        agencySchemeStatusFilter = sql`AND (COALESCE(ss.agency, ss.agency_type) = 'GP' OR COALESCE(ss.agency, ss.agency_type) ILIKE 'GP%' OR COALESCE(ss.agency, ss.agency_type) ILIKE '%gram%')`;
       } else if (a.includes("mjp")) {
         agencySchemeStatusFilter = sql`AND COALESCE(ss.agency, ss.agency_type) ILIKE '%MJP%'`;
       } else if (a.includes("contractor")) {

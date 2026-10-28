@@ -62,9 +62,9 @@ const REGIONS = [
 const AGENCIES = [
     "ALL Agency",
     "MJP",
-    "ZP",
-    "Shikharsamiti",
-    "Grampanchayat",
+    "ZP-Shikarsamiti",
+    "ZP-Self",
+    "GP",
     "Contractor",
 ];
 
@@ -460,7 +460,8 @@ export default function AlertTrackerPage() {
                 String(item.chlorine_connected || "").toLowerCase().includes(q) ||
                 String(item.reading_value || item.telemetry_value || "").toLowerCase().includes(q) ||
                 String(item.latest_lpcd || "").toLowerCase().includes(q) ||
-                String(item.latest_water || "").toLowerCase().includes(q)
+                String(item.latest_water || "").toLowerCase().includes(q) ||
+                String(item.agency_type || item.operated_by || "").toLowerCase().includes(q)
             );
         });
     }, [selectedCellDetails, modalSearch]);
@@ -1204,6 +1205,11 @@ export default function AlertTrackerPage() {
                                                                         <span className="text-[11px] text-[#64748B] font-mono">
                                                                             (#{item.scheme_id})
                                                                         </span>
+                                                                        {(item.agency_type || item.operated_by) && (
+                                                                            <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-slate-100 text-[#0B3558] border border-[#CBD5E1]">
+                                                                                {item.agency_type || item.operated_by}
+                                                                            </span>
+                                                                        )}
                                                                     </div>
                                                                     <div className="text-[11px] text-[#64748B] font-normal mt-0.5 flex items-center gap-1.5 flex-wrap">
                                                                         <MapPin className="h-3 w-3 text-[#4A6484] shrink-0 inline" />
@@ -1515,6 +1521,11 @@ export default function AlertTrackerPage() {
                                                                 <span className="text-[11px] text-[#64748B] font-mono">
                                                                     (#{item.scheme_id})
                                                                 </span>
+                                                                {(item.agency_type || item.operated_by) && (
+                                                                    <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-slate-100 text-[#0B3558] border border-[#CBD5E1]">
+                                                                        {item.agency_type || item.operated_by}
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                             <div className="text-[11px] text-[#64748B] font-normal mt-0.5 flex items-center gap-1.5 flex-wrap">
                                                                 <MapPin className="h-3 w-3 text-[#4A6484] shrink-0 inline" />

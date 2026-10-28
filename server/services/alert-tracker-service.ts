@@ -493,13 +493,15 @@ export async function getAlertTrackerMetrics(params: {
 
     let agencyClause = sql``;
     if (agency) {
-      const a = agency.toLowerCase();
-      if (a === "zp") {
-        agencyClause = sql`AND (COALESCE(ss.agency, ss.agency_type) ILIKE 'ZP%' OR COALESCE(ss.agency, ss.agency_type) ILIKE '%ZP%')`;
+      const a = agency.toLowerCase().trim();
+      if (a === "zp-self" || a === "zpself" || a === "zp self") {
+        agencyClause = sql`AND (COALESCE(ss.agency, ss.agency_type) ILIKE '%ZP-Self%')`;
       } else if (a.includes("shikhar") || a.includes("shikar")) {
         agencyClause = sql`AND (COALESCE(ss.agency, ss.agency_type) ILIKE '%shikhar%' OR COALESCE(ss.agency, ss.agency_type) ILIKE '%shikar%')`;
+      } else if (a === "zp") {
+        agencyClause = sql`AND (COALESCE(ss.agency, ss.agency_type) ILIKE 'ZP%' OR COALESCE(ss.agency, ss.agency_type) ILIKE '%ZP%')`;
       } else if (a.includes("gram") || a === "gp") {
-        agencyClause = sql`AND (COALESCE(ss.agency, ss.agency_type) ILIKE 'GP%' OR COALESCE(ss.agency, ss.agency_type) ILIKE '%gram%')`;
+        agencyClause = sql`AND (COALESCE(ss.agency, ss.agency_type) = 'GP' OR COALESCE(ss.agency, ss.agency_type) ILIKE 'GP%' OR COALESCE(ss.agency, ss.agency_type) ILIKE '%gram%')`;
       } else if (a.includes("mjp")) {
         agencyClause = sql`AND (COALESCE(ss.agency, ss.agency_type) ILIKE '%MJP%')`;
       } else if (a.includes("contractor")) {
@@ -557,6 +559,7 @@ export async function getAlertTrackerMetrics(params: {
           COALESCE(NULLIF(sod.chief_se_name, '-'), sod_ee.chief_se_name) as chief_se_name,
           COALESCE(NULLIF(sod.chief_se_number, '-'), sod_ee.chief_se_number) as chief_se_number,
           COALESCE(ss.agency, ss.agency_type, sod.operated_by, 'MJP') as operated_by,
+          COALESCE(ss.agency_type, ss.agency, sod.operated_by, 'MJP') as agency_type,
           (
             SELECT a.delivery_status 
             FROM alert_tracker_logs a 
@@ -643,6 +646,7 @@ export async function getAlertTrackerMetrics(params: {
           COALESCE(NULLIF(sod.chief_se_name, '-'), sod_ee.chief_se_name) as chief_se_name,
           COALESCE(NULLIF(sod.chief_se_number, '-'), sod_ee.chief_se_number) as chief_se_number,
           COALESCE(ss.agency, ss.agency_type, sod.operated_by, 'MJP') as operated_by,
+          COALESCE(ss.agency_type, ss.agency, sod.operated_by, 'MJP') as agency_type,
           (
             SELECT a.delivery_status 
             FROM alert_tracker_logs a 
@@ -736,6 +740,7 @@ export async function getAlertTrackerMetrics(params: {
           COALESCE(NULLIF(sod.chief_se_name, '-'), sod_ee.chief_se_name) as chief_se_name,
           COALESCE(NULLIF(sod.chief_se_number, '-'), sod_ee.chief_se_number) as chief_se_number,
           COALESCE(ss.agency, ss.agency_type, sod.operated_by, 'MJP') as operated_by,
+          COALESCE(ss.agency_type, ss.agency, sod.operated_by, 'MJP') as agency_type,
           (
             SELECT a.delivery_status 
             FROM alert_tracker_logs a 
@@ -831,6 +836,7 @@ export async function getAlertTrackerMetrics(params: {
         chief_se_name: row.chief_se_name && row.chief_se_name !== "-" ? row.chief_se_name : "-",
         chief_se_number: row.chief_se_number || "-",
         operated_by: row.operated_by || "MJP",
+        agency_type: row.agency_type || row.operated_by || "MJP",
         remarks_list: schemeRemarks,
         remarks_count: schemeRemarks.length,
         val_latest: row.val_latest !== null ? Number(row.val_latest) : null,
@@ -922,6 +928,7 @@ export async function getAlertTrackerMetrics(params: {
         chief_se_name: row.chief_se_name && row.chief_se_name !== "-" ? row.chief_se_name : "-",
         chief_se_number: row.chief_se_number || "-",
         operated_by: row.operated_by || "MJP",
+        agency_type: row.agency_type || row.operated_by || "MJP",
         remarks_list: schemeRemarks,
         remarks_count: schemeRemarks.length,
         val_latest: row.val_latest !== null ? Number(row.val_latest) : null,
@@ -1021,6 +1028,7 @@ export async function getAlertTrackerMetrics(params: {
         chief_se_name: row.chief_se_name && row.chief_se_name !== "-" ? row.chief_se_name : "-",
         chief_se_number: row.chief_se_number || "-",
         operated_by: row.operated_by || "MJP",
+        agency_type: row.agency_type || row.operated_by || "MJP",
         remarks_list: schemeRemarks,
         remarks_count: schemeRemarks.length,
         val_latest: row.val_latest !== null ? Number(row.val_latest) : null,
