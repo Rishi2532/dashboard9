@@ -917,7 +917,8 @@ const PressureDashboard: React.FC = () => {
 
     let belowRange = 0,
       optimal = 0,
-      above = 0;
+      above = 0,
+      noData = 0;
 
     allPressureData.forEach((data) => {
       const sensorKey = `${data.region}|${data.circle}|${data.division}|${data.sub_division}|${data.block}|${data.village_name}|${data.esr_name}`.toLowerCase();
@@ -925,22 +926,20 @@ const PressureDashboard: React.FC = () => {
       // Only count sensors that have no water
       if (noWaterSensorIds.has(sensorKey)) {
         const currentValue = getCurrentPressureValue(data);
-        if (currentValue !== null && !isNaN(currentValue)) {
-          if (currentValue < 0.2) {
-            belowRange++;
-          } else if (currentValue >= 0.2 && currentValue <= 0.7) {
-            optimal++;
-          } else {
-            above++;
-          }
+        if (currentValue === null || isNaN(currentValue)) {
+          noData++;
+          belowRange++;
+        } else if (currentValue < 0.2) {
+          belowRange++;
+        } else if (currentValue >= 0.2 && currentValue <= 0.7) {
+          optimal++;
+        } else {
+          above++;
         }
-        // Null/blank values are NOT counted in any range category
       }
     });
 
     const totalCount = noWaterSensorIds.size;
-    const sumRanges = belowRange + optimal + above;
-    const noData = Math.max(totalCount - sumRanges, 0);
 
     console.log("Without water range calculations:", {
       belowRange,
@@ -956,7 +955,12 @@ const PressureDashboard: React.FC = () => {
   // Get the CSS class and status text based on pressure value
   const getPressureStatusInfo = (value: number | null) => {
     if (value === null)
-      return { className: "bg-gray-100", statusText: "No Data" };
+      return {
+        className: "bg-red-50 border-red-200",
+        statusText: "Below Range",
+        textColor: "text-red-800",
+        icon: <AlertTriangle className="h-5 w-5 text-red-600" />,
+      };
 
     if (value < 0.2)
       return {
@@ -1547,7 +1551,8 @@ const PressureDashboard: React.FC = () => {
     let belowRange = 0,
       optimal = 0,
       above = 0,
-      filteredWithWaterCount = 0;
+      filteredWithWaterCount = 0,
+      noData = 0;
 
     const totalSchemes = new Set<string>();
     const totalVillages = new Set<string>();
@@ -1574,27 +1579,29 @@ const PressureDashboard: React.FC = () => {
         if (vKey) totalVillages.add(vKey);
 
         const currentValue = getCurrentPressureValue(data);
-        if (currentValue !== null && !isNaN(currentValue)) {
-          if (currentValue < 0.2) {
-            belowRange++;
-            if (sKey) belowRangeSchemes.add(sKey);
-            if (vKey) belowRangeVillages.add(vKey);
-          } else if (currentValue >= 0.2 && currentValue <= 0.7) {
-            optimal++;
-            if (sKey) optimalSchemes.add(sKey);
-            if (vKey) optimalVillages.add(vKey);
-          } else {
-            above++;
-            if (sKey) aboveSchemes.add(sKey);
-            if (vKey) aboveVillages.add(vKey);
-          }
+        // Blank / No data -> also counted as below range (<0.2 bar)
+        if (currentValue === null || isNaN(currentValue)) {
+          noData++;
+          belowRange++;
+          if (sKey) belowRangeSchemes.add(sKey);
+          if (vKey) belowRangeVillages.add(vKey);
+        } else if (currentValue < 0.2) {
+          belowRange++;
+          if (sKey) belowRangeSchemes.add(sKey);
+          if (vKey) belowRangeVillages.add(vKey);
+        } else if (currentValue >= 0.2 && currentValue <= 0.7) {
+          optimal++;
+          if (sKey) optimalSchemes.add(sKey);
+          if (vKey) optimalVillages.add(vKey);
+        } else {
+          above++;
+          if (sKey) aboveSchemes.add(sKey);
+          if (vKey) aboveVillages.add(vKey);
         }
       }
     });
 
     const totalCount = filteredWithWaterCount;
-    const sumRanges = belowRange + optimal + above;
-    const noData = Math.max(totalCount - sumRanges, 0);
 
     return {
       belowRange,
@@ -1626,9 +1633,9 @@ const PressureDashboard: React.FC = () => {
         case "below_0.2":
           filtered = filtered.filter((item) => {
             const latestValue = getCurrentPressureValue(item);
-            // Only include sensors with valid values < 0.2 (matching card calculation)
+            // Include sensors with valid values < 0.2 AND blank/null values (matching card calculation)
             return (
-              latestValue !== null && !isNaN(latestValue) && latestValue < 0.2
+              latestValue === null || isNaN(latestValue) || latestValue < 0.2
             );
           });
           break;
@@ -3063,7 +3070,7 @@ const PressureDashboard: React.FC = () => {
               </svg>
               <p className="text-xs text-gray-500">
                 <span className="font-bold text-gray-700">{calculateWithWaterRangeStats.noData}</span>{" "}
-                sensor{calculateWithWaterRangeStats.noData !== 1 ? "s" : ""} with no pressure data — excluded from range counts above
+                sensor{calculateWithWaterRangeStats.noData !== 1 ? "s" : ""} with no pressure data (blank) — included in Below Range (&lt;0.2 bar) above
               </p>
             </div>
           )}

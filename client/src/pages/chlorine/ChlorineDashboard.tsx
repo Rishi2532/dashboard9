@@ -1029,7 +1029,7 @@ const ChlorineDashboard: React.FC = () => {
     });
 
     let total = filteredWithWater.length;
-    let belowRange = 0, optimal = 0, above = 0, consistentZero = 0;
+    let belowRange = 0, optimal = 0, above = 0, consistentZero = 0, noData = 0;
 
     const totalSchemes = new Set<string>();
     const totalVillages = new Set<string>();
@@ -1051,29 +1051,30 @@ const ChlorineDashboard: React.FC = () => {
 
       const latestValue = getCurrentChlorineValue(item);
 
-      if (latestValue !== null && !isNaN(latestValue)) {
-        if (latestValue < 0.2 && latestValue >= 0) {
-          belowRange++;
-          if (sKey) belowRangeSchemes.add(sKey);
-          if (vKey) belowRangeVillages.add(vKey);
-        } else if (latestValue >= 0.2 && latestValue <= 0.5) {
-          optimal++;
-          if (sKey) optimalSchemes.add(sKey);
-          if (vKey) optimalVillages.add(vKey);
-        } else if (latestValue > 0.5) {
-          above++;
-          if (sKey) aboveSchemes.add(sKey);
-          if (vKey) aboveVillages.add(vKey);
-        }
+      // Blank / No data -> also counted as below range
+      if (latestValue === null || isNaN(latestValue)) {
+        noData++;
+        belowRange++;
+        if (sKey) belowRangeSchemes.add(sKey);
+        if (vKey) belowRangeVillages.add(vKey);
+      } else if (latestValue < 0.2 && latestValue >= 0) {
+        belowRange++;
+        if (sKey) belowRangeSchemes.add(sKey);
+        if (vKey) belowRangeVillages.add(vKey);
+      } else if (latestValue >= 0.2 && latestValue <= 0.5) {
+        optimal++;
+        if (sKey) optimalSchemes.add(sKey);
+        if (vKey) optimalVillages.add(vKey);
+      } else if (latestValue > 0.5) {
+        above++;
+        if (sKey) aboveSchemes.add(sKey);
+        if (vKey) aboveVillages.add(vKey);
       }
 
       if ((item.number_of_consistent_zero_value_in_chlorine || 0) === 7) {
         consistentZero++;
       }
     });
-
-    const sumRanges = belowRange + optimal + above;
-    const noData = Math.max(total - sumRanges, 0);
 
     return {
       total,
@@ -1425,9 +1426,9 @@ const ChlorineDashboard: React.FC = () => {
 
         switch (selectedCardFilter) {
           case "below_0.2":
-            // Only include sensors with valid values >= 0 and < 0.2 (matching card calculation)
+            // Include sensors with valid values >= 0 and < 0.2 AND blank/no-data values (matching card calculation)
             return (
-              latestValue !== null && !isNaN(latestValue) && latestValue < 0.2 && latestValue >= 0
+              latestValue === null || isNaN(latestValue) || (latestValue < 0.2 && latestValue >= 0)
             );
           case "between_0.2_0.5":
             return (
@@ -2628,7 +2629,7 @@ const ChlorineDashboard: React.FC = () => {
               </svg>
               <p className="text-xs text-gray-500">
                 <span className="font-bold text-gray-700">{calculateWithWaterRangeStats.noData}</span>{" "}
-                sensor{calculateWithWaterRangeStats.noData !== 1 ? "s" : ""} with no chlorine data — excluded from range counts above
+                sensor{calculateWithWaterRangeStats.noData !== 1 ? "s" : ""} with no chlorine data (blank) — included in Below Range (&lt;0.2 mg/l) above
               </p>
             </div>
           )}

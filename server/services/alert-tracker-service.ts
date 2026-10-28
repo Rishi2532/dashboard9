@@ -603,6 +603,14 @@ export async function getAlertTrackerMetrics(params: {
           WHERE p.pressure_date = ${evalHistoryStr}
           ORDER BY p.scheme_id, LOWER(TRIM(p.village_name)), LOWER(TRIM(p.esr_name)), p.id DESC
         ),
+        today_water AS (
+          SELECT DISTINCT ON (wc.scheme_id, LOWER(TRIM(wc.village_name)), LOWER(TRIM(wc.esr_name)))
+            wc.scheme_id, wc.village_name, wc.esr_name,
+            wc.water_value as water_today
+          FROM water_consumption_history wc
+          WHERE wc.data_date = ${evalHistoryStr}
+          ORDER BY wc.scheme_id, LOWER(TRIM(wc.village_name)), LOWER(TRIM(wc.esr_name)), wc.id DESC
+        ),
         next_pres AS (
           SELECT DISTINCT ON (p.scheme_id, LOWER(TRIM(p.village_name)), LOWER(TRIM(p.esr_name)))
             p.scheme_id, p.village_name, p.esr_name,
@@ -635,6 +643,7 @@ export async function getAlertTrackerMetrics(params: {
           COALESCE(t.region, ss.region, 'Unknown') as region,
           t.circle, t.division, t.sub_division, t.block,
           t.val_today,
+          tw.water_today,
           n.val_next,
           nw.water_next,
           l.val_latest,
@@ -662,6 +671,11 @@ export async function getAlertTrackerMetrics(params: {
           WHERE water_supply = 'Yes'
           ORDER BY scheme_id
         ) ss ON ss.scheme_id = t.scheme_id
+        JOIN today_water tw ON tw.scheme_id = t.scheme_id 
+          AND LOWER(TRIM(COALESCE(tw.village_name, ''))) = LOWER(TRIM(COALESCE(t.village_name, '')))
+          AND LOWER(TRIM(COALESCE(tw.esr_name, ''))) = LOWER(TRIM(COALESCE(t.esr_name, '')))
+          AND tw.water_today IS NOT NULL
+          AND tw.water_today > 0
         LEFT JOIN next_pres n ON n.scheme_id = t.scheme_id 
           AND LOWER(TRIM(n.village_name)) = LOWER(TRIM(t.village_name))
           AND LOWER(TRIM(n.esr_name)) = LOWER(TRIM(t.esr_name))
@@ -682,10 +696,10 @@ export async function getAlertTrackerMetrics(params: {
           WHERE ee_name IS NOT NULL AND ee_name != '' AND ee_name != '-' AND LOWER(ee_name) != 'executive engineer'
           ORDER BY scheme_id
         ) sod_ee ON sod_ee.scheme_id = t.scheme_id
-        WHERE t.val_today IS NOT NULL AND t.val_today >= 0 AND t.val_today < 0.20
+        WHERE (t.val_today IS NULL OR (t.val_today >= 0 AND t.val_today < 0.20))
           ${presRegionClause}
           ${agencyClause}
-        ORDER BY t.scheme_id, LOWER(TRIM(t.village_name)), LOWER(TRIM(COALESCE(t.esr_name, ''))), t.val_today ASC;
+        ORDER BY t.scheme_id, LOWER(TRIM(t.village_name)), LOWER(TRIM(COALESCE(t.esr_name, ''))), t.val_today ASC NULLS FIRST;
       `) : Promise.resolve({ rows: [] }),
       evalChlCount > 0 ? db.execute(sql`
         WITH today_chl AS (
@@ -696,6 +710,14 @@ export async function getAlertTrackerMetrics(params: {
           FROM chlorine_history c
           WHERE c.chlorine_date = ${evalHistoryStr}
           ORDER BY c.scheme_id, LOWER(TRIM(c.village_name)), LOWER(TRIM(c.esr_name)), c.id DESC
+        ),
+        today_water AS (
+          SELECT DISTINCT ON (wc.scheme_id, LOWER(TRIM(wc.village_name)), LOWER(TRIM(wc.esr_name)))
+            wc.scheme_id, wc.village_name, wc.esr_name,
+            wc.water_value as water_today
+          FROM water_consumption_history wc
+          WHERE wc.data_date = ${evalHistoryStr}
+          ORDER BY wc.scheme_id, LOWER(TRIM(wc.village_name)), LOWER(TRIM(wc.esr_name)), wc.id DESC
         ),
         next_chl AS (
           SELECT DISTINCT ON (c.scheme_id, LOWER(TRIM(c.village_name)), LOWER(TRIM(c.esr_name)))
@@ -729,6 +751,7 @@ export async function getAlertTrackerMetrics(params: {
           COALESCE(t.region, ss.region, 'Unknown') as region,
           t.circle, t.division, t.sub_division, t.block,
           t.val_today,
+          tw.water_today,
           n.val_next,
           nw.water_next,
           l.val_latest,
@@ -756,6 +779,11 @@ export async function getAlertTrackerMetrics(params: {
           WHERE water_supply = 'Yes'
           ORDER BY scheme_id
         ) ss ON ss.scheme_id = t.scheme_id
+        JOIN today_water tw ON tw.scheme_id = t.scheme_id 
+          AND LOWER(TRIM(COALESCE(tw.village_name, ''))) = LOWER(TRIM(COALESCE(t.village_name, '')))
+          AND LOWER(TRIM(COALESCE(tw.esr_name, ''))) = LOWER(TRIM(COALESCE(t.esr_name, '')))
+          AND tw.water_today IS NOT NULL
+          AND tw.water_today > 0
         LEFT JOIN next_chl n ON n.scheme_id = t.scheme_id 
           AND LOWER(TRIM(n.village_name)) = LOWER(TRIM(t.village_name))
           AND LOWER(TRIM(n.esr_name)) = LOWER(TRIM(t.esr_name))
@@ -776,10 +804,10 @@ export async function getAlertTrackerMetrics(params: {
           WHERE ee_name IS NOT NULL AND ee_name != '' AND ee_name != '-' AND LOWER(ee_name) != 'executive engineer'
           ORDER BY scheme_id
         ) sod_ee ON sod_ee.scheme_id = t.scheme_id
-        WHERE t.val_today IS NOT NULL AND (t.val_today < 0.20 OR t.val_today > 0.50)
+        WHERE (t.val_today IS NULL OR t.val_today < 0.20 OR t.val_today > 0.50)
           ${chlRegionClause}
           ${agencyClause}
-        ORDER BY t.scheme_id, LOWER(TRIM(t.village_name)), LOWER(TRIM(COALESCE(t.esr_name, ''))), t.val_today ASC;
+        ORDER BY t.scheme_id, LOWER(TRIM(t.village_name)), LOWER(TRIM(COALESCE(t.esr_name, ''))), t.val_today ASC NULLS FIRST;
       `) : Promise.resolve({ rows: [] }),
     ]);
 
@@ -904,12 +932,12 @@ export async function getAlertTrackerMetrics(params: {
         recipient_contact: isEE ? (row.ee_number || "-") : (row.operator_number || "-"),
         recipient_email: row.ee_email || undefined,
         notification_channel: isEE ? ("SMS & Email" as any) : "SMS",
-        operator_message_text: DLT_TEMPLATES.PRESSURE_LOW.render(formatSchemeName(row.scheme_name, row.scheme_id), formatVillageAndEsr(row.village_name, row.reservoir_name), parseFloat(row.val_today).toFixed(2)),
-        ee_message_text: `सूचना: JJM MVS ${formatSchemeName(row.scheme_name, row.scheme_id)} अंतर्गत ${formatVillageAndEsr(row.village_name, row.reservoir_name)} येथील वितरण व्यवस्थेतील Pressure Sensor नुसार पाण्याचा दाब 0.2 bar पेक्षा कमी असून सध्याचा दाब ${parseFloat(row.val_today).toFixed(2)} bar इतका आहे. तसेच, तांत्रिक बाबी प्रलंबित आहेत. कृपया तपासणी करून त्वरित आवश्यक कार्यवाही करावी. – मजीप्रा`,
+        operator_message_text: DLT_TEMPLATES.PRESSURE_LOW.render(formatSchemeName(row.scheme_name, row.scheme_id), formatVillageAndEsr(row.village_name, row.reservoir_name), parseFloat(row.val_today || '0').toFixed(2)),
+        ee_message_text: `सूचना: JJM MVS ${formatSchemeName(row.scheme_name, row.scheme_id)} अंतर्गत ${formatVillageAndEsr(row.village_name, row.reservoir_name)} येथील वितरण व्यवस्थेतील Pressure Sensor नुसार पाण्याचा दाब 0.2 bar पेक्षा कमी असून सध्याचा दाब ${parseFloat(row.val_today || '0').toFixed(2)} bar इतका आहे. तसेच, तांत्रिक बाबी प्रलंबित आहेत. कृपया तपासणी करून त्वरित आवश्यक कार्यवाही करावी. – मजीप्रा`,
         message_text: isEE
-          ? `सूचना: JJM MVS ${formatSchemeName(row.scheme_name, row.scheme_id)} अंतर्गत ${formatVillageAndEsr(row.village_name, row.reservoir_name)} येथील वितरण व्यवस्थेतील Pressure Sensor नुसार पाण्याचा दाब 0.2 bar पेक्षा कमी असून सध्याचा दाब ${parseFloat(row.val_today).toFixed(2)} bar इतका आहे. तसेच, तांत्रिक बाबी प्रलंबित आहेत. कृपया तपासणी करून त्वरित आवश्यक कार्यवाही करावी. – मजीप्रा`
-          : DLT_TEMPLATES.PRESSURE_LOW.render(formatSchemeName(row.scheme_name, row.scheme_id), formatVillageAndEsr(row.village_name, row.reservoir_name), parseFloat(row.val_today).toFixed(2)),
-        reading_value: `${parseFloat(row.val_today).toFixed(2)} Bar`,
+          ? `सूचना: JJM MVS ${formatSchemeName(row.scheme_name, row.scheme_id)} अंतर्गत ${formatVillageAndEsr(row.village_name, row.reservoir_name)} येथील वितरण व्यवस्थेतील Pressure Sensor नुसार पाण्याचा दाब 0.2 bar पेक्षा कमी असून सध्याचा दाब ${parseFloat(row.val_today || '0').toFixed(2)} bar इतका आहे. तसेच, तांत्रिक बाबी प्रलंबित आहेत. कृपया तपासणी करून त्वरित आवश्यक कार्यवाही करावी. – मजीप्रा`
+          : DLT_TEMPLATES.PRESSURE_LOW.render(formatSchemeName(row.scheme_name, row.scheme_id), formatVillageAndEsr(row.village_name, row.reservoir_name), parseFloat(row.val_today || '0').toFixed(2)),
+        reading_value: row.val_today !== null ? `${parseFloat(row.val_today).toFixed(2)} Bar` : "No Data",
         delivery_status: row.sms_delivery_status || "NOT_DISPATCHED",
         sms_sent: isEE ? (hasActualSmsLog && hasEe) : hasActualSmsLog,
         email_sent: isEE && hasActualSmsLog && hasEe,
@@ -931,6 +959,7 @@ export async function getAlertTrackerMetrics(params: {
         agency_type: row.agency_type || row.operated_by || "MJP",
         remarks_list: schemeRemarks,
         remarks_count: schemeRemarks.length,
+        water_value: row.water_today ? Number(row.water_today) : undefined,
         val_latest: row.val_latest !== null ? Number(row.val_latest) : null,
         val_today: row.val_today !== null ? Number(row.val_today) : null,
         val_next: row.val_next !== null ? Number(row.val_next) : null,
@@ -996,20 +1025,20 @@ export async function getAlertTrackerMetrics(params: {
         recipient_contact: isEE ? (row.ee_number || "-") : (row.operator_number || "-"),
         recipient_email: row.ee_email || undefined,
         notification_channel: isEE ? ("SMS & Email" as any) : "SMS",
-        operator_message_text: (parseFloat(row.val_today) > 0.50 ? DLT_TEMPLATES.CHLORINE_HIGH : DLT_TEMPLATES.CHLORINE_LOW).render(
+        operator_message_text: (row.val_today !== null && parseFloat(row.val_today) > 0.50 ? DLT_TEMPLATES.CHLORINE_HIGH : DLT_TEMPLATES.CHLORINE_LOW).render(
           formatSchemeName(row.scheme_name, row.scheme_id),
           formatVillageAndEsr(row.village_name, row.reservoir_name),
-          parseFloat(row.val_today).toFixed(2)
+          parseFloat(row.val_today || '0').toFixed(2)
         ),
-        ee_message_text: `सूचना: JJM MVS ${formatSchemeName(row.scheme_name, row.scheme_id)} अंतर्गत ${formatVillageAndEsr(row.village_name, row.reservoir_name)} येथील वितरण व्यवस्थेत Residual Chlorine ची मात्रा विहित मर्यादेबाहेर असून सध्याची मात्रा ${parseFloat(row.val_today).toFixed(2)} mg/l इतकी आहे. तसेच, तांत्रिक बाबी प्रलंबित आहेत. कृपया तपासणी करून त्वरित आवश्यक कार्यवाही करावी. – मजीप्रा`,
+        ee_message_text: `सूचना: JJM MVS ${formatSchemeName(row.scheme_name, row.scheme_id)} अंतर्गत ${formatVillageAndEsr(row.village_name, row.reservoir_name)} येथील वितरण व्यवस्थेत Residual Chlorine ची मात्रा विहित मर्यादेबाहेर असून सध्याची मात्रा ${parseFloat(row.val_today || '0').toFixed(2)} mg/l इतकी आहे. तसेच, तांत्रिक बाबी प्रलंबित आहेत. कृपया तपासणी करून त्वरित आवश्यक कार्यवाही करावी. – मजीप्रा`,
         message_text: isEE
-          ? `सूचना: JJM MVS ${formatSchemeName(row.scheme_name, row.scheme_id)} अंतर्गत ${formatVillageAndEsr(row.village_name, row.reservoir_name)} येथील वितरण व्यवस्थेत Residual Chlorine ची मात्रा विहित मर्यादेबाहेर असून सध्याची मात्रा ${parseFloat(row.val_today).toFixed(2)} mg/l इतकी आहे. तसेच, तांत्रिक बाबी प्रलंबित आहेत. कृपया तपासणी करून त्वरित आवश्यक कार्यवाही करावी. – मजीप्रा`
-          : (parseFloat(row.val_today) > 0.50 ? DLT_TEMPLATES.CHLORINE_HIGH : DLT_TEMPLATES.CHLORINE_LOW).render(
+          ? `सूचना: JJM MVS ${formatSchemeName(row.scheme_name, row.scheme_id)} अंतर्गत ${formatVillageAndEsr(row.village_name, row.reservoir_name)} येथील वितरण व्यवस्थेत Residual Chlorine ची मात्रा विहित मर्यादेबाहेर असून सध्याची मात्रा ${parseFloat(row.val_today || '0').toFixed(2)} mg/l इतकी आहे. तसेच, तांत्रिक बाबी प्रलंबित आहेत. कृपया तपासणी करून त्वरित आवश्यक कार्यवाही करावी. – मजीप्रा`
+          : (row.val_today !== null && parseFloat(row.val_today) > 0.50 ? DLT_TEMPLATES.CHLORINE_HIGH : DLT_TEMPLATES.CHLORINE_LOW).render(
               formatSchemeName(row.scheme_name, row.scheme_id),
               formatVillageAndEsr(row.village_name, row.reservoir_name),
-              parseFloat(row.val_today).toFixed(2)
+              parseFloat(row.val_today || '0').toFixed(2)
             ),
-        reading_value: `${parseFloat(row.val_today).toFixed(2)} mg/L`,
+        reading_value: row.val_today !== null ? `${parseFloat(row.val_today).toFixed(2)} mg/L` : "No Data",
         delivery_status: row.sms_delivery_status || "NOT_DISPATCHED",
         sms_sent: isEE ? (hasActualSmsLog && hasEe) : hasActualSmsLog,
         email_sent: isEE && hasActualSmsLog && hasEe,
@@ -1031,6 +1060,7 @@ export async function getAlertTrackerMetrics(params: {
         agency_type: row.agency_type || row.operated_by || "MJP",
         remarks_list: schemeRemarks,
         remarks_count: schemeRemarks.length,
+        water_value: row.water_today ? Number(row.water_today) : undefined,
         val_latest: row.val_latest !== null ? Number(row.val_latest) : null,
         val_today: row.val_today !== null ? Number(row.val_today) : null,
         val_next: row.val_next !== null ? Number(row.val_next) : null,
