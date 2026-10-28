@@ -521,7 +521,7 @@ export default function AlertTrackerPage() {
                             Refresh
                         </Button>
 
-                        <Button
+                        {/* <Button
                             size="sm"
                             onClick={handleTriggerDailyAlerts}
                             disabled={isTriggeringAlerts}
@@ -530,7 +530,7 @@ export default function AlertTrackerPage() {
                         >
                             <Send className={`w-3.5 h-3.5 ${isTriggeringAlerts ? "animate-pulse" : ""}`} />
                             {isTriggeringAlerts ? "Sending..." : "Send Daily Alerts"}
-                        </Button>
+                        </Button> */}
 
                         <Button
                             size="sm"
