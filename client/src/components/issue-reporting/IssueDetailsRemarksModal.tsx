@@ -300,6 +300,7 @@ export function IssueDetailsRemarksModal({
                           <p className="text-sm text-slate-700 font-medium">
                             {iss.reason || iss.issue_description}
                           </p>
+
                         </div>
                       )}
                       {iss.remarks && (

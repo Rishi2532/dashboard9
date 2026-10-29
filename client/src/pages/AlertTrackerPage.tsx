@@ -126,6 +126,8 @@ export default function AlertTrackerPage() {
     } | null>(null);
 
     const [modalSearch, setModalSearch] = useState<string>("");
+    const [modalRegionFilter, setModalRegionFilter] = useState<string>("All");
+    const [modalConnectionFilter, setModalConnectionFilter] = useState<"all" | "connected" | "not_connected">("all");
     const [modalPage, setModalPage] = useState<number>(1);
     const modalPageSize = 10;
     const [copiedMobile, setCopiedMobile] = useState<string | null>(null);
@@ -177,6 +179,7 @@ export default function AlertTrackerPage() {
             }
             params.append("date", dataDate);
             params.append("agency", selectedAgency === "ALL Agency" ? "ALL" : selectedAgency);
+            params.append("refresh", "true");
             const res = await fetch(`/api/alert-tracker/summary?${params.toString()}`);
             if (!res.ok) throw new Error("Failed to load alert tracker summary");
             return res.json();
@@ -255,9 +258,9 @@ export default function AlertTrackerPage() {
 
     // Safe metrics fallbacks
     const projectScope = data?.projectScope || {
-        schemes: 389,
-        villages: 5993,
-        esr: 10319,
+        schemes: 0,
+        villages: 0,
+        esr: 0,
     };
 
     const physicalProgress = data?.physicalProgress || {
@@ -267,9 +270,20 @@ export default function AlertTrackerPage() {
     };
 
     const operational = data?.operational || {
-        schemes: 39,
-        villages: 255,
-        esr: 325,
+        schemes: 47,
+        villages: 346,
+        esr: 407,
+    };
+
+    const diffCounts = data?.diffCounts || {
+        schemes: Math.max(0, (physicalProgress.schemes?.fully || 0) - (operational.schemes || 0)),
+        villages: Math.max(0, (physicalProgress.villages?.fully || 0) - (operational.villages || 0)),
+        esr: Math.max(0, (physicalProgress.esr?.fully || 0) - (operational.esr || 0)),
+    };
+
+    const renderScopeCount = (val: number | undefined | null) => {
+        if (val === undefined || val === null || val === 0) return "-";
+        return val.toLocaleString();
     };
 
     const alertMatrix = data?.alertMatrix || {
@@ -313,6 +327,8 @@ export default function AlertTrackerPage() {
                     });
                     setModalPage(1);
                     setModalSearch("");
+                    setModalRegionFilter("All");
+                    setModalConnectionFilter("all");
                 }}
                 className="w-full h-full min-h-[44px] flex items-center justify-center font-bold text-base sm:text-lg text-[#0A2540] cursor-pointer hover:bg-[#EBF3FB] hover:text-[#0B3558] transition-colors select-none"
                 title="Click to inspect date-wise notifications"
@@ -339,6 +355,8 @@ export default function AlertTrackerPage() {
         });
         setModalPage(1);
         setModalSearch("");
+        setModalRegionFilter("All");
+        setModalConnectionFilter("all");
     };
 
     // Trigger daily alerts dispatch on demand (strictly uses scheme_operator_details)
@@ -436,12 +454,43 @@ export default function AlertTrackerPage() {
         }
     };
 
-    // Filtered modal items based on search term
+    // Filtered modal items based on search term, list-specific region filter, and connection status filter
     const filteredModalItems = useMemo(() => {
         if (!selectedCellDetails?.items) return [];
-        if (!modalSearch.trim()) return selectedCellDetails.items;
+        let items = selectedCellDetails.items;
+
+        // Apply list-specific region filter if selected
+        if (modalRegionFilter && modalRegionFilter !== "All") {
+            const rLower = modalRegionFilter.toLowerCase().trim();
+            const normRegion = rLower.includes("sambhajinagar") ? "sambhajinagar" : rLower;
+            items = items.filter((item: any) => {
+                const itemRegion = String(item.region || "").toLowerCase();
+                return itemRegion.includes(normRegion) || itemRegion.includes(rLower);
+            });
+        }
+
+        // Apply list-specific connection status filter if selected
+        if (modalConnectionFilter !== "all") {
+            items = items.filter((item: any) => {
+                const status = String(item.fully_completion_scheme_status || item.status || "").trim();
+                const isNotConnectedScheme = status === "Not-Connected" || status.toLowerCase() === "not connected";
+
+                let isConn = false;
+                if (status === "Not-Connected" || status.toLowerCase() === "not connected") {
+                    isConn = false;
+                } else if (item.is_connected !== undefined && item.is_connected !== null) {
+                    isConn = item.is_connected === "Connected" || String(item.is_connected).toLowerCase() === "yes";
+                } else {
+                    isConn = Number(item.connected_villages || 0) > 0 || Number(item.connected_esrs || 0) > 0;
+                }
+
+                return modalConnectionFilter === "connected" ? isConn : !isConn;
+            });
+        }
+
+        if (!modalSearch.trim()) return items;
         const q = modalSearch.toLowerCase().trim();
-        return selectedCellDetails.items.filter((item: any) => {
+        return items.filter((item: any) => {
             return (
                 String(item.scheme_id || "").toLowerCase().includes(q) ||
                 String(item.scheme_name || "").toLowerCase().includes(q) ||
@@ -449,12 +498,16 @@ export default function AlertTrackerPage() {
                 String(item.reservoir_name || item.esr_name || "").toLowerCase().includes(q) ||
                 String(item.recipient_name || item.operator_name || item.ee_name || "").toLowerCase().includes(q) ||
                 String(item.recipient_contact || item.operator_number || item.ee_number || "").toLowerCase().includes(q) ||
+                String(item.ee_email || item.recipient_email || "").toLowerCase().includes(q) ||
                 String(item.region || "").toLowerCase().includes(q) ||
                 String(item.division || "").toLowerCase().includes(q) ||
                 String(item.block || "").toLowerCase().includes(q) ||
                 String(item.total_villages || "").toLowerCase().includes(q) ||
+                String(item.connected_villages || "").toLowerCase().includes(q) ||
                 String(item.total_esrs || "").toLowerCase().includes(q) ||
+                String(item.completed_esrs || "").toLowerCase().includes(q) ||
                 String(item.population || "").toLowerCase().includes(q) ||
+                String(item.is_connected || "").toLowerCase().includes(q) ||
                 String(item.flow_meter_connected || "").toLowerCase().includes(q) ||
                 String(item.pressure_connected || "").toLowerCase().includes(q) ||
                 String(item.chlorine_connected || "").toLowerCase().includes(q) ||
@@ -464,7 +517,7 @@ export default function AlertTrackerPage() {
                 String(item.agency_type || item.operated_by || "").toLowerCase().includes(q)
             );
         });
-    }, [selectedCellDetails, modalSearch]);
+    }, [selectedCellDetails, modalSearch, modalRegionFilter, modalConnectionFilter]);
 
     const paginatedModalItems = useMemo(() => {
         const start = (modalPage - 1) * modalPageSize;
@@ -579,13 +632,25 @@ export default function AlertTrackerPage() {
                                     <td className="p-2 sm:p-2.5 font-bold border-r border-[#4A6484] bg-[#EBF3FB] text-[#0A2540] w-1/4 text-center sm:text-left">
                                         Project Scope
                                     </td>
-                                    <td className="p-2 sm:p-2.5 font-semibold text-[#1E293B] bg-white border-r border-[#4A6484] w-1/4">
+                                    <td
+                                        onClick={() => handleScopeClick("Project Scope - Schemes in Scope", "projectScopeSchemes", projectScope.schemes)}
+                                        className="p-2 sm:p-2.5 font-semibold text-[#1E293B] bg-white border-r border-[#4A6484] w-1/4 cursor-pointer hover:text-[#0B3558] hover:underline"
+                                        title="Click to view all schemes in Project Scope"
+                                    >
                                         Scheme in Scope - {projectScope.schemes.toLocaleString()}
                                     </td>
-                                    <td className="p-2 sm:p-2.5 font-semibold text-[#1E293B] bg-white border-r border-[#4A6484] w-1/4">
+                                    <td
+                                        onClick={() => handleScopeClick("Project Scope - Villages Covered", "projectScopeVillages", projectScope.villages)}
+                                        className="p-2 sm:p-2.5 font-semibold text-[#1E293B] bg-white border-r border-[#4A6484] w-1/4 cursor-pointer hover:text-[#0B3558] hover:underline"
+                                        title="Click to view all villages in Project Scope"
+                                    >
                                         Village covered - {projectScope.villages.toLocaleString()}
                                     </td>
-                                    <td className="p-2 sm:p-2.5 font-semibold text-[#1E293B] bg-white w-1/4">
+                                    <td
+                                        onClick={() => handleScopeClick("Project Scope - ESR+ GSR+MBR", "projectScopeEsr", projectScope.esr)}
+                                        className="p-2 sm:p-2.5 font-semibold text-[#1E293B] bg-white w-1/4 cursor-pointer hover:text-[#0B3558] hover:underline"
+                                        title="Click to view all ESRs in Project Scope"
+                                    >
                                         ESR+ GSR+MBR - {projectScope.esr.toLocaleString()}
                                     </td>
                                 </tr>
@@ -600,65 +665,68 @@ export default function AlertTrackerPage() {
                                             onClick={() => handleScopeClick("Partial Completed Schemes", "iotSchemesTotal", physicalProgress.schemes?.partial ?? 340)}
                                             className="cursor-pointer hover:text-[#0B3558] hover:underline"
                                         >
-                                            Partial completed schemes - {(physicalProgress.schemes?.partial ?? 340).toLocaleString()}
+                                            Partial completed schemes - {renderScopeCount(physicalProgress.schemes?.partial)}
                                         </div>
                                         <div
                                             onClick={() => handleScopeClick("Fully Completed Schemes", "iotSchemesFully", physicalProgress.schemes?.fully ?? 49)}
                                             className="cursor-pointer hover:text-[#0B3558] hover:underline"
                                         >
-                                            Fully Completed Schemes - {(physicalProgress.schemes?.fully ?? 49).toLocaleString()}
+                                            Fully Completed Schemes - {renderScopeCount(physicalProgress.schemes?.fully)}
                                         </div>
                                     </td>
                                     <td className="p-2 sm:p-2.5 border-r border-[#4A6484] bg-white w-1/4 text-xs sm:text-sm leading-snug text-[#1E293B]">
                                         <div
-                                            onClick={() => handleScopeClick("Villages covered in Partial schemes", "iotSchemesTotal", physicalProgress.villages?.partial ?? 5579)}
+                                            onClick={() => handleScopeClick("Villages covered in Partial schemes", "iotVillagesTotal", physicalProgress.villages?.partial ?? 5579)}
                                             className="cursor-pointer hover:text-[#0B3558] hover:underline"
                                         >
-                                            Villages covered in Partial schemes - {(physicalProgress.villages?.partial ?? 5579).toLocaleString()}
+                                            Villages covered in Partial schemes - {renderScopeCount(physicalProgress.villages?.partial)}
                                         </div>
                                         <div
-                                            onClick={() => handleScopeClick("Villages covered in fully completed schemes", "iotSchemesFully", physicalProgress.villages?.fully ?? 391)}
+                                            onClick={() => handleScopeClick("Villages covered in fully completed schemes", "iotVillagesFully", physicalProgress.villages?.fully ?? 391)}
                                             className="cursor-pointer hover:text-[#0B3558] hover:underline"
                                         >
-                                            Villages covered in fully completed schemes - {(physicalProgress.villages?.fully ?? 391).toLocaleString()}
+                                            Villages covered in fully completed schemes - {renderScopeCount(physicalProgress.villages?.fully)}
                                         </div>
                                     </td>
                                     <td className="p-2 sm:p-2.5 bg-white w-1/4 text-xs sm:text-sm leading-snug text-[#1E293B]">
                                         <div
-                                            onClick={() => handleScopeClick("ESRs covered in Partial schemes", "iotSchemesTotal", physicalProgress.esr?.partial ?? 9628)}
+                                            onClick={() => handleScopeClick("ESRs covered in Partial schemes", "iotEsrTotal", physicalProgress.esr?.partial ?? 9628)}
                                             className="cursor-pointer hover:text-[#0B3558] hover:underline"
                                         >
-                                            ESRs covered in Partial schemes - {(physicalProgress.esr?.partial ?? 9628).toLocaleString()}
+                                            ESRs covered in Partial schemes - {renderScopeCount(physicalProgress.esr?.partial)}
                                         </div>
                                         <div
-                                            onClick={() => handleScopeClick("ESRs covered in fully completed schemes", "iotSchemesFully", physicalProgress.esr?.fully ?? 612)}
+                                            onClick={() => handleScopeClick("ESRs covered in fully completed schemes", "iotEsrFully", physicalProgress.esr?.fully ?? 612)}
                                             className="cursor-pointer hover:text-[#0B3558] hover:underline"
                                         >
-                                            ESRs covered in fully completed schemes - {(physicalProgress.esr?.fully ?? 612).toLocaleString()}
+                                            ESRs covered in fully completed schemes - {renderScopeCount(physicalProgress.esr?.fully)}
                                         </div>
                                     </td>
                                 </tr>
 
                                 {/* Row 3: Operational */}
                                 <tr>
-                                    <td className="p-2 sm:p-2.5 font-bold border-r border-[#4A6484] bg-[#EBF3FB] text-[#0A2540] w-1/4 text-center sm:text-left">
+                                    <td className="p-2 sm:p-2.5 font-bold border-r border-[#4A6484] bg-[#EBF3FB] text-[#0A2540] w-1/4 text-center sm:text-left align-middle">
                                         IoT Operational
                                     </td>
                                     <td
                                         onClick={() => handleScopeClick("Operational Connected Schemes", "operationalSchemes", operational.schemes || 39)}
                                         className="p-2 sm:p-2.5 font-semibold text-[#1E293B] bg-white border-r border-[#4A6484] w-1/4 cursor-pointer hover:text-[#0B3558] hover:underline"
+                                        title="Click to view IoT operational schemes"
                                     >
                                         Scheme - {operational.schemes || 39}
                                     </td>
                                     <td
                                         onClick={() => handleScopeClick("Operational Connected Villages", "operationalVillages", operational.villages || 255)}
                                         className="p-2 sm:p-2.5 font-semibold text-[#1E293B] bg-white border-r border-[#4A6484] w-1/4 cursor-pointer hover:text-[#0B3558] hover:underline"
+                                        title="Click to view IoT operational villages"
                                     >
                                         Villages - {operational.villages || 255}
                                     </td>
                                     <td
                                         onClick={() => handleScopeClick("Operational Connected ESRs", "operationalEsr", operational.esr || 325)}
                                         className="p-2 sm:p-2.5 font-semibold text-[#1E293B] bg-white w-1/4 cursor-pointer hover:text-[#0B3558] hover:underline"
+                                        title="Click to view IoT operational ESRs"
                                     >
                                         No. Of ESR - {operational.esr || 325}
                                     </td>
@@ -1052,8 +1120,62 @@ export default function AlertTrackerPage() {
                                 />
                             </div>
 
-                            <div className="text-xs text-[#475569] font-medium">
-                                Page <span className="font-bold text-[#0A2540]">{modalPage}</span> of <span className="font-bold text-[#0A2540]">{totalModalPages}</span>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                {/* Status Filter (All / Connected / Not Connected) */}
+                                <div className="flex items-center gap-1.5 border border-[#4A6484] rounded-md px-2.5 py-1 bg-white text-xs font-semibold shadow-2xs">
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-[#0B3558]" />
+                                    <span className="text-[#64748B]">Status:</span>
+                                    <Select
+                                        value={modalConnectionFilter}
+                                        onValueChange={(val: "all" | "connected" | "not_connected") => {
+                                            setModalConnectionFilter(val);
+                                            setModalPage(1);
+                                        }}
+                                    >
+                                        <SelectTrigger className="h-6 w-32 sm:w-36 border-none text-xs font-bold text-[#0A2540] p-0 focus:ring-0 shadow-none">
+                                            <SelectValue placeholder="All Status" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-white border border-[#4A6484] text-xs font-medium z-[9999]">
+                                            <SelectItem value="all" className="cursor-pointer text-xs">
+                                                All Status
+                                            </SelectItem>
+                                            <SelectItem value="connected" className="cursor-pointer text-xs">
+                                                Connected
+                                            </SelectItem>
+                                            <SelectItem value="not_connected" className="cursor-pointer text-xs">
+                                                Not Connected
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Region Filter */}
+                                <div className="flex items-center gap-1.5 border border-[#4A6484] rounded-md px-2.5 py-1 bg-white text-xs font-semibold shadow-2xs">
+                                    <MapPin className="h-3.5 w-3.5 text-[#0B3558]" />
+                                    <span className="text-[#64748B]">Region:</span>
+                                    <Select
+                                        value={modalRegionFilter}
+                                        onValueChange={(val) => {
+                                            setModalRegionFilter(val);
+                                            setModalPage(1);
+                                        }}
+                                    >
+                                        <SelectTrigger className="h-6 w-36 sm:w-48 border-none text-xs font-bold text-[#0A2540] p-0 focus:ring-0 shadow-none">
+                                            <SelectValue placeholder="All Regions" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-white border border-[#4A6484] text-xs font-medium z-[9999]">
+                                            {REGIONS.map((r) => (
+                                                <SelectItem key={r} value={r} className="cursor-pointer text-xs">
+                                                    {r === "All" ? "All Regions (Statewide)" : r}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="text-xs text-[#475569] font-medium">
+                                    Page <span className="font-bold text-[#0A2540]">{modalPage}</span> of <span className="font-bold text-[#0A2540]">{totalModalPages}</span>
+                                </div>
                             </div>
                         </div>
 
@@ -1066,51 +1188,63 @@ export default function AlertTrackerPage() {
                                             <th className="py-2.5 px-2 text-[11px] font-bold text-center border-r border-[#4A6484] w-14">
                                                 Sr. No.
                                             </th>
-                                            <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-[#4A6484] min-w-[260px]">
+                                            <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-[#4A6484] min-w-[240px]">
                                                 {selectedCellDetails?.scopeType === "scheme"
                                                     ? "Scheme & Location Details"
                                                     : selectedCellDetails?.scopeType === "village"
                                                         ? "Village & Scheme Details"
                                                         : "ESR & Scheme Details"}
                                             </th>
+                                            <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[110px]">
+                                                IoT Status
+                                            </th>
                                             {selectedCellDetails?.scopeType === "scheme" && (
                                                 <>
-                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[120px]">
-                                                        No. of Villages
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[110px]">
+                                                        Total Villages
                                                     </th>
                                                     <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[120px]">
-                                                        No. of ESRs
+                                                        Connected Villages
                                                     </th>
-                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[130px]">
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[110px]">
+                                                        Total ESRs
+                                                    </th>
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[120px]">
+                                                        Completed ESRs
+                                                    </th>
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[110px]">
                                                         Total Population
                                                     </th>
                                                 </>
                                             )}
                                             {selectedCellDetails?.scopeType === "village" && (
                                                 <>
-                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[120px]">
-                                                        No. of ESRs
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[110px]">
+                                                        Total ESRs
                                                     </th>
-                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[130px]">
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[120px]">
+                                                        Completed ESRs
+                                                    </th>
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[110px]">
                                                         Population
                                                     </th>
                                                 </>
                                             )}
                                             {selectedCellDetails?.scopeType === "esr" && (
                                                 <>
-                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[130px]">
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[120px]">
                                                         Flow Meters
                                                     </th>
-                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[130px]">
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[120px]">
                                                         Pressure Sensors
                                                     </th>
-                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[130px]">
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[120px]">
                                                         Chlorine Analyzers
                                                     </th>
                                                 </>
                                             )}
-                                            <th className="py-2.5 px-3 text-[11px] font-bold text-left min-w-[200px]">
-                                                Assigned Operator & Contact
+                                            <th className="py-2.5 px-3 text-[11px] font-bold text-left min-w-[220px]">
+                                                Operator & Executive Engineer
                                             </th>
                                         </tr>
                                     ) : (
@@ -1123,25 +1257,29 @@ export default function AlertTrackerPage() {
                                             </th>
                                             {selectedCellDetails?.colType === "resolved" ? (
                                                 <>
-                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[150px]">
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[140px]">
                                                         Alert Reading ({data?.dateMeta?.evalDisplayDate || filterDateInput})
                                                     </th>
-                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[170px]">
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[150px]">
                                                         Resolved Value ({selectedCellDetails?.metric === "subsequentResolved" || selectedCellDetails?.title?.includes("Resolution after escalation") || selectedCellDetails?.title?.endsWith("(Resolved)") ? (data?.dateMeta?.col4DisplayDate || data?.dateMeta?.nextDayDisplayDate || "Resolved") : (data?.dateMeta?.nextDayDisplayDate || "Resolution Day")})
+                                                    </th>
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-[#4A6484] min-w-[180px]">
+                                                        Assigned Operator & Contact
+                                                    </th>
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-left min-w-[180px]">
+                                                        Executive Engineer & Contact
                                                     </th>
                                                 </>
                                             ) : (
-                                                <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[140px]">
-                                                    Date of Value ({data?.dateMeta?.evalDisplayDate || filterDateInput})
-                                                </th>
-                                            )}
-                                            <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-[#4A6484] min-w-[200px]">
-                                                {selectedCellDetails?.colType === "escalation"
-                                                    ? "Executive Engineer & Contact"
-                                                    : "Assigned Operator  & Contact Details"}
-                                            </th>
-                                            {selectedCellDetails?.colType !== "resolved" && (
                                                 <>
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[140px]">
+                                                        Date of Value ({data?.dateMeta?.evalDisplayDate || filterDateInput})
+                                                    </th>
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-[#4A6484] min-w-[180px]">
+                                                        {selectedCellDetails?.colType === "escalation"
+                                                            ? "Executive Engineer & Contact"
+                                                            : "Assigned Operator  & Contact Details"}
+                                                    </th>
                                                     {selectedCellDetails?.colType === "escalation" && (
                                                         <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[150px]">
                                                             Email Sent
@@ -1164,8 +1302,8 @@ export default function AlertTrackerPage() {
                                             <td
                                                 colSpan={
                                                     selectedCellDetails?.category === "scope"
-                                                        ? (selectedCellDetails?.scopeType === "village" ? 5 : 6)
-                                                        : (selectedCellDetails?.colType === "resolved" ? 5 : selectedCellDetails?.colType === "escalation" ? 7 : 6)
+                                                        ? (selectedCellDetails?.scopeType === "village" ? 7 : selectedCellDetails?.scopeType === "scheme" ? 9 : 8)
+                                                        : (selectedCellDetails?.colType === "resolved" ? 6 : selectedCellDetails?.colType === "escalation" ? 7 : 6)
                                                 }
                                                 className="p-8 text-center text-[#64748B] font-medium bg-white"
                                             >
@@ -1282,44 +1420,83 @@ export default function AlertTrackerPage() {
                                                             )}
                                                         </td>
 
-                                                        {/* Scheme Columns: No. of Villages, No. of ESRs, Total Population */}
+                                                        {/* Connected Status Column */}
+                                                        <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
+                                                            {(() => {
+                                                                const status = String(item.fully_completion_scheme_status || item.status || "").trim();
+                                                                const isNotConn = status === "Not-Connected" || status.toLowerCase() === "not connected";
+                                                                const isConnected = !isNotConn && (
+                                                                    item.is_connected === "Connected" ||
+                                                                    String(item.is_connected).toLowerCase() === "yes" ||
+                                                                    Number(item.connected_villages || 0) > 0 ||
+                                                                    Number(item.connected_esrs || 0) > 0
+                                                                );
+                                                                return isConnected ? (
+                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Connected
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-500 border border-slate-200">
+                                                                        Not Connected
+                                                                    </span>
+                                                                );
+                                                            })()}
+                                                        </td>
+
+                                                        {/* Scheme Columns: Total Villages, Connected Villages, Total ESRs, Completed ESRs, Total Population */}
                                                         {scopeType === "scheme" && (
                                                             <>
                                                                 <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
                                                                     <div className="font-bold text-xs text-[#0A2540]">
                                                                         {Number(item.total_villages || 0).toLocaleString()}
                                                                     </div>
-                                                                    <div className="text-[10px] text-[#64748B]">Villages</div>
+                                                                    <div className="text-[10px] text-[#64748B]">Total Villages</div>
+                                                                </td>
+                                                                <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
+                                                                    <div className="font-bold text-xs text-emerald-700">
+                                                                        {Number(item.connected_villages || 0).toLocaleString()}
+                                                                    </div>
+                                                                    <div className="text-[10px] text-[#64748B]">Connected</div>
                                                                 </td>
                                                                 <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
                                                                     <div className="font-bold text-xs text-[#0A2540]">
                                                                         {Number(item.total_esrs || 0).toLocaleString()}
                                                                     </div>
-                                                                    <div className="text-[10px] text-[#64748B]">ESRs</div>
+                                                                    <div className="text-[10px] text-[#64748B]">Total ESRs</div>
+                                                                </td>
+                                                                <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
+                                                                    <div className="font-bold text-xs text-blue-700">
+                                                                        {Number(item.completed_esrs || 0).toLocaleString()}
+                                                                    </div>
+                                                                    <div className="text-[10px] text-[#64748B]">Completed</div>
                                                                 </td>
                                                                 <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
                                                                     <div className="font-bold text-xs text-[#0A2540]">
                                                                         {Number(item.population || 0).toLocaleString()}
                                                                     </div>
-                                                                    <div className="text-[10px] text-[#64748B]">Beneficiaries</div>
                                                                 </td>
                                                             </>
                                                         )}
 
-                                                        {/* Village Columns: No. of ESRs, Population */}
+                                                        {/* Village Columns: Total ESRs, Completed ESRs, Population (NO Beneficiaries word) */}
                                                         {scopeType === "village" && (
                                                             <>
                                                                 <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
                                                                     <div className="font-bold text-xs text-[#0A2540]">
                                                                         {Number(item.total_esrs || 0).toLocaleString()}
                                                                     </div>
-                                                                    <div className="text-[10px] text-[#64748B]">ESRs in Village</div>
+                                                                    <div className="text-[10px] text-[#64748B]">Total ESRs</div>
+                                                                </td>
+                                                                <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
+                                                                    <div className="font-bold text-xs text-blue-700">
+                                                                        {Number(item.completed_esrs || 0).toLocaleString()}
+                                                                    </div>
+                                                                    <div className="text-[10px] text-[#64748B]">Completed ESRs</div>
                                                                 </td>
                                                                 <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
                                                                     <div className="font-bold text-xs text-[#0A2540]">
                                                                         {Number(item.population || 0).toLocaleString()}
                                                                     </div>
-                                                                    <div className="text-[10px] text-[#64748B]">Beneficiaries</div>
                                                                 </td>
                                                             </>
                                                         )}
@@ -1374,21 +1551,21 @@ export default function AlertTrackerPage() {
                                                             </>
                                                         )}
 
-                                                        {/* 4. Assigned Operator & Contact */}
+                                                        {/* Operator & Executive Engineer Details */}
                                                         <td className="py-2.5 px-3 align-middle">
-                                                            <div>
-                                                                {opName ? (
-                                                                    <div className="font-bold text-xs text-[#0A2540] leading-tight">
-                                                                        <span className="text-[#64748B] font-semibold">[Operator]</span> {opName}
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="text-xs text-slate-400 font-normal italic leading-tight">
-                                                                        Not Assigned
-                                                                    </div>
-                                                                )}
-                                                                {opNumber && (
-                                                                    <div className="mt-0.5 flex items-center gap-2 flex-wrap">
-                                                                        <div className="flex items-center gap-1">
+                                                            <div className="space-y-1.5">
+                                                                <div>
+                                                                    {opName ? (
+                                                                        <div className="font-bold text-xs text-[#0A2540] leading-tight">
+                                                                            <span className="text-[#64748B] font-semibold">[Operator]</span> {opName}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="text-xs text-slate-400 font-normal italic leading-tight">
+                                                                            Operator: Not Assigned
+                                                                        </div>
+                                                                    )}
+                                                                    {opNumber && (
+                                                                        <div className="mt-0.5 flex items-center gap-1">
                                                                             <a
                                                                                 href={`tel:${opNumber}`}
                                                                                 className="text-xs text-[#0B3558] font-medium hover:underline flex items-center gap-1"
@@ -1400,11 +1577,9 @@ export default function AlertTrackerPage() {
                                                                                 type="button"
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
-                                                                                    if (opNumber) {
-                                                                                        navigator.clipboard.writeText(opNumber);
-                                                                                        setCopiedMobile(opNumber);
-                                                                                        setTimeout(() => setCopiedMobile(null), 2000);
-                                                                                    }
+                                                                                    navigator.clipboard.writeText(opNumber);
+                                                                                    setCopiedMobile(opNumber);
+                                                                                    setTimeout(() => setCopiedMobile(null), 2000);
                                                                                 }}
                                                                                 className="p-0.5 text-[#64748B] hover:text-[#0A2540] rounded cursor-pointer"
                                                                                 title="Copy mobile number"
@@ -1416,6 +1591,47 @@ export default function AlertTrackerPage() {
                                                                                 )}
                                                                             </button>
                                                                         </div>
+                                                                    )}
+                                                                </div>
+
+                                                                {item.ee_name && item.ee_name !== "-" && item.ee_name.toLowerCase() !== "executive engineer" && (
+                                                                    <div className="border-t border-slate-100 pt-1">
+                                                                        <div className="font-bold text-xs text-[#0A2540] leading-tight">
+                                                                            <span className="text-[#64748B] font-semibold">[EE]</span> {item.ee_name}
+                                                                        </div>
+                                                                        {item.ee_number && item.ee_number !== "-" && (
+                                                                            <div className="mt-0.5 flex items-center gap-1">
+                                                                                <a
+                                                                                    href={`tel:${item.ee_number}`}
+                                                                                    className="text-xs text-[#0B3558] font-medium hover:underline flex items-center gap-1"
+                                                                                >
+                                                                                    <Phone className="h-3 w-3" />
+                                                                                    <span>{item.ee_number}</span>
+                                                                                </a>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        navigator.clipboard.writeText(item.ee_number);
+                                                                                        setCopiedMobile(item.ee_number);
+                                                                                        setTimeout(() => setCopiedMobile(null), 2000);
+                                                                                    }}
+                                                                                    className="p-0.5 text-[#64748B] hover:text-[#0A2540] rounded cursor-pointer"
+                                                                                    title="Copy mobile number"
+                                                                                >
+                                                                                    {copiedMobile === item.ee_number ? (
+                                                                                        <Check className="h-3 w-3 text-emerald-600" />
+                                                                                    ) : (
+                                                                                        <Copy className="h-3 w-3" />
+                                                                                    )}
+                                                                                </button>
+                                                                            </div>
+                                                                        )}
+                                                                        {item.ee_email && item.ee_email !== "-" && (
+                                                                            <div className="text-[10px] text-[#475569] font-mono truncate max-w-[200px]" title={item.ee_email}>
+                                                                                {item.ee_email}
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -1627,59 +1843,158 @@ export default function AlertTrackerPage() {
                                                         </td>
                                                     )}
 
-                                                    {/* 4. Assigned Engineer & Contact */}
-                                                    <td className={`py-2.5 px-3 align-middle ${isResolvedModal ? "" : "border-r border-[#CBD5E1]"}`}>
-                                                        <div>
-                                                            {contactName ? (
-                                                                <div className="font-bold text-xs text-[#0A2540] leading-tight">
-                                                                    <span className="text-[#64748B] font-semibold">[{shortRole}]</span> {contactName}
+                                                    {/* 4. Contact Columns */}
+                                                    {isResolvedModal ? (
+                                                        <>
+                                                            {/* 4A. Operator Column */}
+                                                            <td className="py-2.5 px-3 align-middle border-r border-[#CBD5E1]">
+                                                                <div>
+                                                                    {actualOperatorName ? (
+                                                                        <div className="font-bold text-xs text-[#0A2540] leading-tight">
+                                                                            <span className="text-[#64748B] font-semibold">[Operator]</span> {actualOperatorName}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="text-xs text-slate-400 font-normal italic leading-tight">
+                                                                            -
+                                                                        </div>
+                                                                    )}
+                                                                    {item.operator_number && item.operator_number !== "-" && (
+                                                                        <div className="mt-0.5 flex items-center gap-1">
+                                                                            <a
+                                                                                href={`tel:${item.operator_number}`}
+                                                                                className="text-xs text-[#0B3558] font-medium hover:underline flex items-center gap-1"
+                                                                            >
+                                                                                <Phone className="h-3 w-3" />
+                                                                                <span>{item.operator_number}</span>
+                                                                            </a>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    if (item.operator_number) {
+                                                                                        navigator.clipboard.writeText(item.operator_number);
+                                                                                        setCopiedMobile(item.operator_number);
+                                                                                        setTimeout(() => setCopiedMobile(null), 2000);
+                                                                                    }
+                                                                                }}
+                                                                                className="p-0.5 text-[#64748B] hover:text-[#0A2540] rounded cursor-pointer"
+                                                                                title="Copy mobile number"
+                                                                            >
+                                                                                {copiedMobile === item.operator_number ? (
+                                                                                    <Check className="h-3 w-3 text-emerald-600" />
+                                                                                ) : (
+                                                                                    <Copy className="h-3 w-3" />
+                                                                                )}
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
-                                                            ) : (
-                                                                <div className="text-xs text-slate-400 font-normal italic leading-tight">
-                                                                    -
+                                                            </td>
+
+                                                            {/* 4B. Executive Engineer Column (Added in both resolution columns) */}
+                                                            <td className="py-2.5 px-3 align-middle">
+                                                                <div>
+                                                                    {actualEeName ? (
+                                                                        <div className="font-bold text-xs text-[#0A2540] leading-tight">
+                                                                            <span className="text-[#64748B] font-semibold">[EE]</span> {actualEeName}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="text-xs text-slate-400 font-normal italic leading-tight">
+                                                                            -
+                                                                        </div>
+                                                                    )}
+                                                                    {item.ee_number && item.ee_number !== "-" && (
+                                                                        <div className="mt-0.5 flex items-center gap-1">
+                                                                            <a
+                                                                                href={`tel:${item.ee_number}`}
+                                                                                className="text-xs text-[#0B3558] font-medium hover:underline flex items-center gap-1"
+                                                                            >
+                                                                                <Phone className="h-3 w-3" />
+                                                                                <span>{item.ee_number}</span>
+                                                                            </a>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    if (item.ee_number) {
+                                                                                        navigator.clipboard.writeText(item.ee_number);
+                                                                                        setCopiedMobile(item.ee_number);
+                                                                                        setTimeout(() => setCopiedMobile(null), 2000);
+                                                                                    }
+                                                                                }}
+                                                                                className="p-0.5 text-[#64748B] hover:text-[#0A2540] rounded cursor-pointer"
+                                                                                title="Copy mobile number"
+                                                                            >
+                                                                                {copiedMobile === item.ee_number ? (
+                                                                                    <Check className="h-3 w-3 text-emerald-600" />
+                                                                                ) : (
+                                                                                    <Copy className="h-3 w-3" />
+                                                                                )}
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
+                                                                    {item.ee_email && item.ee_email !== "-" && (
+                                                                        <div className="text-[10px] text-[#475569] font-mono truncate max-w-[200px]" title={item.ee_email}>
+                                                                            {item.ee_email}
+                                                                        </div>
+                                                                    )}
                                                                 </div>
-                                                            )}
-                                                            <div className="mt-0.5 flex items-center gap-2 flex-wrap">
-                                                                {contactMobile && contactMobile !== "-" ? (
-                                                                    <div className="flex items-center gap-1">
-                                                                        <a
-                                                                            href={`tel:${contactMobile}`}
-                                                                            className="text-xs text-[#0B3558] font-medium hover:underline flex items-center gap-1"
-                                                                        >
-                                                                            <Phone className="h-3 w-3" />
-                                                                            <span>{contactMobile}</span>
-                                                                        </a>
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                if (contactMobile) {
-                                                                                    navigator.clipboard.writeText(contactMobile);
-                                                                                    setCopiedMobile(contactMobile);
-                                                                                    setTimeout(() => setCopiedMobile(null), 2000);
-                                                                                }
-                                                                            }}
-                                                                            className="p-0.5 text-[#64748B] hover:text-[#0A2540] rounded cursor-pointer"
-                                                                            title="Copy mobile number"
-                                                                        >
-                                                                            {copiedMobile === contactMobile ? (
-                                                                                <Check className="h-3 w-3 text-emerald-600" />
-                                                                            ) : (
-                                                                                <Copy className="h-3 w-3" />
-                                                                            )}
-                                                                        </button>
+                                                            </td>
+                                                        </>
+                                                    ) : (
+                                                        <td className="py-2.5 px-3 align-middle border-r border-[#CBD5E1]">
+                                                            <div>
+                                                                {contactName ? (
+                                                                    <div className="font-bold text-xs text-[#0A2540] leading-tight">
+                                                                        <span className="text-[#64748B] font-semibold">[{shortRole}]</span> {contactName}
                                                                     </div>
                                                                 ) : (
-                                                                    contactName ? <span className="text-[10px] text-slate-400 italic">No mobile</span> : null
+                                                                    <div className="text-xs text-slate-400 font-normal italic leading-tight">
+                                                                        -
+                                                                    </div>
                                                                 )}
-                                                                {isEE && contactName && (item.ee_email || item.recipient_email) && (
-                                                                    <span className="text-[10px] text-[#475569] font-mono">
-                                                                        {item.ee_email || item.recipient_email}
-                                                                    </span>
-                                                                )}
+                                                                <div className="mt-0.5 flex items-center gap-2 flex-wrap">
+                                                                    {contactMobile && contactMobile !== "-" ? (
+                                                                        <div className="flex items-center gap-1">
+                                                                            <a
+                                                                                href={`tel:${contactMobile}`}
+                                                                                className="text-xs text-[#0B3558] font-medium hover:underline flex items-center gap-1"
+                                                                            >
+                                                                                <Phone className="h-3 w-3" />
+                                                                                <span>{contactMobile}</span>
+                                                                            </a>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    if (contactMobile) {
+                                                                                        navigator.clipboard.writeText(contactMobile);
+                                                                                        setCopiedMobile(contactMobile);
+                                                                                        setTimeout(() => setCopiedMobile(null), 2000);
+                                                                                    }
+                                                                                }}
+                                                                                className="p-0.5 text-[#64748B] hover:text-[#0A2540] rounded cursor-pointer"
+                                                                                title="Copy mobile number"
+                                                                            >
+                                                                                {copiedMobile === contactMobile ? (
+                                                                                    <Check className="h-3 w-3 text-emerald-600" />
+                                                                                ) : (
+                                                                                    <Copy className="h-3 w-3" />
+                                                                                )}
+                                                                            </button>
+                                                                        </div>
+                                                                    ) : (
+                                                                        contactName ? <span className="text-[10px] text-slate-400 italic">No mobile</span> : null
+                                                                    )}
+                                                                    {isEE && contactName && (item.ee_email || item.recipient_email) && (
+                                                                        <span className="text-[10px] text-[#475569] font-mono">
+                                                                            {item.ee_email || item.recipient_email}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    </td>
+                                                        </td>
+                                                    )}
 
                                                     {/* 5. Email Sent (Only shown for Escalation / EE when not in resolved view) */}
                                                     {!isResolvedModal && isEscalationModal && (

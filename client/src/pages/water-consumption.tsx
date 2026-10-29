@@ -43,6 +43,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { TranslatedText } from "@/components/ui/translated-text";
 import { useAuth } from "@/hooks/use-auth";
+import { IssueDetailsRemarksModal } from "@/components/issue-reporting/IssueDetailsRemarksModal";
 import {
   Filter,
   Download,
@@ -227,7 +228,7 @@ const WaterConsumptionPage: React.FC = () => {
         issue.esr_name &&
         issue.problem_level === "ESR"
       ) {
-        const key = `${issue.scheme_id}-${issue.village_name}-${issue.esr_name}`;
+        const key = `${issue.scheme_id?.toString().trim()}-${issue.village_name?.toString().trim()}-${issue.esr_name?.toString().trim()}`;
         if (!eMap.has(key)) {
           eMap.set(key, []);
         }
@@ -746,11 +747,14 @@ const WaterConsumptionPage: React.FC = () => {
     isVillageCompleted,
   ]);
 
-  // Count schemes where civil work is done (water_supply=Yes)
+  // Count schemes where civil work is done (water_supply=Yes) AND IoT is active/in-progress
   const qualifyingSchemeCount = useMemo(() => {
     if (!schemeStatusData || schemeStatusData.length === 0) return 0;
+    const validStatuses = ["fully completed", "completed", "in progress"];
     return schemeStatusData.filter(
-      (s) => String(s.water_supply || "").toLowerCase() === "yes"
+      (s) =>
+        s.water_supply === "Yes" &&
+        validStatuses.includes(String(s.fully_completion_scheme_status || "").toLowerCase())
     ).length;
   }, [schemeStatusData]);
 
@@ -2278,8 +2282,8 @@ const WaterConsumptionPage: React.FC = () => {
                       variant="default"
                       size="sm"
                       className={`flex items-center gap-2 mt-4 md:mt-0 transition-all ${historicalRecordCount > 0
-                          ? "bg-green-600 hover:bg-green-700 shadow-lg scale-105"
-                          : "bg-blue-600 hover:bg-blue-700"
+                        ? "bg-green-600 hover:bg-green-700 shadow-lg scale-105"
+                        : "bg-blue-600 hover:bg-blue-700"
                         }`}
                       disabled={
                         isCountingRecords ||
@@ -2616,7 +2620,7 @@ const WaterConsumptionPage: React.FC = () => {
                       // User Request: Only show ESR level issues on Water Consumption page
                       const rowIssues =
                         esrIssuesMap.get(
-                          `${record.scheme_id}-${record.village_name}-${record.esr_name}`,
+                          `${record.scheme_id?.toString().trim()}-${record.village_name?.toString().trim()}-${record.esr_name?.toString().trim()}`,
                         ) || [];
                       const hasActiveIssue = rowIssues.some((i: any) => i.status === 'Active');
                       const hasResolvedIssue = rowIssues.some((i: any) => i.status === 'Resolved');
@@ -2918,7 +2922,7 @@ const WaterConsumptionPage: React.FC = () => {
                               (() => {
                                 const activeIssue = rowIssues.find((i: any) => i.status === 'Active');
                                 const textColor = activeIssue ? 'text-red-600 hover:text-red-700 hover:bg-red-50' : 'text-green-600 hover:text-green-700 hover:bg-green-50';
-                                const displayText = activeIssue ? activeIssue.reason : 'Resolved';
+                                const displayText = activeIssue ? (activeIssue.reason || activeIssue.agency_issue || activeIssue.department_issue || 'Active Issue') : 'Resolved';
                                 return (
                                   <Button
                                     variant="ghost"
@@ -3218,105 +3222,12 @@ const WaterConsumptionPage: React.FC = () => {
       </div>
       {/* Remark Details Dialog */}
       {selectedRemarkDetails && (
-        <Dialog
-          open={!!selectedRemarkDetails}
+        <IssueDetailsRemarksModal
+          open={Boolean(selectedRemarkDetails)}
           onOpenChange={(open) => !open && setSelectedRemarkDetails(null)}
-        >
-          <DialogContent className="max-w-2xl bg-white border-none shadow-2xl p-0 overflow-hidden">
-            {(() => {
-              const hasActive = selectedRemarkDetails.issues.some((i: any) => i.status === 'Active');
-              const headerGradient = hasActive
-                ? "from-red-600 via-rose-600 to-red-700"
-                : "from-emerald-600 via-teal-600 to-emerald-700";
-              return (
-                <>
-                  <div className={`bg-gradient-to-r ${headerGradient} p-6 flex justify-between items-center text-white relative`}>
-                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-                    <div className="relative z-10 flex-1 pr-6">
-                      <DialogTitle className="text-xl md:text-2xl font-bold flex items-center gap-3">
-                        <AlertCircle className="h-6 w-6 md:h-8 md:w-8 text-white/80" />
-                        <span className="tracking-tight">Issue Details & Remarks History</span>
-                      </DialogTitle>
-                      <DialogDescription className="text-white/90 mt-2 font-medium flex items-center gap-2">                        <MapPin className="h-4 w-4" />
-                        <span>{selectedRemarkDetails.title}</span>
-                      </DialogDescription>
-                    </div>
-                  </div>
-                  <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-50">
-                    <div className="space-y-4">
-                      {selectedRemarkDetails.issues.map(
-                        (issue: any, index: number) => (
-                          <div
-                            key={index}
-                            className={`bg-white p-5 rounded-xl shadow-sm border border-slate-200 ${issue.status === 'Resolved'
-                                ? 'border-l-4 border-l-emerald-500'
-                                : 'border-l-4 border-l-red-500'
-                              }`}                          >
-                            <div className="flex justify-between items-start mb-3 gap-4">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider">
-                                    {issue.problem_level
-                                      ? `${issue.problem_level} Level`.toUpperCase()
-                                      : issue.category || "General"}
-                                  </span>
-                                  <span className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider ${issue.status === 'Resolved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                    }`}>
-                                    {issue.status || 'Active'}
-                                  </span>                                </div>
-                              </div>
-                              <div className="text-right flex flex-col items-end">
-                                <div className="text-sm font-medium text-slate-900">
-                                  {issue.creator_name ||
-                                    issue.reported_by ||
-                                    "Field Engineer"}
-                                </div>
-                                <div className="text-xs text-slate-500 mt-0.5 whitespace-nowrap">
-                                  {new Date(
-                                    issue.created_at || new Date(),
-                                  ).toLocaleString("en-US", {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                    hour12: true,
-                                  })}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-100">
-                              <p className="text-sm text-slate-700 font-medium">
-                                {issue.reason || issue.issue_description}
-                              </p>
-                              {issue.remarks && (
-                                <p className="text-sm text-slate-600 mt-2 pt-2 border-t border-slate-200">
-                                  <span className="font-semibold text-slate-800">Additional Remarks:</span> {issue.remarks}
-                                </p>
-                              )}
-                              {issue.status === 'Resolved' && (
-                                <div className="text-sm text-emerald-700 mt-2 pt-2 border-t border-slate-200">
-                                  <span className="font-semibold text-emerald-900">Resolution Remark:</span> {issue.resolution_remark || 'Resolved'}
-                                  {issue.resolved_at && (
-                                    <span className="block text-[10px] text-emerald-600 mt-1">
-                                      Resolved on: {new Date(issue.resolved_at).toLocaleString('en-US', {
-                                        month: 'short', day: 'numeric', year: 'numeric',
-                                        hour: 'numeric', minute: '2-digit', hour12: true
-                                      })}
-                                    </span>)}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ),
-                      )}
-                    </div>
-                  </div>
-                </>
-              );
-            })()}
-          </DialogContent>
-        </Dialog>
+          title={selectedRemarkDetails?.title || "Issue Details & Remarks History"}
+          issues={selectedRemarkDetails?.issues || []}
+        />
       )}
     </DashboardLayout>
   );

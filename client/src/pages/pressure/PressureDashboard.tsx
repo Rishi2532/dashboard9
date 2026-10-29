@@ -53,6 +53,7 @@ import { TranslatedText } from "@/components/ui/translated-text";
 import { useAuth } from "@/hooks/use-auth";
 import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
 import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
+import { IssueDetailsRemarksModal } from "@/components/issue-reporting/IssueDetailsRemarksModal";
 import VillageFilter, { VillageFilterValue } from "@/components/dashboard/VillageFilter";
 import { useVillageCompletion } from "@/hooks/useVillageCompletion";
 import { MissingSchemesModal, MissingSchemeRecord } from "@/components/MissingSchemesModal";
@@ -281,7 +282,7 @@ const PressureDashboard: React.FC = () => {
     allIssues.forEach((issue: any) => {
       // ESR level issues only
       if (issue.scheme_id && issue.village_name && issue.esr_name && issue.problem_level === "ESR") {
-        const key = `${issue.scheme_id}-${issue.village_name}-${issue.esr_name}`;
+        const key = `${issue.scheme_id?.toString().trim()}-${issue.village_name?.toString().trim()}-${issue.esr_name?.toString().trim()}`;
         if (!eMap.has(key)) {
           eMap.set(key, []);
         }
@@ -917,8 +918,7 @@ const PressureDashboard: React.FC = () => {
 
     let belowRange = 0,
       optimal = 0,
-      above = 0,
-      noData = 0;
+      above = 0;
 
     allPressureData.forEach((data) => {
       const sensorKey = `${data.region}|${data.circle}|${data.division}|${data.sub_division}|${data.block}|${data.village_name}|${data.esr_name}`.toLowerCase();
@@ -926,26 +926,29 @@ const PressureDashboard: React.FC = () => {
       // Only count sensors that have no water
       if (noWaterSensorIds.has(sensorKey)) {
         const currentValue = getCurrentPressureValue(data);
-        if (currentValue === null || isNaN(currentValue)) {
-          noData++;
-          belowRange++;
-        } else if (currentValue < 0.2) {
-          belowRange++;
-        } else if (currentValue >= 0.2 && currentValue <= 0.7) {
-          optimal++;
-        } else {
-          above++;
+        if (currentValue !== null && !isNaN(currentValue)) {
+          if (currentValue < 0.2) {
+            belowRange++;
+          } else if (currentValue >= 0.2 && currentValue <= 0.7) {
+            optimal++;
+          } else {
+            above++;
+          }
         }
+        // Null/blank values are NOT counted in any range category
       }
     });
 
     const totalCount = noWaterSensorIds.size;
+    const sumRanges = belowRange + optimal + above;
+    const noData = Math.max(totalCount - sumRanges, 0);
 
     console.log("Without water range calculations:", {
       belowRange,
       optimal,
       above,
       totalCount,
+      sumRanges,
       noData,
     });
     return { belowRange, optimal, above, totalCount, noData };
@@ -954,12 +957,7 @@ const PressureDashboard: React.FC = () => {
   // Get the CSS class and status text based on pressure value
   const getPressureStatusInfo = (value: number | null) => {
     if (value === null)
-      return {
-        className: "bg-red-50 border-red-200",
-        statusText: "Below Range",
-        textColor: "text-red-800",
-        icon: <AlertTriangle className="h-5 w-5 text-red-600" />,
-      };
+      return { className: "bg-gray-100", statusText: "No Data" };
 
     if (value < 0.2)
       return {
@@ -1048,11 +1046,14 @@ const PressureDashboard: React.FC = () => {
     return map;
   }, [schemeStatusData]);
 
-  // Count schemes where civil work is done (water_supply=Yes)
+  // Count schemes where civil work is done (water_supply=Yes) AND IoT is active/in-progress
   const qualifyingSchemeCount = useMemo(() => {
     if (!schemeStatusData || schemeStatusData.length === 0) return 0;
+    const validStatuses = ["fully completed", "completed", "in progress"];
     return schemeStatusData.filter(
-      (s) => String(s.water_supply || "").toLowerCase() === "yes"
+      (s) =>
+        s.water_supply === "Yes" &&
+        validStatuses.includes(String(s.fully_completion_scheme_status || "").toLowerCase())
     ).length;
   }, [schemeStatusData]);
 
@@ -1550,8 +1551,7 @@ const PressureDashboard: React.FC = () => {
     let belowRange = 0,
       optimal = 0,
       above = 0,
-      filteredWithWaterCount = 0,
-      noData = 0;
+      filteredWithWaterCount = 0;
 
     const totalSchemes = new Set<string>();
     const totalVillages = new Set<string>();
@@ -1578,29 +1578,27 @@ const PressureDashboard: React.FC = () => {
         if (vKey) totalVillages.add(vKey);
 
         const currentValue = getCurrentPressureValue(data);
-        // Blank / No data -> also counted as below range (<0.2 bar)
-        if (currentValue === null || isNaN(currentValue)) {
-          noData++;
-          belowRange++;
-          if (sKey) belowRangeSchemes.add(sKey);
-          if (vKey) belowRangeVillages.add(vKey);
-        } else if (currentValue < 0.2) {
-          belowRange++;
-          if (sKey) belowRangeSchemes.add(sKey);
-          if (vKey) belowRangeVillages.add(vKey);
-        } else if (currentValue >= 0.2 && currentValue <= 0.7) {
-          optimal++;
-          if (sKey) optimalSchemes.add(sKey);
-          if (vKey) optimalVillages.add(vKey);
-        } else {
-          above++;
-          if (sKey) aboveSchemes.add(sKey);
-          if (vKey) aboveVillages.add(vKey);
+        if (currentValue !== null && !isNaN(currentValue)) {
+          if (currentValue < 0.2) {
+            belowRange++;
+            if (sKey) belowRangeSchemes.add(sKey);
+            if (vKey) belowRangeVillages.add(vKey);
+          } else if (currentValue >= 0.2 && currentValue <= 0.7) {
+            optimal++;
+            if (sKey) optimalSchemes.add(sKey);
+            if (vKey) optimalVillages.add(vKey);
+          } else {
+            above++;
+            if (sKey) aboveSchemes.add(sKey);
+            if (vKey) aboveVillages.add(vKey);
+          }
         }
       }
     });
 
     const totalCount = filteredWithWaterCount;
+    const sumRanges = belowRange + optimal + above;
+    const noData = Math.max(totalCount - sumRanges, 0);
 
     return {
       belowRange,
@@ -1632,9 +1630,9 @@ const PressureDashboard: React.FC = () => {
         case "below_0.2":
           filtered = filtered.filter((item) => {
             const latestValue = getCurrentPressureValue(item);
-            // Include sensors with valid values < 0.2 AND blank/null values (matching card calculation)
+            // Only include sensors with valid values < 0.2 (matching card calculation)
             return (
-              latestValue === null || isNaN(latestValue) || latestValue < 0.2
+              latestValue !== null && !isNaN(latestValue) && latestValue < 0.2
             );
           });
           break;
@@ -3069,7 +3067,7 @@ const PressureDashboard: React.FC = () => {
               </svg>
               <p className="text-xs text-gray-500">
                 <span className="font-bold text-gray-700">{calculateWithWaterRangeStats.noData}</span>{" "}
-                sensor{calculateWithWaterRangeStats.noData !== 1 ? "s" : ""} with no pressure data (blank) — included in Below Range (&lt;0.2 bar) above
+                sensor{calculateWithWaterRangeStats.noData !== 1 ? "s" : ""} with no pressure data — excluded from range counts above
               </p>
             </div>
           )}
@@ -3346,7 +3344,7 @@ const PressureDashboard: React.FC = () => {
                 paginatedData.map((item, idx) => {
                   const latestPressure = getCurrentPressureValue(item);
                   const statusInfo = getPressureStatusInfo(latestPressure);
-                  const esrKey = `${item.scheme_id}-${item.village_name}-${item.esr_name}`;
+                  const esrKey = `${item.scheme_id?.toString().trim()}-${item.village_name?.toString().trim()}-${item.esr_name?.toString().trim()}`;
                   const issues = esrIssuesMap?.get(esrKey) || [];
                   const hasActiveIssue = issues.some((i: any) => i.status === 'Active');
                   return (
@@ -3424,7 +3422,7 @@ const PressureDashboard: React.FC = () => {
                           (() => {
                             const activeIssue = issues.find((i: any) => i.status === 'Active');
                             const textColor = activeIssue ? 'text-red-600 hover:text-red-700 hover:bg-red-50' : 'text-green-600 hover:text-green-700 hover:bg-green-50';
-                            const displayText = activeIssue ? activeIssue.reason : 'Resolved';
+                            const displayText = activeIssue ? (activeIssue.reason || activeIssue.agency_issue || activeIssue.department_issue || 'Active Issue') : 'Resolved';
                             return (
                               <Button
                                 variant="ghost"
@@ -3913,94 +3911,12 @@ const PressureDashboard: React.FC = () => {
       }
 
       {selectedRemarkDetails && (
-        <Dialog
-          open={!!selectedRemarkDetails}
+        <IssueDetailsRemarksModal
+          open={Boolean(selectedRemarkDetails)}
           onOpenChange={(open) => !open && setSelectedRemarkDetails(null)}
-        >
-          <DialogContent className="max-w-2xl bg-white border-none shadow-2xl p-0 overflow-hidden">
-            {(() => {
-              const hasActive = selectedRemarkDetails.issues.some((i: any) => i.status === 'Active');
-              const headerGradient = hasActive
-                ? "from-red-600 via-rose-600 to-red-700"
-                : "from-emerald-600 via-teal-600 to-emerald-700";
-              return (
-                <>
-                  <div className={`bg-gradient-to-r ${headerGradient} p-6 flex justify-between items-center text-white relative`}>
-                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-                    <div className="relative z-10 flex-1 pr-6">
-                      <DialogTitle className="text-xl md:text-2xl font-bold flex items-center gap-3">
-                        <AlertCircle className="h-6 w-6 md:h-8 md:w-8 text-white/80" />
-                        <span className="tracking-tight">Issue Details & Remarks History</span>
-                      </DialogTitle>
-                      <DialogDescription className="text-white/90 mt-2 font-medium flex items-center gap-2">                        <MapPin className="h-4 w-4" />
-                        <span>{selectedRemarkDetails.title}</span>
-                      </DialogDescription>
-                    </div>
-                  </div>
-
-                  <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-50">
-                    <div className="space-y-4">
-                      {selectedRemarkDetails.issues.map((issue: any, index: number) => (
-                        <div
-                          key={index}
-                          className={`bg-white p-5 rounded-xl shadow-sm border border-slate-200 ${issue.status === 'Resolved'
-                            ? 'border-l-4 border-l-emerald-500'
-                            : 'border-l-4 border-l-red-500'
-                            }`}
-                        >                          <div className="flex justify-between items-start mb-3 gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider">
-                                  {issue.problem_level ? `${issue.problem_level} Level`.toUpperCase() : (issue.category || "General")}
-                                </span>
-                                <span className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider ${issue.status === 'Resolved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                  }`}>
-                                  {issue.status || 'Active'}
-                                </span>                              </div>
-                            </div>
-                            <div className="text-right flex flex-col items-end">
-                              <div className="text-sm font-medium text-slate-900">
-                                {issue.creator_name || issue.reported_by || "Field Engineer"}
-                              </div>
-                              <div className="text-xs text-slate-500 mt-0.5 whitespace-nowrap">
-                                {new Date(issue.created_at || new Date()).toLocaleString('en-US', {
-                                  month: 'short', day: 'numeric', year: 'numeric',
-                                  hour: 'numeric', minute: '2-digit', hour12: true
-                                })}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-100">
-                            <p className="text-sm text-slate-700 font-medium">
-                              {issue.reason || issue.issue_description}
-                            </p>
-                            {issue.remarks && (
-                              <p className="text-sm text-slate-600 mt-2 pt-2 border-t border-slate-200">
-                                <span className="font-semibold text-slate-800">Additional Remarks:</span> {issue.remarks}
-                              </p>
-                            )}
-                            {issue.status === 'Resolved' && (
-                              <div className="text-sm text-emerald-700 mt-2 pt-2 border-t border-slate-200">
-                                <span className="font-semibold text-emerald-900">Resolution Remark:</span> {issue.resolution_remark || 'Resolved'}
-                                {issue.resolved_at && (
-                                  <span className="block text-[10px] text-emerald-600 mt-1">
-                                    Resolved on: {new Date(issue.resolved_at).toLocaleString('en-US', {
-                                      month: 'short', day: 'numeric', year: 'numeric',
-                                      hour: 'numeric', minute: '2-digit', hour12: true
-                                    })}
-                                  </span>)}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              );
-            })()}
-          </DialogContent>
-        </Dialog>
+          title={selectedRemarkDetails?.title || "Issue Details & Remarks History"}
+          issues={selectedRemarkDetails?.issues || []}
+        />
       )}
 
       {/* Missing Schemes Modal */}

@@ -495,7 +495,6 @@ export interface IStorage {
     scheme_id?: string;
     village_name?: string;
     esr_name?: string;
-    schemeIds?: string[];
   }): Promise<
     Array<{
       scheme_id: string;
@@ -1705,6 +1704,18 @@ export class PostgresStorage implements IStorage {
     try {
       let query = db.select().from(chlorineData);
 
+      // Only return ESRs that are marked as Connected for chlorine in communication_status
+      query = query.where(
+        sql`EXISTS (
+          SELECT 1 FROM ${communicationStatus} cs
+          WHERE (
+            (cs.scheme_id = ${chlorineData.scheme_id} AND cs.village_name = ${chlorineData.village_name} AND cs.esr_name = ${chlorineData.esr_name})
+            OR (LOWER(TRIM(cs.region)) = LOWER(TRIM(${chlorineData.region})) AND LOWER(TRIM(cs.village_name)) = LOWER(TRIM(${chlorineData.village_name})) AND LOWER(TRIM(cs.esr_name)) = LOWER(TRIM(${chlorineData.esr_name})))
+          )
+          AND cs.chlorine_connected = 'Connected'
+        )`
+      );
+
       // Apply filters if provided
       if (filter) {
         if (filter.region && filter.region !== "all") {
@@ -2292,6 +2303,22 @@ export class PostgresStorage implements IStorage {
       const recordsToProcess: Partial<InsertChlorineData>[] = [];
       const recordKeys: Set<string> = new Set();
 
+      // Pre-fetch connected chlorine ESR keys from communication_status
+      const connectedRes = await db.execute(sql`
+        SELECT scheme_id, village_name, esr_name, region
+        FROM communication_status
+        WHERE chlorine_connected = 'Connected'
+      `);
+      const connectedESRKeys = new Set<string>();
+      for (const row of connectedRes.rows as any[]) {
+        const k1 = `${String(row.scheme_id).trim()}|${String(row.village_name).trim().toLowerCase()}|${String(row.esr_name).trim().toLowerCase()}`;
+        connectedESRKeys.add(k1);
+        if (row.region) {
+          const k2 = `${String(row.region).trim().toLowerCase()}|${String(row.village_name).trim().toLowerCase()}|${String(row.esr_name).trim().toLowerCase()}`;
+          connectedESRKeys.add(k2);
+        }
+      }
+
       // Process each sheet in the workbook
       for (const sheetName of workbook.SheetNames) {
         console.log(`Processing sheet: ${sheetName}`);
@@ -2388,6 +2415,17 @@ export class PostgresStorage implements IStorage {
                 `Row ${i + 1}: Missing required fields (scheme_id, village_name, or esr_name)`,
               );
               continue;
+            }
+
+            // Only process records where chlorine_connected = 'Connected' in communication_status
+            if (connectedESRKeys.size > 0) {
+              const checkKey1 = `${String(recordData.scheme_id).trim()}|${String(recordData.village_name).trim().toLowerCase()}|${String(recordData.esr_name).trim().toLowerCase()}`;
+              const checkKey2 = recordData.region
+                ? `${String(recordData.region).trim().toLowerCase()}|${String(recordData.village_name).trim().toLowerCase()}|${String(recordData.esr_name).trim().toLowerCase()}`
+                : "";
+              if (!connectedESRKeys.has(checkKey1) && (!checkKey2 || !connectedESRKeys.has(checkKey2))) {
+                continue;
+              }
             }
 
             // Calculate analysis fields
@@ -2497,13 +2535,34 @@ export class PostgresStorage implements IStorage {
         }
       }
 
+      // Clean up any chlorine_data records that are not connected in communication_status
+      let removed = 0;
+      try {
+        const deleteResult = await db.execute(sql`
+          DELETE FROM chlorine_data cd
+          WHERE NOT EXISTS (
+            SELECT 1 FROM communication_status cs
+            WHERE (
+              (cs.scheme_id = cd.scheme_id AND cs.village_name = cd.village_name AND cs.esr_name = cd.esr_name)
+              OR (LOWER(TRIM(cs.region)) = LOWER(TRIM(cd.region)) AND LOWER(TRIM(cs.village_name)) = LOWER(TRIM(cd.village_name)) AND LOWER(TRIM(cs.esr_name)) = LOWER(TRIM(cd.esr_name)))
+            )
+            AND cs.chlorine_connected = 'Connected'
+          )
+        `);
+        removed = Number((deleteResult as any).rowCount || 0);
+        if (removed > 0) {
+          console.log(`Cleaned up ${removed} unconnected records from chlorine_data`);
+        }
+      } catch (err: any) {
+        console.warn("Could not clean up unconnected chlorine records:", err.message);
+      }
+
       // Calculate elapsed time
       const endTime = Date.now();
       const elapsedSeconds = (endTime - startTime) / 1000;
 
       // Log the import summary
-      const removed = 0; // No records are being removed in this import operation
-      const summary = `Excel Import Summary: ${inserted} records inserted, ${updated} records updated, ${errors.length} errors in ${elapsedSeconds.toFixed(2)} seconds`;
+      const summary = `Excel Import Summary: ${inserted} records inserted, ${updated} records updated, ${removed} records removed, ${errors.length} errors in ${elapsedSeconds.toFixed(2)} seconds`;
       if (errors.length > 0) {
         console.warn(summary);
         console.warn("Import errors:", errors);
@@ -2602,6 +2661,22 @@ export class PostgresStorage implements IStorage {
         };
       }
 
+      // Pre-fetch connected chlorine ESR keys from communication_status
+      const connectedRes = await db.execute(sql`
+        SELECT scheme_id, village_name, esr_name, region
+        FROM communication_status
+        WHERE chlorine_connected = 'Connected'
+      `);
+      const connectedESRKeys = new Set<string>();
+      for (const row of connectedRes.rows as any[]) {
+        const k1 = `${String(row.scheme_id).trim()}|${String(row.village_name).trim().toLowerCase()}|${String(row.esr_name).trim().toLowerCase()}`;
+        connectedESRKeys.add(k1);
+        if (row.region) {
+          const k2 = `${String(row.region).trim().toLowerCase()}|${String(row.village_name).trim().toLowerCase()}|${String(row.esr_name).trim().toLowerCase()}`;
+          connectedESRKeys.add(k2);
+        }
+      }
+
       // OPTIMIZATION: Collect unique identifiers to make a single database query
       const uniqueKeys = new Set<string>();
       const recordsMap = new Map<string, Partial<InsertChlorineData>>();
@@ -2690,6 +2765,17 @@ export class PostgresStorage implements IStorage {
               `Row ${i + 1}: Missing required fields (scheme_id, village_name, or esr_name)`,
             );
             continue;
+          }
+
+          // Only process records where chlorine_connected = 'Connected' in communication_status
+          if (connectedESRKeys.size > 0) {
+            const checkKey1 = `${String(recordData.scheme_id).trim()}|${String(recordData.village_name).trim().toLowerCase()}|${String(recordData.esr_name).trim().toLowerCase()}`;
+            const checkKey2 = recordData.region
+              ? `${String(recordData.region).trim().toLowerCase()}|${String(recordData.village_name).trim().toLowerCase()}|${String(recordData.esr_name).trim().toLowerCase()}`
+              : "";
+            if (!connectedESRKeys.has(checkKey1) && (!checkKey2 || !connectedESRKeys.has(checkKey2))) {
+              continue;
+            }
           }
 
           // Calculate analysis fields
@@ -2997,11 +3083,33 @@ export class PostgresStorage implements IStorage {
         `Synchronized ${schemeStatusUpdated} new block entries in scheme_status table from chlorine import`,
       );
 
+      // Clean up any chlorine_data records that are not connected in communication_status
+      let removed = 0;
+      try {
+        const deleteResult = await db.execute(sql`
+          DELETE FROM chlorine_data cd
+          WHERE NOT EXISTS (
+            SELECT 1 FROM communication_status cs
+            WHERE (
+              (cs.scheme_id = cd.scheme_id AND cs.village_name = cd.village_name AND cs.esr_name = cd.esr_name)
+              OR (LOWER(TRIM(cs.region)) = LOWER(TRIM(cd.region)) AND LOWER(TRIM(cs.village_name)) = LOWER(TRIM(cd.village_name)) AND LOWER(TRIM(cs.esr_name)) = LOWER(TRIM(cd.esr_name)))
+            )
+            AND cs.chlorine_connected = 'Connected'
+          )
+        `);
+        removed = Number((deleteResult as any).rowCount || 0);
+        if (removed > 0) {
+          console.log(`Cleaned up ${removed} unconnected records from chlorine_data`);
+        }
+      } catch (err: any) {
+        console.warn("Could not clean up unconnected chlorine records:", err.message);
+      }
+
       // Return results
       return {
         inserted,
         updated,
-        removed: 0, // CSV import doesn't remove records
+        removed,
         errors,
       };
     } catch (error) {
@@ -5690,7 +5798,6 @@ export class PostgresStorage implements IStorage {
     regionFilter?: string,
     schemeFilter?: string,
     villageFilter?: string,
-    schemeIds?: string[],
   ): Promise<ChlorineHistory[]> {
     await this.initialized;
     const db = await this.ensureInitialized();
@@ -5721,10 +5828,6 @@ export class PostgresStorage implements IStorage {
         if (villageFilter) {
           filterSql += ` AND village_name = $${paramIdx++}`;
           queryParams.push(villageFilter);
-        }
-        if (schemeIds && schemeIds.length > 0) {
-          const ids = schemeIds.map(id => `'${id}'`).join(',');
-          filterSql += ` AND scheme_id IN (${ids})`;
         }
 
         const rawQuery = `
@@ -12795,7 +12898,6 @@ export class PostgresStorage implements IStorage {
     scheme_id?: string;
     village_name?: string;
     esr_name?: string;
-    schemeIds?: string[];
   }): Promise<
     Array<{
       scheme_id: string;
@@ -12864,10 +12966,6 @@ export class PostgresStorage implements IStorage {
         if (filter.esr_name) {
           filterSql += ` AND p.esr_name = $${paramIdx++}`;
           queryParams.push(filter.esr_name);
-        }
-        if (filter.schemeIds && filter.schemeIds.length > 0) {
-          const ids = filter.schemeIds.map(id => `'${id}'`).join(',');
-          filterSql += ` AND p.scheme_id IN (${ids})`;
         }
 
         const rawQuery = `

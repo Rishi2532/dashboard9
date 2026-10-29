@@ -487,8 +487,8 @@ export default function AlertTrackerPage() {
                       type="button"
                       onClick={() => setSelectedAgency(agency)}
                       className={`cursor-pointer px-2.5 py-1 rounded transition-all text-xs sm:text-sm ${isSelected
-                          ? "bg-[#0B3558] text-white font-bold shadow-xs"
-                          : "hover:text-[#0B3558] text-[#334155]"
+                        ? "bg-[#0B3558] text-white font-bold shadow-xs"
+                        : "hover:text-[#0B3558] text-[#334155]"
                         }`}
                     >
                       {agency}
@@ -547,8 +547,8 @@ export default function AlertTrackerPage() {
                   setFilterDateInput(todayDisplay);
                 }}
                 className={`px-2.5 py-1 rounded text-xs font-semibold border transition-all ${dataDate === todayIso
-                    ? "bg-[#0B3558] text-white border-[#0B3558] shadow-xs"
-                    : "bg-white text-[#0A2540] border-[#4A6484]/40 hover:bg-[#EBF3FB]"
+                  ? "bg-[#0B3558] text-white border-[#0B3558] shadow-xs"
+                  : "bg-white text-[#0A2540] border-[#4A6484]/40 hover:bg-[#EBF3FB]"
                   }`}
               >
                 Today
@@ -560,8 +560,8 @@ export default function AlertTrackerPage() {
                   setFilterDateInput(yesterdayDisplay);
                 }}
                 className={`px-2.5 py-1 rounded text-xs font-semibold border transition-all ${dataDate === yesterdayIso
-                    ? "bg-[#0B3558] text-white border-[#0B3558] shadow-xs"
-                    : "bg-white text-[#0A2540] border-[#4A6484]/40 hover:bg-[#EBF3FB]"
+                  ? "bg-[#0B3558] text-white border-[#0B3558] shadow-xs"
+                  : "bg-white text-[#0A2540] border-[#4A6484]/40 hover:bg-[#EBF3FB]"
                   }`}
               >
                 Yesterday
@@ -875,8 +875,8 @@ export default function AlertTrackerPage() {
                           <td className="p-2 border-r border-[#CBD5E1]">
                             <div className="flex flex-col gap-0.5">
                               <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold w-max ${isEE
-                                  ? "bg-[#0B3558] text-white"
-                                  : "bg-[#EBF3FB] text-[#0B3558] border border-[#4A6484]/30"
+                                ? "bg-[#0B3558] text-white"
+                                : "bg-[#EBF3FB] text-[#0B3558] border border-[#4A6484]/30"
                                 }`}>
                                 {isEE ? "Executive Engineer" : "Operator"}
                               </span>
@@ -886,8 +886,8 @@ export default function AlertTrackerPage() {
                           </td>
                           <td className="p-2 text-center border-r border-[#CBD5E1]">
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${channel === "Email"
-                                ? "bg-purple-100 text-purple-800 border border-purple-300"
-                                : "bg-blue-100 text-blue-800 border border-blue-300"
+                              ? "bg-purple-100 text-purple-800 border border-purple-300"
+                              : "bg-blue-100 text-blue-800 border border-blue-300"
                               }`}>
                               {channel === "Email" ? (
                                 <><Mail className="w-3 h-3" /> Email</>
