@@ -1671,6 +1671,10 @@ export default function AlertTrackerPage() {
                                                 : (item.operator_number && item.operator_number !== "-" ? item.operator_number : (item.recipient_contact && item.recipient_contact !== "-" ? item.recipient_contact : null));
                                             const shortRole = isEscalationModal ? "EE" : "Operator";
 
+                                            const hasValidOperator = Boolean(actualOperatorName && contactMobile);
+                                            const hasValidEe = Boolean(actualEeName);
+                                            const hasValidEeSms = Boolean(hasValidEe && contactMobile);
+
                                             const rawDeliveryStatus = String(item.sms_delivery_status || item.delivery_status || "").toUpperCase();
                                             const isDispatched = rawDeliveryStatus && rawDeliveryStatus !== "NOT_DISPATCHED" && rawDeliveryStatus !== "NONE" && rawDeliveryStatus !== "-";
                                             const isSmsDelivered = isDispatched && (rawDeliveryStatus === "DELIVERY_SUCCESS" || rawDeliveryStatus === "SUCCESS");
@@ -2036,7 +2040,7 @@ export default function AlertTrackerPage() {
                                                     {/* 6. SMS Sent (Hidden in resolved view) */}
                                                     {!isResolvedModal && (
                                                         <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
-                                                            {isEscalationModal && !actualEeName ? (
+                                                            {(isEscalationModal ? !hasValidEeSms : !hasValidOperator) ? (
                                                                 <span className="text-slate-400 font-bold select-none">-</span>
                                                             ) : (() => {
                                                                 const openSmsModal = () => {

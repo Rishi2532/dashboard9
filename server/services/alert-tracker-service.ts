@@ -819,6 +819,7 @@ export async function getAlertTrackerMetrics(params: {
       const schemeRemarks = remarksByScheme.get(String(row.scheme_id).trim()) || [];
       const hasActualSmsLog = Boolean(row.sms_delivery_status);
       const hasEe = Boolean(row.ee_name && row.ee_name !== "-" && row.ee_name.toLowerCase() !== "executive engineer");
+      const hasOperator = Boolean(row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" && row.operator_number && row.operator_number !== "-");
 
       const item: AlertTrackerItem = {
         alert_key: `LPCD-${row.scheme_id}-${row.village_name}`,
@@ -846,9 +847,9 @@ export async function getAlertTrackerMetrics(params: {
           ? DLT_TEMPLATES.ESCALATION_EE_CE.render(formatSchemeName(row.scheme_name, row.scheme_id), 1, 1, "तांत्रिक बाबी प्रलंबित आहेत")
           : DLT_TEMPLATES.LPCD_LOW.render(formatSchemeName(row.scheme_name, row.scheme_id), formatVillageName(row.village_name), parseFloat(row.val_today).toFixed(1)),
         reading_value: `${parseFloat(row.val_today).toFixed(1)} LPCD`,
-        delivery_status: row.sms_delivery_status || "NOT_DISPATCHED",
-        sms_sent: isEE ? (hasActualSmsLog && hasEe) : hasActualSmsLog,
-        email_sent: isEE && hasActualSmsLog && hasEe,
+        delivery_status: (isEE ? hasEe : hasOperator) ? (row.sms_delivery_status || "NOT_DISPATCHED") : "NOT_DISPATCHED",
+        sms_sent: isEE ? (hasActualSmsLog && hasEe) : (hasActualSmsLog && hasOperator),
+        email_sent: Boolean(isEE && hasActualSmsLog && hasEe && row.ee_email && row.ee_email !== "-"),
         resolution_status: isResolvedNextDay ? "RESOLVED" : isUnresolvedNextDay ? "UNRESOLVED" : "ACTIVE",
         escalated_to_ee: isEE,
         unresolved_since: isUnresolvedNextDay ? `Since ${evalDisplayDate}` : "-",
@@ -911,6 +912,7 @@ export async function getAlertTrackerMetrics(params: {
       const schemeRemarks = remarksByScheme.get(String(row.scheme_id).trim()) || [];
       const hasActualSmsLog = Boolean(row.sms_delivery_status);
       const hasEe = Boolean(row.ee_name && row.ee_name !== "-" && row.ee_name.toLowerCase() !== "executive engineer");
+      const hasOperator = Boolean(row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" && row.operator_number && row.operator_number !== "-");
 
       const item: AlertTrackerItem = {
         alert_key: `PRES-${row.scheme_id}-${row.village_name}-${row.reservoir_name}`,
@@ -938,9 +940,9 @@ export async function getAlertTrackerMetrics(params: {
           ? `सूचना: JJM MVS ${formatSchemeName(row.scheme_name, row.scheme_id)} अंतर्गत ${formatVillageAndEsr(row.village_name, row.reservoir_name)} येथील वितरण व्यवस्थेतील Pressure Sensor नुसार पाण्याचा दाब 0.2 bar पेक्षा कमी असून सध्याचा दाब ${parseFloat(row.val_today || '0').toFixed(2)} bar इतका आहे. तसेच, तांत्रिक बाबी प्रलंबित आहेत. कृपया तपासणी करून त्वरित आवश्यक कार्यवाही करावी. – मजीप्रा`
           : DLT_TEMPLATES.PRESSURE_LOW.render(formatSchemeName(row.scheme_name, row.scheme_id), formatVillageAndEsr(row.village_name, row.reservoir_name), parseFloat(row.val_today || '0').toFixed(2)),
         reading_value: row.val_today !== null ? `${parseFloat(row.val_today).toFixed(2)} Bar` : "No Data",
-        delivery_status: row.sms_delivery_status || "NOT_DISPATCHED",
-        sms_sent: isEE ? (hasActualSmsLog && hasEe) : hasActualSmsLog,
-        email_sent: isEE && hasActualSmsLog && hasEe,
+        delivery_status: (isEE ? hasEe : hasOperator) ? (row.sms_delivery_status || "NOT_DISPATCHED") : "NOT_DISPATCHED",
+        sms_sent: isEE ? (hasActualSmsLog && hasEe) : (hasActualSmsLog && hasOperator),
+        email_sent: Boolean(isEE && hasActualSmsLog && hasEe && row.ee_email && row.ee_email !== "-"),
         resolution_status: isResolvedNextDay ? "RESOLVED" : isUnresolvedNextDay ? "UNRESOLVED" : "ACTIVE",
         escalated_to_ee: isEE,
         unresolved_since: isUnresolvedNextDay ? `Since ${evalDisplayDate}` : "-",
@@ -1004,6 +1006,7 @@ export async function getAlertTrackerMetrics(params: {
       const schemeRemarks = remarksByScheme.get(String(row.scheme_id).trim()) || [];
       const hasActualSmsLog = Boolean(row.sms_delivery_status);
       const hasEe = Boolean(row.ee_name && row.ee_name !== "-" && row.ee_name.toLowerCase() !== "executive engineer");
+      const hasOperator = Boolean(row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" && row.operator_number && row.operator_number !== "-");
 
       const item: AlertTrackerItem = {
         alert_key: `CHL-${row.scheme_id}-${row.village_name}-${row.reservoir_name}`,
@@ -1039,9 +1042,9 @@ export async function getAlertTrackerMetrics(params: {
               parseFloat(row.val_today || '0').toFixed(2)
             ),
         reading_value: row.val_today !== null ? `${parseFloat(row.val_today).toFixed(2)} mg/L` : "No Data",
-        delivery_status: row.sms_delivery_status || "NOT_DISPATCHED",
-        sms_sent: isEE ? (hasActualSmsLog && hasEe) : hasActualSmsLog,
-        email_sent: isEE && hasActualSmsLog && hasEe,
+        delivery_status: (isEE ? hasEe : hasOperator) ? (row.sms_delivery_status || "NOT_DISPATCHED") : "NOT_DISPATCHED",
+        sms_sent: isEE ? (hasActualSmsLog && hasEe) : (hasActualSmsLog && hasOperator),
+        email_sent: Boolean(isEE && hasActualSmsLog && hasEe && row.ee_email && row.ee_email !== "-"),
         resolution_status: isResolvedNextDay ? "RESOLVED" : isUnresolvedNextDay ? "UNRESOLVED" : "ACTIVE",
         escalated_to_ee: isEE,
         unresolved_since: isUnresolvedNextDay ? `Since ${evalDisplayDate}` : "-",
