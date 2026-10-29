@@ -1428,10 +1428,18 @@ export default function AlertTrackerPage() {
                                                 const opNumber = item.operator_number && item.operator_number !== "-" ? item.operator_number.trim() : null;
                                                 const opName = !isGenericName ? rawOpName : (opNumber ? "Assigned Operator" : null);
 
+                                                const totalVillages = Number(item.total_villages ?? item.number_of_village ?? 0);
+                                                const connectedVillages = Number(item.connected_villages ?? 0);
+                                                const isVillageLag = scopeType === "scheme" && totalVillages > connectedVillages;
+
                                                 return (
                                                     <tr
                                                         key={item.id || `${item.scheme_id}-${item.village_name || ""}-${item.esr_name || ""}-${idx}`}
-                                                        className="hover:bg-[#EBF3FB]/50 transition-colors bg-white even:bg-[#F8FAFC]"
+                                                        className={
+                                                            isVillageLag
+                                                                ? "bg-amber-50/80 hover:bg-amber-100/80 border-l-4 border-l-amber-500 transition-colors"
+                                                                : "hover:bg-[#EBF3FB]/50 transition-colors bg-white even:bg-[#F8FAFC]"
+                                                        }
                                                     >
                                                         {/* 1. Sr. No. */}
                                                         <td className="py-2.5 px-2 text-center border-r border-[#CBD5E1] align-middle">
@@ -1559,10 +1567,15 @@ export default function AlertTrackerPage() {
                                                                     <div className="text-[10px] text-[#64748B]">Total Villages</div>
                                                                 </td>
                                                                 <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
-                                                                    <div className="font-bold text-xs text-emerald-700">
+                                                                    <div className={`font-bold text-xs ${isVillageLag ? "text-amber-800" : "text-emerald-700"}`}>
                                                                         {Number(item.connected_villages || 0).toLocaleString()}
                                                                     </div>
                                                                     <div className="text-[10px] text-[#64748B]">Connected</div>
+                                                                    {isVillageLag && (
+                                                                        <div className="text-[9px] font-semibold text-amber-700">
+                                                                            ({totalVillages - connectedVillages} pending)
+                                                                        </div>
+                                                                    )}
                                                                 </td>
                                                                 <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
                                                                     <div className="font-bold text-xs text-[#0A2540]">
