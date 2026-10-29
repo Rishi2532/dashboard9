@@ -1261,6 +1261,24 @@ export type InsertVillage = z.infer<typeof insertVillageSchema>;
 export type UpdateVillage = z.infer<typeof updateVillageSchema>;
 export type Village = typeof villages.$inferSelect;
 
+// Scheme Village ESR Master table for complete scope tracking
+export const schemeVillageEsrMaster = pgTable("scheme_village_esr_master", {
+  id: serial("id").primaryKey(),
+  region: varchar("region", { length: 100 }),
+  sub_division: varchar("sub_division", { length: 100 }),
+  block_name: varchar("block_name", { length: 100 }),
+  scheme_id: varchar("scheme_id", { length: 50 }).notNull(),
+  scheme_name: varchar("scheme_name", { length: 255 }),
+  village_name: varchar("village_name", { length: 255 }).notNull(),
+  esr_name: varchar("esr_name", { length: 255 }),
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
+});
+
+export const insertSchemeVillageEsrMasterSchema = createInsertSchema(schemeVillageEsrMaster);
+export type InsertSchemeVillageEsrMaster = z.infer<typeof insertSchemeVillageEsrMasterSchema>;
+export type SchemeVillageEsrMaster = typeof schemeVillageEsrMaster.$inferSelect;
+
 // MQTT Topics Last Seen table
 export const topicsLastSeen = pgTable("topics_last_seen", {
   topic_id: text("topic_id").primaryKey(),

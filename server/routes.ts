@@ -47,6 +47,7 @@ import populationRoutes from "./routes/population-routes";
 import esrRoutes from "./routes/esr-routes";
 import communicationStatusRoutes from "./routes/communication-status-routes";
 import villageRoutes from "./routes/village-routes";
+import schemeVillageEsrMasterRoutes from "./routes/scheme-village-esr-master-routes";
 import engineerAdminRoutes from "./routes/admin/engineer-routes";
 import helpdeskRoutes from "./routes/helpdesk-routes";
 import schemeAnalysisRoutes from "./routes/scheme-analysis-routes";
@@ -407,6 +408,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Mount village data routes (admin only)
   app.use("/api/villages", requireAdmin, villageRoutes);
+
+  // Mount scheme village ESR master routes
+  app.use("/api/scheme-village-esr-master", schemeVillageEsrMasterRoutes);
 
   // Mount helpdesk routes (protected)
   app.use("/api/helpdesk", requireAuth, helpdeskRoutes);

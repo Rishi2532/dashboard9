@@ -1316,6 +1316,29 @@ export async function initializeTables(db: any) {
       ON "village" ("village_name");
     `);
 
+    // Create scheme_village_esr_master table
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS "scheme_village_esr_master" (
+        "id" SERIAL PRIMARY KEY,
+        "region" VARCHAR(100),
+        "sub_division" VARCHAR(100),
+        "block_name" VARCHAR(100),
+        "scheme_id" VARCHAR(50) NOT NULL,
+        "scheme_name" VARCHAR(255),
+        "village_name" VARCHAR(255) NOT NULL,
+        "esr_name" VARCHAR(255),
+        "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await db.execute(`
+      CREATE INDEX IF NOT EXISTS "idx_svem_scheme_id" ON "scheme_village_esr_master" ("scheme_id");
+      CREATE INDEX IF NOT EXISTS "idx_svem_village" ON "scheme_village_esr_master" ("scheme_id", "village_name");
+      CREATE INDEX IF NOT EXISTS "idx_svem_esr" ON "scheme_village_esr_master" ("scheme_id", "village_name", "esr_name");
+      CREATE INDEX IF NOT EXISTS "idx_svem_region" ON "scheme_village_esr_master" ("region");
+    `);
+
     // Create helpdesk_tickets table
     await db.execute(`
       CREATE TABLE IF NOT EXISTS "helpdesk_tickets" (

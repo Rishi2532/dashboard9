@@ -454,6 +454,109 @@ export default function AlertTrackerPage() {
         }
     };
 
+    // Export individual modal list to Excel
+    const handleExportModalList = () => {
+        try {
+            if (!selectedCellDetails) return;
+            const items = filteredModalItems && filteredModalItems.length > 0 ? filteredModalItems : (selectedCellDetails.items || []);
+            if (items.length === 0) {
+                toast({
+                    title: "No Data",
+                    description: "No records to export in the current selection.",
+                    variant: "destructive"
+                });
+                return;
+            }
+
+            const scopeType = selectedCellDetails.scopeType;
+            const isAlert = selectedCellDetails.category === "alert";
+
+            const exportRows = items.map((item: any, idx: number) => {
+                const status = String(item.fully_completion_scheme_status || item.status || "").trim().toLowerCase();
+                const isNotConn = status === "not-connected" || status === "not connected" || status === "integration pending";
+                const isConnected = !isNotConn && (
+                    item.is_connected === "Connected" ||
+                    String(item.is_connected).toLowerCase() === "yes" ||
+                    Number(item.connected_villages || 0) > 0 ||
+                    Number(item.connected_esrs || 0) > 0
+                );
+
+                const connStatus = isConnected ? "Connected" : "Not Connected";
+
+                const row: any = {
+                    "Sr. No.": idx + 1,
+                    "Scheme ID": item.scheme_id || "-",
+                    "Scheme Name": item.scheme_name || "-",
+                    "Region": item.region || "-",
+                    "Circle": item.circle || "-",
+                    "Division": item.division || "-",
+                    "Sub-Division": item.sub_division || "-",
+                    "Block": item.block || "-",
+                };
+
+                if (scopeType === "village") {
+                    row["Village Name"] = item.village_name || "-";
+                    row["Integration Status"] = connStatus;
+                    row["Total ESRs"] = Number(item.total_esrs || 0);
+                    row["Connected ESRs"] = Number(item.connected_esrs || 0);
+                    row["Population"] = Number(item.population || 0);
+                } else if (scopeType === "esr") {
+                    row["Village Name"] = item.village_name || "-";
+                    row["ESR / Reservoir Name"] = item.esr_name || item.reservoir_name || "-";
+                    row["Integration Status"] = connStatus;
+                    row["Flow Meter Connected"] = item.flow_meter_connected || "Not";
+                    row["Pressure Connected"] = item.pressure_connected || "Not";
+                    row["Chlorine Connected"] = item.chlorine_connected || "Not";
+                } else if (scopeType === "scheme") {
+                    row["Integration Status"] = connStatus;
+                    row["Total Villages"] = Number(item.total_villages || 0);
+                    row["Connected Villages"] = Number(item.connected_villages || 0);
+                    row["Total ESRs"] = Number(item.total_esrs || 0);
+                    row["Completed ESRs"] = Number(item.completed_esrs || 0);
+                    row["Population"] = Number(item.population || 0);
+                }
+
+                if (isAlert) {
+                    row["Alert Category"] = item.category || selectedCellDetails.title || "-";
+                    row["Village Name"] = item.village_name || "-";
+                    row["Reservoir / ESR Name"] = item.reservoir_name || item.esr_name || "-";
+                    row["Alert Reading"] = item.reading_value || item.telemetry_value || item.chlorine_value || item.pressure_value || "-";
+                    row["Escalated Level"] = item.escalated_to || item.status || "-";
+                    row["Date"] = item.alert_date || item.data_date || filterDateInput;
+                }
+
+                row["Operator Name"] = item.operator_name || "-";
+                row["Operator Contact"] = item.operator_number || "-";
+                row["EE Name"] = item.ee_name || "-";
+                row["EE Contact"] = item.ee_number || "-";
+                row["EE Email"] = item.ee_email || "-";
+
+                return row;
+            });
+
+            const ws = XLSX.utils.json_to_sheet(exportRows);
+            const wb = XLSX.utils.book_new();
+            const cleanSheetName = (selectedCellDetails.title || "List").replace(/[:\\/?*\[\]]/g, "").slice(0, 31);
+            XLSX.utils.book_append_sheet(wb, ws, cleanSheetName);
+
+            const safeTitle = (selectedCellDetails.title || "List").replace(/[^a-zA-Z0-9_-]/g, "_");
+            const filename = `${safeTitle}_${selectedRegion}_${filterDateInput}.xlsx`;
+            XLSX.writeFile(wb, filename);
+
+            toast({
+                title: "Excel Exported Successfully",
+                description: `Exported ${exportRows.length} records to ${filename}`,
+            });
+        } catch (err) {
+            console.error("Modal export error:", err);
+            toast({
+                title: "Export Failed",
+                description: "Could not export modal list to Excel.",
+                variant: "destructive",
+            });
+        }
+    };
+
     // Filtered modal items based on search term, list-specific region filter, and connection status filter
     const filteredModalItems = useMemo(() => {
         if (!selectedCellDetails?.items) return [];
@@ -472,11 +575,11 @@ export default function AlertTrackerPage() {
         // Apply list-specific connection status filter if selected
         if (modalConnectionFilter !== "all") {
             items = items.filter((item: any) => {
-                const status = String(item.fully_completion_scheme_status || item.status || "").trim();
-                const isNotConnectedScheme = status === "Not-Connected" || status.toLowerCase() === "not connected";
+                const status = String(item.fully_completion_scheme_status || item.status || "").trim().toLowerCase();
+                const isNotConnectedScheme = status === "not-connected" || status === "not connected" || status === "integration pending";
 
                 let isConn = false;
-                if (status === "Not-Connected" || status.toLowerCase() === "not connected") {
+                if (isNotConnectedScheme) {
                     isConn = false;
                 } else if (item.is_connected !== undefined && item.is_connected !== null) {
                     isConn = item.is_connected === "Connected" || String(item.is_connected).toLowerCase() === "yes";
@@ -663,10 +766,7 @@ export default function AlertTrackerPage() {
                                         </div>
                                     </td>
                                     <td className="p-2 sm:p-2.5 border-r border-[#4A6484] bg-white w-1/4 text-xs sm:text-sm leading-snug text-[#1E293B]">
-                                        <div
-                                            onClick={() => handleScopeClick("Villages covered in Partial schemes", "iotVillagesTotal", physicalProgress.villages?.partial ?? 5579)}
-                                            className="cursor-pointer hover:text-[#0B3558] hover:underline"
-                                        >
+                                        <div className="text-[#475569]">
                                             Villages covered in Partial schemes - {renderScopeCount(physicalProgress.villages?.partial)}
                                         </div>
                                         <div
@@ -677,10 +777,7 @@ export default function AlertTrackerPage() {
                                         </div>
                                     </td>
                                     <td className="p-2 sm:p-2.5 bg-white w-1/4 text-xs sm:text-sm leading-snug text-[#1E293B]">
-                                        <div
-                                            onClick={() => handleScopeClick("ESRs covered in Partial schemes", "iotEsrTotal", physicalProgress.esr?.partial ?? 9628)}
-                                            className="cursor-pointer hover:text-[#0B3558] hover:underline"
-                                        >
+                                        <div className="text-[#475569]">
                                             ESRs covered in Partial schemes - {renderScopeCount(physicalProgress.esr?.partial)}
                                         </div>
                                         <div
@@ -1082,6 +1179,16 @@ export default function AlertTrackerPage() {
                                 <Button
                                     size="sm"
                                     variant="outline"
+                                    onClick={handleExportModalList}
+                                    className="h-8 text-xs border-emerald-600 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-900 flex items-center gap-1.5 font-bold shadow-xs transition-colors"
+                                    title="Export this entire list to Excel"
+                                >
+                                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
+                                    Export to Excel
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
                                     onClick={() => setSelectedCellDetails(null)}
                                     className="h-8 text-xs border-[#4A6484] text-[#0A2540] hover:bg-[#EBF3FB] hover:text-[#0B3558] flex items-center gap-1 font-semibold"
                                     title="Close details table"
@@ -1413,8 +1520,8 @@ export default function AlertTrackerPage() {
                                                         {/* Connected Status Column */}
                                                         <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
                                                             {(() => {
-                                                                const status = String(item.fully_completion_scheme_status || item.status || "").trim();
-                                                                const isNotConn = status === "Not-Connected" || status.toLowerCase() === "not connected";
+                                                                const status = String(item.fully_completion_scheme_status || item.status || "").trim().toLowerCase();
+                                                                const isNotConn = status === "not-connected" || status === "not connected" || status === "integration pending";
                                                                 const isConnected = !isNotConn && (
                                                                     item.is_connected === "Connected" ||
                                                                     String(item.is_connected).toLowerCase() === "yes" ||
@@ -2427,9 +2534,9 @@ export default function AlertTrackerPage() {
                                         {selectedEmailItem.item.scheme_name}
                                     </DialogDescription>
                                 </div>
-                                <Badge className="bg-white/10 text-white border-white/20 self-start sm:self-auto text-xs px-3 py-1 font-semibold backdrop-blur-xs rounded-full">
+                                {/* <Badge className="bg-white/10 text-white border-white/20 self-start sm:self-auto text-xs px-3 py-1 font-semibold backdrop-blur-xs rounded-full">
                                     {selectedEmailItem.targetTier || "Tier 1 - Executive Engineer"}
-                                </Badge>
+                                </Badge> */}
                             </div>
 
                             <div className="p-5 overflow-y-auto space-y-4 text-xs">
