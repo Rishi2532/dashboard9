@@ -620,6 +620,15 @@ export default function AlertTrackerPage() {
                 String(item.agency_type || item.operated_by || "").toLowerCase().includes(q)
             );
         });
+
+        // Ensure 'No Data Received' / 'Data Not Available' records always appear at the end of the list
+        return [...items].sort((a: any, b: any) => {
+            const aName = String(a.village_name || a.esr_name || "").toLowerCase();
+            const bName = String(b.village_name || b.esr_name || "").toLowerCase();
+            const aNoData = aName.includes("no data") || aName.includes("data not available") ? 1 : 0;
+            const bNoData = bName.includes("no data") || bName.includes("data not available") ? 1 : 0;
+            return aNoData - bNoData;
+        });
     }, [selectedCellDetails, modalSearch, modalRegionFilter, modalConnectionFilter]);
 
     const paginatedModalItems = useMemo(() => {
@@ -1468,7 +1477,7 @@ export default function AlertTrackerPage() {
                                                             {scopeType === "village" && (
                                                                 <div>
                                                                     <div className="flex items-center gap-1.5 flex-wrap">
-                                                                        <span className="font-bold text-xs text-[#0A2540] leading-tight">
+                                                                        <span className={`font-bold text-xs leading-tight ${String(item.village_name || "").toLowerCase().includes("no data") ? "text-amber-700 italic" : "text-[#0A2540]"}`}>
                                                                             {item.village_name}
                                                                         </span>
                                                                     </div>
@@ -1494,11 +1503,11 @@ export default function AlertTrackerPage() {
                                                             {scopeType === "esr" && (
                                                                 <div>
                                                                     <div className="flex items-center gap-1.5 flex-wrap">
-                                                                        <span className="font-bold text-xs text-[#0A2540] leading-tight">
+                                                                        <span className={`font-bold text-xs leading-tight ${String(item.esr_name || "").toLowerCase().includes("no data") ? "text-amber-700 italic" : "text-[#0A2540]"}`}>
                                                                             {item.esr_name || item.reservoir_name || "ESR"}
                                                                         </span>
                                                                         {item.village_name && (
-                                                                            <span className="text-[11px] text-[#0B3558] font-medium">
+                                                                            <span className={`text-[11px] font-medium ${String(item.village_name || "").toLowerCase().includes("no data") ? "text-amber-700 italic" : "text-[#0B3558]"}`}>
                                                                                 ({item.village_name})
                                                                             </span>
                                                                         )}

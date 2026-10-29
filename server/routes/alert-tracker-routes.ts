@@ -984,8 +984,50 @@ router.get("/summary", async (req: Request, res: Response) => {
     const totalEsrPartial = iotSchemesTotalList.reduce((sum: number, item: any) => sum + (Number(item.total_esrs) || 0), 0);
     const totalEsrFully = iotSchemesFullyList.reduce((sum: number, item: any) => sum + (Number(item.total_esrs) || 0), 0);
 
+    // If iotVillagesFullyList has fewer records than totalVillagesFully (e.g. missing villages for some schemes),
+    // add placeholder rows with 'No Data Received' and 'Not Connected' for schemes missing physical records
+    if (iotVillagesFullyList.length < totalVillagesFully) {
+      const existingVilCountByScheme: Record<string, number> = {};
+      for (const r of iotVillagesFullyList) {
+        existingVilCountByScheme[r.scheme_id] = (existingVilCountByScheme[r.scheme_id] || 0) + 1;
+      }
+
+      for (const scheme of iotSchemesFullyList) {
+        const target = Number(scheme.total_villages) || 0;
+        const current = existingVilCountByScheme[scheme.scheme_id] || 0;
+        if (target > current) {
+          const missing = target - current;
+          for (let i = 1; i <= missing; i++) {
+            if (iotVillagesFullyList.length >= totalVillagesFully) break;
+            iotVillagesFullyList.push({
+              scheme_id: scheme.scheme_id,
+              scheme_name: scheme.scheme_name,
+              village_name: 'No Data Received',
+              region: scheme.region,
+              circle: scheme.circle,
+              division: scheme.division,
+              sub_division: scheme.sub_division,
+              block: scheme.block,
+              total_esrs: 0,
+              completed_esrs: 0,
+              connected_esrs: 0,
+              population: 0,
+              status: 'Not Connected',
+              agency_type: scheme.agency_type,
+              is_connected: 'Not Connected',
+              operator_name: scheme.operator_name || '-',
+              operator_number: scheme.operator_number || '-',
+              ee_name: scheme.ee_name || '-',
+              ee_number: scheme.ee_number || '-',
+              ee_email: scheme.ee_email || '-',
+            });
+          }
+        }
+      }
+    }
+
     // If iotEsrFullyList has fewer records than totalEsrFully (e.g. 556 real records vs 612 target),
-    // add placeholder rows with 'Data Not Available' and 'Integration Pending' for schemes missing physical records
+    // add placeholder rows with 'No Data Received' and 'Not Connected' for schemes missing physical records
     if (iotEsrFullyList.length < totalEsrFully) {
       const existingEsrCountByScheme: Record<string, number> = {};
       for (const r of iotEsrFullyList) {
@@ -1002,8 +1044,8 @@ router.get("/summary", async (req: Request, res: Response) => {
             iotEsrFullyList.push({
               scheme_id: scheme.scheme_id,
               scheme_name: scheme.scheme_name,
-              village_name: 'Data Not Available',
-              esr_name: 'Data Not Available',
+              village_name: 'No Data Received',
+              esr_name: 'No Data Received',
               region: scheme.region,
               circle: scheme.circle,
               division: scheme.division,
@@ -1028,6 +1070,19 @@ router.get("/summary", async (req: Request, res: Response) => {
         }
       }
     }
+
+    // Sort to place all genuine named records first, and all "No Data Received" / "Data Not Available" at the end of the list
+    iotVillagesFullyList.sort((a: any, b: any) => {
+      const aNoData = a.village_name === 'No Data Received' || a.village_name === 'Data Not Available' ? 1 : 0;
+      const bNoData = b.village_name === 'No Data Received' || b.village_name === 'Data Not Available' ? 1 : 0;
+      return aNoData - bNoData;
+    });
+
+    iotEsrFullyList.sort((a: any, b: any) => {
+      const aNoData = a.esr_name === 'No Data Received' || a.esr_name === 'Data Not Available' ? 1 : 0;
+      const bNoData = b.esr_name === 'No Data Received' || b.esr_name === 'Data Not Available' ? 1 : 0;
+      return aNoData - bNoData;
+    });
 
     // Difference datasets (Physical progress fully completed vs IoT Operational)
     const opSchemeIds = new Set(opSchemesList.map((s: any) => String(s.scheme_id)));
