@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -435,6 +435,28 @@ const SchemeLpcdDashboard = () => {
       },
     });
 
+  const partialCivilStats = useMemo(() => {
+    if (uiSchemeFilter !== "partial_civil" || !schemeStatusData || schemeStatusData.length === 0) return null;
+    const partialSchemes = schemeStatusData.filter((s: any) => {
+      const ws = String(s.water_supply || "").trim().toLowerCase();
+      if (ws === "yes") return false;
+      if (selectedRegion && selectedRegion !== "all" && s.region !== selectedRegion) return false;
+      if (selectedAgencyType && selectedAgencyType !== "ALL" && s.agency_type !== selectedAgencyType) return false;
+      return true;
+    });
+
+    const connected = partialSchemes.filter((s: any) => {
+      const fcs = String(s.fully_completion_scheme_status || "").trim().toLowerCase();
+      return fcs === "fully completed" || fcs === "completed" || fcs === "connected" || fcs === "fully-completed" || fcs === "in progress";
+    });
+
+    return {
+      total: partialSchemes.length,
+      connectedCount: connected.length,
+      notConnectedCount: partialSchemes.length - connected.length,
+    };
+  }, [uiSchemeFilter, schemeStatusData, selectedRegion, selectedAgencyType]);
+
   // Fetch scheme counts with both filtered and total counts
   const { data: schemeCounts, isLoading: isLoadingSchemeCounts } = useQuery<{
     filteredCount: number;
@@ -630,6 +652,10 @@ const SchemeLpcdDashboard = () => {
 
         if (uiSchemeFilter === "commissioned") {
           return status.water_supply === "Yes";
+        }
+
+        if (uiSchemeFilter === "partial_civil") {
+          return String(status.water_supply || "").trim().toLowerCase() !== "yes";
         }
 
         if (uiSchemeFilter === "fully_completed") {
@@ -1787,12 +1813,11 @@ const SchemeLpcdDashboard = () => {
                 <SelectValue placeholder="Scheme Category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Schemes</SelectItem>
                 <SelectItem value="commissioned">100% civil work completed</SelectItem>
-                <SelectItem value="fully_completed">Fully Instrumented (100% IoT)</SelectItem>
-                <SelectItem value="in_progress">Partially Instrumented (In Progress)</SelectItem>
-                <SelectItem value="common_filter">Common (Civil + IoT Done)</SelectItem>
-                <SelectItem value="mjp_commissioned_yes">MJP Commissioned</SelectItem>
+                <SelectItem value="partial_civil">Partial Civil work completed</SelectItem>
+                <SelectItem value="all">Scheme Integrated In IOT</SelectItem>
+                <SelectItem value="fully_completed">100% IoT Work completed</SelectItem>
+                <SelectItem value="in_progress">Partial IOT Work</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1832,6 +1857,14 @@ const SchemeLpcdDashboard = () => {
       {/* Content - only show if not loading and no error */}
       {!isLoadingSchemes && !schemesError && (
         <>
+          {uiSchemeFilter === "partial_civil" && partialCivilStats && (
+            <div className="mb-4 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 shadow-sm text-amber-900 text-xs font-medium">
+              <Info className="h-4 w-4 text-amber-600 flex-shrink-0" />
+              <span>
+                Data for <strong>{partialCivilStats.notConnectedCount}</strong> schemes is not present as they are not connected to IoT. Showing data for <strong>{partialCivilStats.connectedCount}</strong> connected schemes.
+              </span>
+            </div>
+          )}
           {/* Summary cards */}
           {renderSummaryCards()}
 

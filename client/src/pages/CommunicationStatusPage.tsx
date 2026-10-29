@@ -1175,6 +1175,16 @@ export default function CommunicationStatusPage() {
             </div>
           </div>
         )}
+        {uiSchemeFilter === "partial_civil" && !overviewLoading && overview && (
+          <div className="mb-6 flex justify-center">
+            <div className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 shadow-sm">
+              <Info className="h-4 w-4 text-amber-600 flex-shrink-0" />
+              <span className="text-xs font-medium text-amber-900">
+                Showing data for <strong>{overview.total_schemes}</strong> connected schemes. Data for schemes that are not connected is not present.
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Enhanced Overview Cards */}
         {!overviewLoading && overview && (
@@ -1512,12 +1522,11 @@ export default function CommunicationStatusPage() {
                     <SelectValue placeholder="Scheme Category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Schemes</SelectItem>
                     <SelectItem value="commissioned">100% civil work completed</SelectItem>
-                    <SelectItem value="fully_completed">Fully Instrumented (100% IoT)</SelectItem>
-                    <SelectItem value="in_progress">Partially Instrumented (In Progress)</SelectItem>
-                    <SelectItem value="common_filter">Common (Civil + IoT Done)</SelectItem>
-                    <SelectItem value="mjp_commissioned_yes">MJP Commissioned</SelectItem>
+                    <SelectItem value="partial_civil">Partial Civil work completed</SelectItem>
+                    <SelectItem value="all">Scheme Integrated In IOT</SelectItem>
+                    <SelectItem value="fully_completed">100% IoT Work completed</SelectItem>
+                    <SelectItem value="in_progress">Partial IOT Work</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

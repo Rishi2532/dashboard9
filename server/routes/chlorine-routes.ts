@@ -3825,6 +3825,8 @@ router.get("/lpcd/day-wise-breakdown/all-regions", async (req, res) => {
       let condition = sql`1=1`;
       if (activeFilter === 'commissioned') {
         condition = sql`${schemeStatuses.water_supply} = 'Yes'`;
+      } else if (activeFilter === 'partial_civil') {
+        condition = sql`(${schemeStatuses.water_supply} IS NULL OR TRIM(LOWER(${schemeStatuses.water_supply})) != 'yes')`;
       } else if (activeFilter === 'fully_completed') {
         condition = sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('completed', 'fully-completed', 'fully completed')`;
       } else if (activeFilter === 'partial') {

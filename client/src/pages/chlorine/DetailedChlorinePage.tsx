@@ -39,6 +39,7 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -622,6 +623,27 @@ const DetailedChlorinePage = () => {
       }
     },
   });
+
+  const partialCivilStats = useMemo(() => {
+    if (uiSchemeFilter !== "partial_civil" || !schemeStatusData || schemeStatusData.length === 0) return null;
+    const partialSchemes = schemeStatusData.filter((s: any) => {
+      const ws = String(s.water_supply || "").trim().toLowerCase();
+      if (ws === "yes") return false;
+      if (selectedAgencyType && selectedAgencyType !== "ALL" && s.agency_type !== selectedAgencyType) return false;
+      return true;
+    });
+
+    const connected = partialSchemes.filter((s: any) => {
+      const fcs = String(s.fully_completion_scheme_status || "").trim().toLowerCase();
+      return fcs === "fully completed" || fcs === "completed" || fcs === "connected" || fcs === "fully-completed" || fcs === "in progress";
+    });
+
+    return {
+      total: partialSchemes.length,
+      connectedCount: connected.length,
+      notConnectedCount: partialSchemes.length - connected.length,
+    };
+  }, [uiSchemeFilter, schemeStatusData, selectedAgencyType]);
 
   const {
     data: regionalStats = [],
@@ -3666,17 +3688,10 @@ const DetailedChlorinePage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="commissioned">100% civil work completed</SelectItem>
-                    <SelectItem value="all">All Schemes</SelectItem>
-                    <SelectItem value="fully_completed">
-                      Fully Completed
-                    </SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="common_filter">
-                      Common Filter
-                    </SelectItem>
-                    <SelectItem value="mjp_commissioned_yes">
-                      MJP Commissioned
-                    </SelectItem>
+                    <SelectItem value="partial_civil">Partial Civil work completed</SelectItem>
+                    <SelectItem value="all">Scheme Integrated In IOT</SelectItem>
+                    <SelectItem value="fully_completed">100% IoT Work completed</SelectItem>
+                    <SelectItem value="in_progress">Partial IOT Work</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -3701,6 +3716,15 @@ const DetailedChlorinePage = () => {
                 </Button>
               </div>
             </div>
+
+            {uiSchemeFilter === "partial_civil" && partialCivilStats && (
+              <div className="mb-4 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 shadow-sm text-amber-900 text-xs font-medium">
+                <Info className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                <span>
+                  Data for <strong>{partialCivilStats.notConnectedCount}</strong> schemes is not present as they are not connected to IoT. Showing data for <strong>{partialCivilStats.connectedCount}</strong> connected schemes.
+                </span>
+              </div>
+            )}
 
             {/* Main Tabs: LPCD (default) and Chlorine */}
             <div className="flex gap-3 mb-4">
@@ -14721,13 +14745,19 @@ const DetailedChlorinePage = () => {
                                 </span>
                               </div>
 
-                              {/* Header Row */}
-                              <div
-                                className="grid border-b-2 border-cyan-200 dark:border-cyan-800"
-                                style={{
-                                  gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
-                                }}
-                              >
+                              {isLoadingOverallComparison ? (
+                                <div className="p-4">
+                                  <Skeleton className="h-48 w-full" />
+                                </div>
+                              ) : overallComparisonData && overallComparisonData.data && overallComparisonData.data.length > 0 ? (
+                                <>
+                                  {/* Header Row */}
+                                  <div
+                                    className="grid border-b-2 border-cyan-200 dark:border-cyan-800"
+                                    style={{
+                                      gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                    }}
+                                  >
                                 <div className="bg-cyan-50 dark:bg-cyan-950 px-3 py-3 font-semibold text-[14px] text-cyan-800 dark:text-cyan-200 border-r-2 border-cyan-200 dark:border-cyan-800 flex items-center">
                                   Metric
                                 </div>
@@ -15081,8 +15111,17 @@ const DetailedChlorinePage = () => {
                                   </button>
                                 </div>
                               </div>
-                            </div>
-                          )}
+                              </>
+                            ) : (
+                              <div className="text-center py-12">
+                                <Droplet className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                                <p className="text-gray-500">
+                                  No chlorine comparison data available
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
 
                           {/* Pressure Statistics Section */}
                           {mainTab === "pressure" && (

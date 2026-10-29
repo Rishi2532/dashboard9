@@ -52,6 +52,11 @@ export interface AlertTrackerItem {
   val_latest?: number | null;
   val_today?: number | null;
   val_next?: number | null;
+  fully_completion_scheme_status?: string;
+  is_connected?: string;
+  status?: string;
+  connected_villages?: number;
+  connected_esrs?: number;
 }
 
 export interface AlertCategorySummary {
@@ -560,6 +565,9 @@ export async function getAlertTrackerMetrics(params: {
           COALESCE(NULLIF(sod.chief_se_number, '-'), sod_ee.chief_se_number) as chief_se_number,
           COALESCE(ss.agency, ss.agency_type, sod.operated_by, 'MJP') as operated_by,
           COALESCE(ss.agency_type, ss.agency, sod.operated_by, 'MJP') as agency_type,
+          ss.fully_completion_scheme_status,
+          COALESCE(ss.total_villages_integrated, 0) as total_villages_integrated,
+          COALESCE(ss.total_esr_integrated, 0) as total_esr_integrated,
           (
             SELECT a.delivery_status 
             FROM alert_tracker_logs a 
@@ -570,7 +578,8 @@ export async function getAlertTrackerMetrics(params: {
           ) as sms_delivery_status
         FROM today_lpcd t
         JOIN (
-          SELECT DISTINCT ON (scheme_id) scheme_id, scheme_name, region, agency_type, agency
+          SELECT DISTINCT ON (scheme_id) scheme_id, scheme_name, region, agency_type, agency,
+            fully_completion_scheme_status, total_villages_integrated, total_esr_integrated
           FROM scheme_status 
           WHERE water_supply = 'Yes'
           ORDER BY scheme_id
@@ -656,6 +665,9 @@ export async function getAlertTrackerMetrics(params: {
           COALESCE(NULLIF(sod.chief_se_number, '-'), sod_ee.chief_se_number) as chief_se_number,
           COALESCE(ss.agency, ss.agency_type, sod.operated_by, 'MJP') as operated_by,
           COALESCE(ss.agency_type, ss.agency, sod.operated_by, 'MJP') as agency_type,
+          ss.fully_completion_scheme_status,
+          COALESCE(ss.total_villages_integrated, 0) as total_villages_integrated,
+          COALESCE(ss.total_esr_integrated, 0) as total_esr_integrated,
           (
             SELECT a.delivery_status 
             FROM alert_tracker_logs a 
@@ -666,7 +678,8 @@ export async function getAlertTrackerMetrics(params: {
           ) as sms_delivery_status
         FROM today_pres t
         JOIN (
-          SELECT DISTINCT ON (scheme_id) scheme_id, scheme_name, region, agency_type, agency
+          SELECT DISTINCT ON (scheme_id) scheme_id, scheme_name, region, agency_type, agency,
+            fully_completion_scheme_status, total_villages_integrated, total_esr_integrated
           FROM scheme_status 
           WHERE water_supply = 'Yes'
           ORDER BY scheme_id
@@ -764,6 +777,9 @@ export async function getAlertTrackerMetrics(params: {
           COALESCE(NULLIF(sod.chief_se_number, '-'), sod_ee.chief_se_number) as chief_se_number,
           COALESCE(ss.agency, ss.agency_type, sod.operated_by, 'MJP') as operated_by,
           COALESCE(ss.agency_type, ss.agency, sod.operated_by, 'MJP') as agency_type,
+          ss.fully_completion_scheme_status,
+          COALESCE(ss.total_villages_integrated, 0) as total_villages_integrated,
+          COALESCE(ss.total_esr_integrated, 0) as total_esr_integrated,
           (
             SELECT a.delivery_status 
             FROM alert_tracker_logs a 
@@ -774,7 +790,8 @@ export async function getAlertTrackerMetrics(params: {
           ) as sms_delivery_status
         FROM today_chl t
         JOIN (
-          SELECT DISTINCT ON (scheme_id) scheme_id, scheme_name, region, agency_type, agency
+          SELECT DISTINCT ON (scheme_id) scheme_id, scheme_name, region, agency_type, agency,
+            fully_completion_scheme_status, total_villages_integrated, total_esr_integrated
           FROM scheme_status 
           WHERE water_supply = 'Yes'
           ORDER BY scheme_id
@@ -820,8 +837,17 @@ export async function getAlertTrackerMetrics(params: {
       const hasActualSmsLog = Boolean(row.sms_delivery_status);
       const hasEe = Boolean(row.ee_name && row.ee_name !== "-" && row.ee_name.toLowerCase() !== "executive engineer");
       const hasOperator = Boolean(row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" && row.operator_number && row.operator_number !== "-");
+      const isConnected = 
+        (row.fully_completion_scheme_status && row.fully_completion_scheme_status !== 'Not-Connected' && ['Fully Completed', 'In Progress', 'Connected'].includes(row.fully_completion_scheme_status)) ||
+        Number(row.total_villages_integrated || 0) > 0 ||
+        Number(row.total_esr_integrated || 0) > 0;
 
       const item: AlertTrackerItem = {
+        fully_completion_scheme_status: row.fully_completion_scheme_status || (isConnected ? 'Connected' : 'Not-Connected'),
+        is_connected: isConnected ? 'Connected' : 'Not Connected',
+        status: row.fully_completion_scheme_status || (isConnected ? 'Connected' : 'Not Connected'),
+        connected_villages: Number(row.total_villages_integrated || 0),
+        connected_esrs: Number(row.total_esr_integrated || 0),
         alert_key: `LPCD-${row.scheme_id}-${row.village_name}`,
         scheme_id: row.scheme_id,
         scheme_name: row.scheme_name,
@@ -913,8 +939,17 @@ export async function getAlertTrackerMetrics(params: {
       const hasActualSmsLog = Boolean(row.sms_delivery_status);
       const hasEe = Boolean(row.ee_name && row.ee_name !== "-" && row.ee_name.toLowerCase() !== "executive engineer");
       const hasOperator = Boolean(row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" && row.operator_number && row.operator_number !== "-");
+      const isConnected = 
+        (row.fully_completion_scheme_status && row.fully_completion_scheme_status !== 'Not-Connected' && ['Fully Completed', 'In Progress', 'Connected'].includes(row.fully_completion_scheme_status)) ||
+        Number(row.total_villages_integrated || 0) > 0 ||
+        Number(row.total_esr_integrated || 0) > 0;
 
       const item: AlertTrackerItem = {
+        fully_completion_scheme_status: row.fully_completion_scheme_status || (isConnected ? 'Connected' : 'Not-Connected'),
+        is_connected: isConnected ? 'Connected' : 'Not Connected',
+        status: row.fully_completion_scheme_status || (isConnected ? 'Connected' : 'Not Connected'),
+        connected_villages: Number(row.total_villages_integrated || 0),
+        connected_esrs: Number(row.total_esr_integrated || 0),
         alert_key: `PRES-${row.scheme_id}-${row.village_name}-${row.reservoir_name}`,
         scheme_id: row.scheme_id,
         scheme_name: row.scheme_name,
@@ -1007,8 +1042,17 @@ export async function getAlertTrackerMetrics(params: {
       const hasActualSmsLog = Boolean(row.sms_delivery_status);
       const hasEe = Boolean(row.ee_name && row.ee_name !== "-" && row.ee_name.toLowerCase() !== "executive engineer");
       const hasOperator = Boolean(row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" && row.operator_number && row.operator_number !== "-");
+      const isConnected = 
+        (row.fully_completion_scheme_status && row.fully_completion_scheme_status !== 'Not-Connected' && ['Fully Completed', 'In Progress', 'Connected'].includes(row.fully_completion_scheme_status)) ||
+        Number(row.total_villages_integrated || 0) > 0 ||
+        Number(row.total_esr_integrated || 0) > 0;
 
       const item: AlertTrackerItem = {
+        fully_completion_scheme_status: row.fully_completion_scheme_status || (isConnected ? 'Connected' : 'Not-Connected'),
+        is_connected: isConnected ? 'Connected' : 'Not Connected',
+        status: row.fully_completion_scheme_status || (isConnected ? 'Connected' : 'Not Connected'),
+        connected_villages: Number(row.total_villages_integrated || 0),
+        connected_esrs: Number(row.total_esr_integrated || 0),
         alert_key: `CHL-${row.scheme_id}-${row.village_name}-${row.reservoir_name}`,
         scheme_id: row.scheme_id,
         scheme_name: row.scheme_name,

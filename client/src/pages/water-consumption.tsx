@@ -674,6 +674,10 @@ const WaterConsumptionPage: React.FC = () => {
           return true;
         }
 
+        if (uiSchemeFilter === "partial_civil") {
+          return ws !== "yes";
+        }
+
         if (uiSchemeFilter === "fully_completed") {
           return fcs === "fully completed" || fcs === "completed" || fcs === "connected" || fcs === "fully-completed" || mjpFc === "yes";
         }
@@ -1970,12 +1974,11 @@ const WaterConsumptionPage: React.FC = () => {
                       <SelectValue placeholder="Scheme Category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Schemes</SelectItem>
                       <SelectItem value="commissioned">100% civil work completed</SelectItem>
-                      <SelectItem value="fully_completed">Fully Instrumented (100% IoT)</SelectItem>
-                      <SelectItem value="in_progress">Partially Instrumented (In Progress)</SelectItem>
-                      <SelectItem value="common_filter">Common (Civil + IoT Done)</SelectItem>
-                      <SelectItem value="mjp_commissioned_yes">MJP Commissioned</SelectItem>
+                      <SelectItem value="partial_civil">Partial Civil work completed</SelectItem>
+                      <SelectItem value="all">Scheme Integrated In IOT</SelectItem>
+                      <SelectItem value="fully_completed">100% IoT Work completed</SelectItem>
+                      <SelectItem value="in_progress">Partial IOT Work</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -182,6 +182,7 @@ export async function getFilteredSchemeIds(
 
   const ruleAllSchemes = sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN (${sql.raw(allSchemesStatusList.map(s => `'${s}'`).join(','))})`;
   const ruleCivilWorkCompleted = sql`TRIM(LOWER(${schemeStatuses.water_supply})) = 'yes'`;
+  const rulePartialCivilWorkCompleted = sql`(${schemeStatuses.water_supply} IS NULL OR TRIM(LOWER(${schemeStatuses.water_supply})) != 'yes')`;
   const ruleFullyInstrumented = sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN (${sql.raw(instrumentedStatusList.map(s => `'${s}'`).join(','))})`;
   const rulePartiallyInstrumented = sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) = 'in progress'`;
   const ruleCommonMjpIot = sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN (${sql.raw(instrumentedStatusList.map(s => `'${s}'`).join(','))}) AND TRIM(LOWER(${schemeStatuses.water_supply})) = 'yes'`;
@@ -238,6 +239,8 @@ export async function getFilteredSchemeIds(
     conditions.push(ruleAllSchemes);
   } else if (activeFilter === 'commissioned') {
     conditions.push(ruleCivilWorkCompleted);
+  } else if (activeFilter === 'partial_civil') {
+    conditions.push(rulePartialCivilWorkCompleted);
   } else if (activeFilter === 'fully_completed') {
     conditions.push(ruleFullyInstrumented);
   } else if (activeFilter === 'partial' || activeFilter === 'in_progress') {

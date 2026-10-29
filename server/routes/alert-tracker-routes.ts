@@ -725,8 +725,8 @@ router.get("/summary", async (req: Request, res: Response) => {
       `),
       // 9. Operational Connected ESRs
       db.execute(sql`
-        SELECT DISTINCT ON (c.scheme_id, LOWER(TRIM(c.village_name)), LOWER(TRIM(c.esr_name)))
-          c.scheme_id, c.scheme_name, c.village_name, c.esr_name, c.region, c.circle, c.division, c.sub_division, c.block,
+        SELECT DISTINCT ON (cs.scheme_id, LOWER(TRIM(cs.village_name)), LOWER(TRIM(cs.esr_name)))
+          cs.scheme_id, cs.scheme_name, cs.village_name, cs.esr_name, cs.region, cs.circle, cs.division, cs.sub_division, cs.block,
           COALESCE(cs.chlorine_connected, 'Connected') as chlorine_connected,
           COALESCE(cs.pressure_connected, 'Connected') as pressure_connected,
           COALESCE(cs.flow_meter_connected, 'Connected') as flow_meter_connected,
@@ -734,47 +734,50 @@ router.get("/summary", async (req: Request, res: Response) => {
           COALESCE(ss.pressure_transmitter_connected, 0) as scheme_pressure,
           COALESCE(ss.flow_meters_connected, 0) as scheme_flow_meters,
           'Yes' as status, ss.agency_type,
-          'Connected' as is_connected,
+          CASE 
+            WHEN (COALESCE(cs.chlorine_connected, '') ILIKE '%connect%' OR COALESCE(cs.pressure_connected, '') ILIKE '%connect%' OR COALESCE(cs.flow_meter_connected, '') ILIKE '%connect%') THEN 'Connected'
+            ELSE 'Not Connected'
+          END as is_connected,
           COALESCE(sod.operator_name, sod_sch.operator_name, '-') as operator_name,
           COALESCE(sod.operator_number, sod_sch.operator_number, '-') as operator_number,
           COALESCE(sod_ee.ee_name, sod_ee_sch.ee_name, '-') as ee_name,
           COALESCE(sod_ee.ee_number, sod_ee_sch.ee_number, '-') as ee_number,
           COALESCE(sod_ee.ee_email, sod_ee_sch.ee_email, '-') as ee_email
-        FROM chlorine_data c
-        JOIN scheme_status ss ON ss.scheme_id = c.scheme_id AND ss.water_supply = 'Yes' AND (ss.total_villages_integrated > 0 OR ss.total_esr_integrated > 0)
-        LEFT JOIN communication_status cs ON cs.scheme_id = c.scheme_id AND LOWER(TRIM(cs.village_name)) = LOWER(TRIM(c.village_name)) AND LOWER(TRIM(cs.esr_name)) = LOWER(TRIM(c.esr_name))
+        FROM communication_status cs
+        JOIN scheme_status ss ON ss.scheme_id = cs.scheme_id AND ss.water_supply = 'Yes' AND (ss.total_villages_integrated > 0 OR ss.total_esr_integrated > 0)
         LEFT JOIN (
           SELECT DISTINCT ON (TRIM(scheme_id), LOWER(TRIM(village_name)))
             TRIM(scheme_id) as scheme_id, LOWER(TRIM(village_name)) as v_name, operator_name, operator_number
           FROM scheme_operator_details
           WHERE operator_name IS NOT NULL AND operator_name != '' AND operator_name != '-' AND LOWER(operator_name) != 'village operator'
           ORDER BY TRIM(scheme_id), LOWER(TRIM(village_name)), (operator_number IS NOT NULL AND operator_number != '' AND operator_number != '-') DESC
-        ) sod ON TRIM(sod.scheme_id) = TRIM(c.scheme_id) AND sod.v_name = LOWER(TRIM(c.village_name))
+        ) sod ON TRIM(sod.scheme_id) = TRIM(cs.scheme_id) AND sod.v_name = LOWER(TRIM(cs.village_name))
         LEFT JOIN (
           SELECT DISTINCT ON (TRIM(scheme_id))
             TRIM(scheme_id) as scheme_id, operator_name, operator_number
           FROM scheme_operator_details
           WHERE operator_name IS NOT NULL AND operator_name != '' AND operator_name != '-' AND LOWER(operator_name) != 'village operator'
           ORDER BY TRIM(scheme_id), (operator_number IS NOT NULL AND operator_number != '' AND operator_number != '-') DESC
-        ) sod_sch ON TRIM(sod_sch.scheme_id) = TRIM(c.scheme_id)
+        ) sod_sch ON TRIM(sod_sch.scheme_id) = TRIM(cs.scheme_id)
         LEFT JOIN (
           SELECT DISTINCT ON (TRIM(scheme_id), LOWER(TRIM(village_name)))
             TRIM(scheme_id) as scheme_id, LOWER(TRIM(village_name)) as v_name, ee_name, ee_number, ee_email
           FROM scheme_operator_details
           WHERE ee_name IS NOT NULL AND ee_name != '' AND ee_name != '-' AND LOWER(ee_name) != 'executive engineer'
           ORDER BY TRIM(scheme_id), LOWER(TRIM(village_name)), (ee_number IS NOT NULL AND ee_number != '' AND ee_number != '-') DESC
-        ) sod_ee ON TRIM(sod_ee.scheme_id) = TRIM(c.scheme_id) AND sod_ee.v_name = LOWER(TRIM(c.village_name))
+        ) sod_ee ON TRIM(sod_ee.scheme_id) = TRIM(cs.scheme_id) AND sod_ee.v_name = LOWER(TRIM(cs.village_name))
         LEFT JOIN (
           SELECT DISTINCT ON (TRIM(scheme_id))
             TRIM(scheme_id) as scheme_id, ee_name, ee_number, ee_email
           FROM scheme_operator_details
           WHERE ee_name IS NOT NULL AND ee_name != '' AND ee_name != '-' AND LOWER(ee_name) != 'executive engineer'
           ORDER BY TRIM(scheme_id), (ee_number IS NOT NULL AND ee_number != '' AND ee_number != '-') DESC
-        ) sod_ee_sch ON TRIM(sod_ee_sch.scheme_id) = TRIM(c.scheme_id)
-        WHERE c.esr_name IS NOT NULL AND c.esr_name != '-'
-          ${regionChlorineFilter}
+        ) sod_ee_sch ON TRIM(sod_ee_sch.scheme_id) = TRIM(cs.scheme_id)
+        WHERE cs.esr_name IS NOT NULL AND cs.esr_name != '-'
+          AND (COALESCE(cs.chlorine_connected, '') ILIKE '%connect%' OR COALESCE(cs.pressure_connected, '') ILIKE '%connect%' OR COALESCE(cs.flow_meter_connected, '') ILIKE '%connect%')
+          ${regionCommFilter}
           ${agencySchemeStatusFilter}
-        ORDER BY c.scheme_id, LOWER(TRIM(c.village_name)), LOWER(TRIM(c.esr_name));
+        ORDER BY cs.scheme_id, LOWER(TRIM(cs.village_name)), LOWER(TRIM(cs.esr_name));
       `),
     ]);
 

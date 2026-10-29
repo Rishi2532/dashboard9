@@ -773,6 +773,28 @@ const ChlorineDashboard: React.FC = () => {
     return map;
   }, [schemeStatusData]);
 
+  const partialCivilStats = useMemo(() => {
+    if (uiSchemeFilter !== "partial_civil" || !schemeStatusData || schemeStatusData.length === 0) return null;
+    const partialSchemes = schemeStatusData.filter((s: any) => {
+      const ws = String(s.water_supply || "").trim().toLowerCase();
+      if (ws === "yes") return false;
+      if (selectedRegion && selectedRegion !== "all" && s.region !== selectedRegion) return false;
+      if (selectedAgencyType && selectedAgencyType !== "ALL" && s.agency_type !== selectedAgencyType) return false;
+      return true;
+    });
+
+    const connected = partialSchemes.filter((s: any) => {
+      const fcs = String(s.fully_completion_scheme_status || "").trim().toLowerCase();
+      return fcs === "fully completed" || fcs === "completed" || fcs === "connected" || fcs === "fully-completed" || fcs === "in progress";
+    });
+
+    return {
+      total: partialSchemes.length,
+      connectedCount: connected.length,
+      notConnectedCount: partialSchemes.length - connected.length,
+    };
+  }, [uiSchemeFilter, schemeStatusData, selectedRegion, selectedAgencyType]);
+
   // Count schemes where civil work is done (water_supply=Yes) AND IoT is active/in-progress
   const qualifyingSchemeCount = useMemo(() => {
     if (!schemeStatusData || schemeStatusData.length === 0) return 0;
@@ -814,6 +836,10 @@ const ChlorineDashboard: React.FC = () => {
 
         if (uiSchemeFilter === "commissioned") {
           return status.water_supply === "Yes";
+        }
+
+        if (uiSchemeFilter === "partial_civil") {
+          return String(status.water_supply || "").trim().toLowerCase() !== "yes";
         }
 
         if (uiSchemeFilter === "fully_completed") {
@@ -1160,6 +1186,8 @@ const ChlorineDashboard: React.FC = () => {
           const isCivilCompleted = ws === "yes";
           const hasIoT = validStatuses.includes(fcs);
           if (!isCivilCompleted || !hasIoT) return;
+        } else if (uiSchemeFilter === "partial_civil") {
+          if (ws === "yes") return;
         } else if (uiSchemeFilter === "fully_completed") {
           if (fcs !== "fully completed" && fcs !== "completed" && fcs !== "fully_completed") return;
         } else if (uiSchemeFilter === "in_progress") {
@@ -2236,12 +2264,11 @@ const ChlorineDashboard: React.FC = () => {
                   <SelectValue placeholder="Scheme Category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Schemes</SelectItem>
                   <SelectItem value="commissioned">100% civil work completed</SelectItem>
-                  <SelectItem value="fully_completed">Fully Instrumented (100% IoT)</SelectItem>
-                  <SelectItem value="in_progress">Partially Instrumented (In Progress)</SelectItem>
-                  <SelectItem value="common_filter">Common (Civil + IoT Done)</SelectItem>
-                  <SelectItem value="mjp_commissioned_yes">MJP Commissioned</SelectItem>
+                  <SelectItem value="partial_civil">Partial Civil work completed</SelectItem>
+                  <SelectItem value="all">Scheme Integrated In IOT</SelectItem>
+                  <SelectItem value="fully_completed">100% IoT Work completed</SelectItem>
+                  <SelectItem value="in_progress">Partial IOT Work</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -2299,6 +2326,16 @@ const ChlorineDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Partial Civil notice */}
+        {uiSchemeFilter === "partial_civil" && partialCivilStats && (
+          <div className="bg-amber-50 border-t border-amber-200 px-4 py-2.5 flex items-center gap-2">
+            <Info className="h-4 w-4 text-amber-600 flex-shrink-0" />
+            <span className="text-xs font-medium text-amber-900">
+              Data for <strong>{partialCivilStats.notConnectedCount}</strong> schemes is not present as they are not connected to IoT. Showing data for <strong>{partialCivilStats.connectedCount}</strong> connected schemes.
+            </span>
+          </div>
+        )}
 
         {/* Qualifying Schemes Info Footer */}
         <div className="bg-slate-50 border-t border-slate-100 px-4 py-2 flex flex-wrap justify-between items-center gap-2">
@@ -3636,16 +3673,18 @@ const ChlorineDashboard: React.FC = () => {
         sensorType="chlorine"
         filterLabel={
           uiSchemeFilter === "commissioned"
-            ? `Commissioned${waterSupplyStatus !== "All" ? ` (${waterSupplyStatus} Supply)` : ""}`
-            : uiSchemeFilter === "fully_completed"
-              ? "Fully Completed"
-              : uiSchemeFilter === "in_progress"
-                ? "In Progress"
-                : uiSchemeFilter === "common_filter"
-                  ? "Civil Complete & IoT Connected"
-                  : uiSchemeFilter === "mjp_commissioned_yes"
-                    ? "MJP Commissioned"
-                    : "All Schemes"
+            ? "100% civil work completed"
+            : uiSchemeFilter === "partial_civil"
+              ? "Partial Civil work completed"
+              : uiSchemeFilter === "fully_completed"
+                ? "100% IoT Work completed"
+                : uiSchemeFilter === "in_progress"
+                  ? "Partial IOT Work"
+                  : uiSchemeFilter === "common_filter"
+                    ? "Common (Civil + IoT Done)"
+                    : uiSchemeFilter === "mjp_commissioned_yes"
+                      ? "MJP Commissioned"
+                      : "Scheme Integrated In IOT"
         }
         qualifyingCount={globalUniqueSchemes + missingChlorineSchemes.length}
         presentCount={globalUniqueSchemes}
