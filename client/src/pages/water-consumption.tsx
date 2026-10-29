@@ -1926,19 +1926,6 @@ const WaterConsumptionPage: React.FC = () => {
                     }}
                   />
                 </div>
-                {uiSchemeFilter === "commissioned" && (
-                  <div>
-                    <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-2">Water Supply Status</p>
-                    <Tabs value={waterSupplyStatus} onValueChange={(v) => { handleWaterSupplyStatusChange(v); }}>
-                      <TabsList className="h-8 p-0.5 bg-white border border-blue-200 gap-0.5">
-                        <TabsTrigger value="All" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">All</TabsTrigger>
-                        <TabsTrigger value="Full" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Fully Operational</TabsTrigger>
-                        <TabsTrigger value="Partial" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partially Operational</TabsTrigger>
-                        <TabsTrigger value="No" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                  </div>
-                )}
               </div>
 
               {/* Row 3: Search + IoT Status + Consumption Filter + Clear All */}
@@ -1984,7 +1971,7 @@ const WaterConsumptionPage: React.FC = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Schemes</SelectItem>
-                      <SelectItem value="commissioned">Functional</SelectItem>
+                      <SelectItem value="commissioned">100% civil work completed</SelectItem>
                       <SelectItem value="fully_completed">Fully Instrumented (100% IoT)</SelectItem>
                       <SelectItem value="in_progress">Partially Instrumented (In Progress)</SelectItem>
                       <SelectItem value="common_filter">Common (Civil + IoT Done)</SelectItem>

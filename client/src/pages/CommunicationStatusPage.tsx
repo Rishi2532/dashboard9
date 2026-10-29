@@ -1131,19 +1131,6 @@ export default function CommunicationStatusPage() {
           resultLabel="Connected schemes"
           extraFilters={
             <div className="flex flex-wrap items-center gap-4 w-full">
-              {(uiSchemeFilter === "commissioned" || uiSchemeFilter === "fully_completed") && (
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Water Supply Status</label>
-                  <Tabs value={waterSupplyStatus} onValueChange={(val) => { setWaterSupplyStatus(val); resetPage(); }} className="m-0">
-                    <TabsList className="h-11 bg-white border border-gray-200 p-1 shadow-sm">
-                      <TabsTrigger value="All" className="px-3 py-2 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">All</TabsTrigger>
-                      <TabsTrigger value="Full" className="px-3 py-2 text-xs font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Fully Operational</TabsTrigger>
-                      <TabsTrigger value="Partial" className="px-3 py-2 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partially Operational</TabsTrigger>
-                      <TabsTrigger value="No" className="px-3 py-2 text-xs font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                </div>
-              )}
               <div className="w-[180px]">
                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Village Filter</label>
                 <VillageFilter
@@ -1526,7 +1513,7 @@ export default function CommunicationStatusPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Schemes</SelectItem>
-                    <SelectItem value="commissioned">Functional</SelectItem>
+                    <SelectItem value="commissioned">100% civil work completed</SelectItem>
                     <SelectItem value="fully_completed">Fully Instrumented (100% IoT)</SelectItem>
                     <SelectItem value="in_progress">Partially Instrumented (In Progress)</SelectItem>
                     <SelectItem value="common_filter">Common (Civil + IoT Done)</SelectItem>

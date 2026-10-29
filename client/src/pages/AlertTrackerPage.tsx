@@ -632,25 +632,13 @@ export default function AlertTrackerPage() {
                                     <td className="p-2 sm:p-2.5 font-bold border-r border-[#4A6484] bg-[#EBF3FB] text-[#0A2540] w-1/4 text-center sm:text-left">
                                         Project Scope
                                     </td>
-                                    <td
-                                        onClick={() => handleScopeClick("Project Scope - Schemes in Scope", "projectScopeSchemes", projectScope.schemes)}
-                                        className="p-2 sm:p-2.5 font-semibold text-[#1E293B] bg-white border-r border-[#4A6484] w-1/4 cursor-pointer hover:text-[#0B3558] hover:underline"
-                                        title="Click to view all schemes in Project Scope"
-                                    >
+                                    <td className="p-2 sm:p-2.5 font-semibold text-[#1E293B] bg-white border-r border-[#4A6484] w-1/4">
                                         Scheme in Scope - {projectScope.schemes.toLocaleString()}
                                     </td>
-                                    <td
-                                        onClick={() => handleScopeClick("Project Scope - Villages Covered", "projectScopeVillages", projectScope.villages)}
-                                        className="p-2 sm:p-2.5 font-semibold text-[#1E293B] bg-white border-r border-[#4A6484] w-1/4 cursor-pointer hover:text-[#0B3558] hover:underline"
-                                        title="Click to view all villages in Project Scope"
-                                    >
+                                    <td className="p-2 sm:p-2.5 font-semibold text-[#1E293B] bg-white border-r border-[#4A6484] w-1/4">
                                         Village covered - {projectScope.villages.toLocaleString()}
                                     </td>
-                                    <td
-                                        onClick={() => handleScopeClick("Project Scope - ESR+ GSR+MBR", "projectScopeEsr", projectScope.esr)}
-                                        className="p-2 sm:p-2.5 font-semibold text-[#1E293B] bg-white w-1/4 cursor-pointer hover:text-[#0B3558] hover:underline"
-                                        title="Click to view all ESRs in Project Scope"
-                                    >
+                                    <td className="p-2 sm:p-2.5 font-semibold text-[#1E293B] bg-white w-1/4">
                                         ESR+ GSR+MBR - {projectScope.esr.toLocaleString()}
                                     </td>
                                 </tr>
@@ -1258,10 +1246,12 @@ export default function AlertTrackerPage() {
                                             {selectedCellDetails?.colType === "resolved" ? (
                                                 <>
                                                     <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[140px]">
-                                                        Alert Reading ({data?.dateMeta?.evalDisplayDate || filterDateInput})
+                                                        Alert Value
                                                     </th>
-                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[150px]">
-                                                        Resolved Value ({selectedCellDetails?.metric === "subsequentResolved" || selectedCellDetails?.title?.includes("Resolution after escalation") || selectedCellDetails?.title?.endsWith("(Resolved)") ? (data?.dateMeta?.col4DisplayDate || data?.dateMeta?.nextDayDisplayDate || "Resolved") : (data?.dateMeta?.nextDayDisplayDate || "Resolution Day")})
+                                                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[180px]">
+                                                        {selectedCellDetails?.title?.includes("Resolution after escalation") || selectedCellDetails?.metric?.includes("Resolution after escalation")
+                                                            ? "Resolution after escalation at EE level"
+                                                            : "Resolution in 24 hrs at operator level"}
                                                     </th>
                                                     <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-[#4A6484] min-w-[180px]">
                                                         Assigned Operator & Contact

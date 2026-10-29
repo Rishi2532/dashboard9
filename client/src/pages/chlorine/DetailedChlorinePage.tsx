@@ -3661,11 +3661,11 @@ const DetailedChlorinePage = () => {
                     setUiSchemeFilter(val);
                   }}
                 >
-                  <SelectTrigger className="h-8 w-[180px] text-xs bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700">
+                  <SelectTrigger className="h-8 min-w-[210px] w-auto text-xs bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700">
                     <SelectValue placeholder="Select Category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="commissioned">Functional</SelectItem>
+                    <SelectItem value="commissioned">100% civil work completed</SelectItem>
                     <SelectItem value="all">All Schemes</SelectItem>
                     <SelectItem value="fully_completed">
                       Fully Completed
@@ -3680,45 +3680,6 @@ const DetailedChlorinePage = () => {
                   </SelectContent>
                 </Select>
               </div>
-
-              {(uiSchemeFilter === "commissioned" ||
-                uiSchemeFilter === "fully_completed") && (
-                  <>
-                    <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 flex-shrink-0" />
-                    <Tabs
-                      value={waterSupplyStatus}
-                      onValueChange={setWaterSupplyStatus}
-                      className="m-0 flex-shrink-0"
-                    >
-                      <TabsList className="h-8 bg-gray-100 dark:bg-gray-800 p-0.5 border border-gray-200 dark:border-gray-700">
-                        <TabsTrigger
-                          value="All"
-                          className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white whitespace-nowrap"
-                        >
-                          All
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="Full"
-                          className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white whitespace-nowrap"
-                        >
-                          Full Operational
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="Partial"
-                          className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-amber-500 data-[state=active]:text-white whitespace-nowrap"
-                        >
-                          Partially Operational
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="No"
-                          className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white whitespace-nowrap"
-                        >
-                          Not Operational
-                        </TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                  </>
-                )}
 
               <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 flex-shrink-0" />
               <div className="flex-shrink-0">
