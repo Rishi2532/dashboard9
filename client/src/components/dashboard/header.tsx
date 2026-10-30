@@ -186,7 +186,7 @@ export default function Header() {
                       title="Alert Tracker Matrix & Escalation Overview"
                     >
                       <Activity className="h-3.5 w-3.5 mr-1" />
-                      Alert Tracker
+                      Escalation Portal
                     </Button>
                   </Link>
 
@@ -631,7 +631,7 @@ export default function Header() {
                     )}
                   >
                     <Activity className="h-4 w-4 mr-2" />
-                    Alert Tracker
+                    Escalation Portal
                   </Button>
                 </Link>
 

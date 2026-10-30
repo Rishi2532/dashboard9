@@ -469,7 +469,7 @@ export default function AlertTrackerPage() {
             }
 
             const scopeType = selectedCellDetails.scopeType;
-            const isAlert = selectedCellDetails.category === "alert";
+            const isAlert = selectedCellDetails.category === "alert" || selectedCellDetails.category === "lpcd" || selectedCellDetails.category === "pressure" || selectedCellDetails.category === "chlorine";
 
             const exportRows = items.map((item: any, idx: number) => {
                 const status = String(item.fully_completion_scheme_status || item.status || "").trim().toLowerCase();
@@ -525,10 +525,32 @@ export default function AlertTrackerPage() {
                     row["Date"] = item.alert_date || item.data_date || filterDateInput;
                 }
 
-                row["Operator Name"] = item.operator_name || "-";
-                row["Operator Contact"] = item.operator_number || "-";
-                row["EE Name"] = item.ee_name || "-";
-                row["EE Contact"] = item.ee_number || "-";
+                const actualEeName = item.ee_name && item.ee_name !== "-" && item.ee_name.toLowerCase() !== "executive engineer"
+                    ? item.ee_name
+                    : (item.recipient_designation === "Executive Engineer" && item.recipient_name && item.recipient_name !== "-" && item.recipient_name.toLowerCase() !== "executive engineer"
+                        ? item.recipient_name
+                        : null);
+                const actualEeMobile = item.ee_number && item.ee_number !== "-"
+                    ? item.ee_number
+                    : (item.recipient_designation === "Executive Engineer" && item.recipient_contact && item.recipient_contact !== "-"
+                        ? item.recipient_contact
+                        : null);
+
+                const actualOperatorName = item.operator_name && item.operator_name !== "-" && item.operator_name.toLowerCase() !== "village operator"
+                    ? item.operator_name
+                    : (item.recipient_designation !== "Executive Engineer" && item.recipient_name && item.recipient_name !== "-" && item.recipient_name.toLowerCase() !== "village operator" && item.recipient_name.toLowerCase() !== "executive engineer" && item.recipient_name !== actualEeName
+                        ? item.recipient_name
+                        : null);
+                const actualOperatorMobile = item.operator_number && item.operator_number !== "-"
+                    ? item.operator_number
+                    : (item.recipient_designation !== "Executive Engineer" && item.recipient_contact && item.recipient_contact !== "-" && item.recipient_contact !== actualEeMobile
+                        ? item.recipient_contact
+                        : null);
+
+                row["Operator Name"] = actualOperatorName || "Operator Information Not Available";
+                row["Operator Contact"] = actualOperatorMobile || "-";
+                row["EE Name"] = actualEeName || "Executive Engineer Information Not Available";
+                row["EE Contact"] = actualEeMobile || "-";
                 row["EE Email"] = item.ee_email || "-";
 
                 return row;
@@ -1370,7 +1392,7 @@ export default function AlertTrackerPage() {
                                                             : "Resolution in 24 hrs at operator level"}
                                                     </th>
                                                     <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-[#4A6484] min-w-[180px]">
-                                                        Assigned Operator & Contact
+                                                        Operator Name & Contact
                                                     </th>
                                                     <th className="py-2.5 px-3 text-[11px] font-bold text-left min-w-[180px]">
                                                         Executive Engineer & Contact
@@ -1384,7 +1406,7 @@ export default function AlertTrackerPage() {
                                                     <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-[#4A6484] min-w-[180px]">
                                                         {selectedCellDetails?.colType === "escalation"
                                                             ? "Executive Engineer & Contact"
-                                                            : "Assigned Operator  & Contact Details"}
+                                                            : "Operator Name  & Contact Details"}
                                                     </th>
                                                     {selectedCellDetails?.colType === "escalation" && (
                                                         <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-[#4A6484] min-w-[150px]">
@@ -1431,23 +1453,25 @@ export default function AlertTrackerPage() {
                                                 const totalVillages = Number(item.total_villages ?? item.number_of_village ?? 0);
                                                 const connectedVillages = Number(item.connected_villages ?? 0);
                                                 const isVillageLag = scopeType === "scheme" && totalVillages > connectedVillages;
+                                                const lagBg = isVillageLag ? { backgroundColor: '#FEF3C7' } : undefined;
 
                                                 return (
                                                     <tr
                                                         key={item.id || `${item.scheme_id}-${item.village_name || ""}-${item.esr_name || ""}-${idx}`}
                                                         className={
                                                             isVillageLag
-                                                                ? "bg-amber-50/80 hover:bg-amber-100/80 border-l-4 border-l-amber-500 transition-colors"
+                                                                ? "row-highlight-lag !bg-[#FEF3C7] hover:!bg-[#FDE68A] border-l-4 border-l-amber-500 font-medium transition-colors"
                                                                 : "hover:bg-[#EBF3FB]/50 transition-colors bg-white even:bg-[#F8FAFC]"
                                                         }
+                                                        style={lagBg}
                                                     >
                                                         {/* 1. Sr. No. */}
-                                                        <td className="py-2.5 px-2 text-center border-r border-[#CBD5E1] align-middle">
+                                                        <td style={lagBg} className={`py-2.5 px-2 text-center border-r border-[#CBD5E1] align-middle ${isVillageLag ? "!bg-[#FEF3C7]" : ""}`}>
                                                             <span className="text-xs font-semibold text-[#0A2540]">{rowNum}</span>
                                                         </td>
 
                                                         {/* 2. Entity Details */}
-                                                        <td className="py-2.5 px-3 border-r border-[#CBD5E1] align-middle">
+                                                        <td style={lagBg} className={`py-2.5 px-3 border-r border-[#CBD5E1] align-middle ${isVillageLag ? "!bg-[#FEF3C7]" : ""}`}>
                                                             {scopeType === "scheme" && (
                                                                 <div>
                                                                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -1535,7 +1559,7 @@ export default function AlertTrackerPage() {
                                                         </td>
 
                                                         {/* Connected Status Column */}
-                                                        <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
+                                                        <td style={lagBg} className={`py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap ${isVillageLag ? "!bg-[#FEF3C7]" : ""}`}>
                                                             {(() => {
                                                                 const status = String(item.fully_completion_scheme_status || item.status || "").trim().toLowerCase();
                                                                 const isNotConn = status === "not-connected" || status === "not connected" || status === "integration pending";
@@ -1560,13 +1584,13 @@ export default function AlertTrackerPage() {
                                                         {/* Scheme Columns: Total Villages, Connected Villages, Total ESRs, Completed ESRs, Total Population */}
                                                         {scopeType === "scheme" && (
                                                             <>
-                                                                <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
+                                                                <td style={lagBg} className={`py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap ${isVillageLag ? "!bg-[#FEF3C7]" : ""}`}>
                                                                     <div className="font-bold text-xs text-[#0A2540]">
                                                                         {Number(item.total_villages || 0).toLocaleString()}
                                                                     </div>
                                                                     <div className="text-[10px] text-[#64748B]">Total Villages</div>
                                                                 </td>
-                                                                <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
+                                                                <td style={lagBg} className={`py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap ${isVillageLag ? "!bg-[#FEF3C7]" : ""}`}>
                                                                     <div className={`font-bold text-xs ${isVillageLag ? "text-amber-800" : "text-emerald-700"}`}>
                                                                         {Number(item.connected_villages || 0).toLocaleString()}
                                                                     </div>
@@ -1577,19 +1601,19 @@ export default function AlertTrackerPage() {
                                                                         </div>
                                                                     )}
                                                                 </td>
-                                                                <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
+                                                                <td style={lagBg} className={`py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap ${isVillageLag ? "!bg-[#FEF3C7]" : ""}`}>
                                                                     <div className="font-bold text-xs text-[#0A2540]">
                                                                         {Number(item.total_esrs || 0).toLocaleString()}
                                                                     </div>
                                                                     <div className="text-[10px] text-[#64748B]">Total ESRs</div>
                                                                 </td>
-                                                                <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
+                                                                <td style={lagBg} className={`py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap ${isVillageLag ? "!bg-[#FEF3C7]" : ""}`}>
                                                                     <div className="font-bold text-xs text-blue-700">
                                                                         {Number(item.completed_esrs || 0).toLocaleString()}
                                                                     </div>
                                                                     <div className="text-[10px] text-[#64748B]">Completed</div>
                                                                 </td>
-                                                                <td className="py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap">
+                                                                <td style={lagBg} className={`py-2.5 px-3 text-center border-r border-[#CBD5E1] align-middle whitespace-nowrap ${isVillageLag ? "!bg-[#FEF3C7]" : ""}`}>
                                                                     <div className="font-bold text-xs text-[#0A2540]">
                                                                         {Number(item.population || 0).toLocaleString()}
                                                                     </div>
@@ -1671,7 +1695,7 @@ export default function AlertTrackerPage() {
                                                         )}
 
                                                         {/* Operator & Executive Engineer Details */}
-                                                        <td className="py-2.5 px-3 align-middle">
+                                                        <td style={lagBg} className={`py-2.5 px-3 align-middle ${isVillageLag ? "!bg-[#FEF3C7]" : ""}`}>
                                                             <div className="space-y-1.5">
                                                                 <div>
                                                                     {opName ? (
@@ -1680,7 +1704,7 @@ export default function AlertTrackerPage() {
                                                                         </div>
                                                                     ) : (
                                                                         <div className="text-xs text-slate-400 font-normal italic leading-tight">
-                                                                            Operator: Not Assigned
+                                                                            Operator Information Not Available
                                                                         </div>
                                                                     )}
                                                                     {opNumber && (
@@ -1713,7 +1737,7 @@ export default function AlertTrackerPage() {
                                                                     )}
                                                                 </div>
 
-                                                                {item.ee_name && item.ee_name !== "-" && item.ee_name.toLowerCase() !== "executive engineer" && (
+                                                                {item.ee_name && item.ee_name !== "-" && item.ee_name.toLowerCase() !== "executive engineer" ? (
                                                                     <div className="border-t border-slate-100 pt-1">
                                                                         <div className="font-bold text-xs text-[#0A2540] leading-tight">
                                                                             <span className="text-[#64748B] font-semibold">[EE]</span> {item.ee_name}
@@ -1752,6 +1776,12 @@ export default function AlertTrackerPage() {
                                                                             </div>
                                                                         )}
                                                                     </div>
+                                                                ) : (
+                                                                    <div className="border-t border-slate-100 pt-1">
+                                                                        <div className="text-xs text-slate-400 font-normal italic leading-tight">
+                                                                            Executive Engineer Information Not Available
+                                                                        </div>
+                                                                    </div>
                                                                 )}
                                                             </div>
                                                         </td>
@@ -1787,17 +1817,30 @@ export default function AlertTrackerPage() {
 
                                             const actualEeName = item.ee_name && item.ee_name !== "-" && item.ee_name.toLowerCase() !== "executive engineer"
                                                 ? item.ee_name
-                                                : null;
-                                            const actualOperatorName = item.operator_name && item.operator_name !== "-" && item.operator_name.toLowerCase() !== "village operator"
-                                                ? item.operator_name
-                                                : (item.recipient_name && item.recipient_name !== "-" && item.recipient_name.toLowerCase() !== "village operator" && item.recipient_name.toLowerCase() !== "executive engineer"
+                                                : (item.recipient_designation === "Executive Engineer" && item.recipient_name && item.recipient_name !== "-" && item.recipient_name.toLowerCase() !== "executive engineer"
                                                     ? item.recipient_name
                                                     : null);
 
+                                            const actualEeMobile = item.ee_number && item.ee_number !== "-"
+                                                ? item.ee_number
+                                                : (item.recipient_designation === "Executive Engineer" && item.recipient_contact && item.recipient_contact !== "-"
+                                                    ? item.recipient_contact
+                                                    : null);
+
+                                            const actualOperatorName = item.operator_name && item.operator_name !== "-" && item.operator_name.toLowerCase() !== "village operator"
+                                                ? item.operator_name
+                                                : (item.recipient_designation !== "Executive Engineer" && item.recipient_name && item.recipient_name !== "-" && item.recipient_name.toLowerCase() !== "village operator" && item.recipient_name.toLowerCase() !== "executive engineer" && item.recipient_name !== actualEeName
+                                                    ? item.recipient_name
+                                                    : null);
+
+                                            const actualOperatorMobile = item.operator_number && item.operator_number !== "-"
+                                                ? item.operator_number
+                                                : (item.recipient_designation !== "Executive Engineer" && item.recipient_contact && item.recipient_contact !== "-" && item.recipient_contact !== actualEeMobile
+                                                    ? item.recipient_contact
+                                                    : null);
+
                                             const contactName = isEscalationModal ? actualEeName : actualOperatorName;
-                                            const contactMobile = isEscalationModal
-                                                ? (item.ee_number && item.ee_number !== "-" ? item.ee_number : null)
-                                                : (item.operator_number && item.operator_number !== "-" ? item.operator_number : (item.recipient_contact && item.recipient_contact !== "-" ? item.recipient_contact : null));
+                                            const contactMobile = isEscalationModal ? actualEeMobile : actualOperatorMobile;
                                             const shortRole = isEscalationModal ? "EE" : "Operator";
 
                                             const hasValidOperator = Boolean(actualOperatorName && contactMobile);
@@ -1978,32 +2021,32 @@ export default function AlertTrackerPage() {
                                                                         </div>
                                                                     ) : (
                                                                         <div className="text-xs text-slate-400 font-normal italic leading-tight">
-                                                                            -
+                                                                            Operator Information Not Available
                                                                         </div>
                                                                     )}
-                                                                    {item.operator_number && item.operator_number !== "-" && (
+                                                                    {actualOperatorMobile && (
                                                                         <div className="mt-0.5 flex items-center gap-1">
                                                                             <a
-                                                                                href={`tel:${item.operator_number}`}
+                                                                                href={`tel:${actualOperatorMobile}`}
                                                                                 className="text-xs text-[#0B3558] font-medium hover:underline flex items-center gap-1"
                                                                             >
                                                                                 <Phone className="h-3 w-3" />
-                                                                                <span>{item.operator_number}</span>
+                                                                                <span>{actualOperatorMobile}</span>
                                                                             </a>
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
-                                                                                    if (item.operator_number) {
-                                                                                        navigator.clipboard.writeText(item.operator_number);
-                                                                                        setCopiedMobile(item.operator_number);
+                                                                                    if (actualOperatorMobile) {
+                                                                                        navigator.clipboard.writeText(actualOperatorMobile);
+                                                                                        setCopiedMobile(actualOperatorMobile);
                                                                                         setTimeout(() => setCopiedMobile(null), 2000);
                                                                                     }
                                                                                 }}
                                                                                 className="p-0.5 text-[#64748B] hover:text-[#0A2540] rounded cursor-pointer"
                                                                                 title="Copy mobile number"
                                                                             >
-                                                                                {copiedMobile === item.operator_number ? (
+                                                                                {copiedMobile === actualOperatorMobile ? (
                                                                                     <Check className="h-3 w-3 text-emerald-600" />
                                                                                 ) : (
                                                                                     <Copy className="h-3 w-3" />
@@ -2023,32 +2066,32 @@ export default function AlertTrackerPage() {
                                                                         </div>
                                                                     ) : (
                                                                         <div className="text-xs text-slate-400 font-normal italic leading-tight">
-                                                                            -
+                                                                            Executive Engineer Information Not Available
                                                                         </div>
                                                                     )}
-                                                                    {item.ee_number && item.ee_number !== "-" && (
+                                                                    {actualEeMobile && (
                                                                         <div className="mt-0.5 flex items-center gap-1">
                                                                             <a
-                                                                                href={`tel:${item.ee_number}`}
+                                                                                href={`tel:${actualEeMobile}`}
                                                                                 className="text-xs text-[#0B3558] font-medium hover:underline flex items-center gap-1"
                                                                             >
                                                                                 <Phone className="h-3 w-3" />
-                                                                                <span>{item.ee_number}</span>
+                                                                                <span>{actualEeMobile}</span>
                                                                             </a>
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
-                                                                                    if (item.ee_number) {
-                                                                                        navigator.clipboard.writeText(item.ee_number);
-                                                                                        setCopiedMobile(item.ee_number);
+                                                                                    if (actualEeMobile) {
+                                                                                        navigator.clipboard.writeText(actualEeMobile);
+                                                                                        setCopiedMobile(actualEeMobile);
                                                                                         setTimeout(() => setCopiedMobile(null), 2000);
                                                                                     }
                                                                                 }}
                                                                                 className="p-0.5 text-[#64748B] hover:text-[#0A2540] rounded cursor-pointer"
                                                                                 title="Copy mobile number"
                                                                             >
-                                                                                {copiedMobile === item.ee_number ? (
+                                                                                {copiedMobile === actualEeMobile ? (
                                                                                     <Check className="h-3 w-3 text-emerald-600" />
                                                                                 ) : (
                                                                                     <Copy className="h-3 w-3" />
@@ -2073,7 +2116,7 @@ export default function AlertTrackerPage() {
                                                                     </div>
                                                                 ) : (
                                                                     <div className="text-xs text-slate-400 font-normal italic leading-tight">
-                                                                        -
+                                                                        {isEscalationModal ? "Executive Engineer Information Not Available" : "Operator Information Not Available"}
                                                                     </div>
                                                                 )}
                                                                 <div className="mt-0.5 flex items-center gap-2 flex-wrap">

@@ -581,6 +581,19 @@ table tbody tr:nth-child(even) {
   background-color: var(--table-row-even) !important;
 }
 
+/* Explicit full-row highlight for schemes with pending village connections */
+table tbody tr.row-highlight-lag,
+table tbody tr.row-highlight-lag td {
+  background-color: #FEF3C7 !important;
+  background: #FEF3C7 !important;
+}
+
+table tbody tr.row-highlight-lag:hover,
+table tbody tr.row-highlight-lag:hover td {
+  background-color: #FDE68A !important;
+  background: #FDE68A !important;
+}
+
 /* Enhanced hover effect */
 table tbody tr {
   transition: all 0.2s ease-in-out !important;

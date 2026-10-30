@@ -860,22 +860,18 @@ export async function getAlertTrackerMetrics(params: {
         block: row.block || "-",
         alert_type: "LPCD",
         original_alert_date: alertIsoDate,
-        recipient_designation: isEE ? "Executive Engineer" : "Village Operator",
-        recipient_name: isEE
-          ? (hasEe ? row.ee_name : "-")
-          : (row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" ? row.operator_name : "-"),
-        recipient_contact: isEE ? (row.ee_number || "-") : (row.operator_number || "-"),
-        recipient_email: row.ee_email || undefined,
-        notification_channel: isEE ? ("SMS & Email" as any) : "SMS",
+        recipient_designation: "Village Operator",
+        recipient_name: (row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator") ? row.operator_name : "-",
+        recipient_contact: (row.operator_number && row.operator_number !== "-") ? row.operator_number : "-",
+        recipient_email: undefined,
+        notification_channel: "SMS",
         operator_message_text: DLT_TEMPLATES.LPCD_LOW.render(formatSchemeName(row.scheme_name, row.scheme_id), formatVillageName(row.village_name), parseFloat(row.val_today).toFixed(1)),
         ee_message_text: DLT_TEMPLATES.ESCALATION_EE_CE.render(formatSchemeName(row.scheme_name, row.scheme_id), 1, 1, "तांत्रिक बाबी प्रलंबित आहेत"),
-        message_text: isEE
-          ? DLT_TEMPLATES.ESCALATION_EE_CE.render(formatSchemeName(row.scheme_name, row.scheme_id), 1, 1, "तांत्रिक बाबी प्रलंबित आहेत")
-          : DLT_TEMPLATES.LPCD_LOW.render(formatSchemeName(row.scheme_name, row.scheme_id), formatVillageName(row.village_name), parseFloat(row.val_today).toFixed(1)),
+        message_text: DLT_TEMPLATES.LPCD_LOW.render(formatSchemeName(row.scheme_name, row.scheme_id), formatVillageName(row.village_name), parseFloat(row.val_today).toFixed(1)),
         reading_value: `${parseFloat(row.val_today).toFixed(1)} LPCD`,
-        delivery_status: (isEE ? hasEe : hasOperator) ? (row.sms_delivery_status || "NOT_DISPATCHED") : "NOT_DISPATCHED",
-        sms_sent: isEE ? (hasActualSmsLog && hasEe) : (hasActualSmsLog && hasOperator),
-        email_sent: Boolean(isEE && hasActualSmsLog && hasEe && row.ee_email && row.ee_email !== "-"),
+        delivery_status: hasOperator ? (row.sms_delivery_status || "NOT_DISPATCHED") : "NOT_DISPATCHED",
+        sms_sent: Boolean(hasActualSmsLog && hasOperator),
+        email_sent: false,
         resolution_status: isResolvedNextDay ? "RESOLVED" : isUnresolvedNextDay ? "UNRESOLVED" : "ACTIVE",
         escalated_to_ee: isEE,
         unresolved_since: isUnresolvedNextDay ? `Since ${evalDisplayDate}` : "-",
@@ -905,7 +901,19 @@ export async function getAlertTrackerMetrics(params: {
 
       if (isUnresolvedNextDay) {
         result.lpcd.unresolvedItems.push(item);
-        result.lpcd.escalatedEEItems.push(item);
+        const eeEscalatedItem: AlertTrackerItem = {
+          ...item,
+          recipient_designation: "Executive Engineer",
+          recipient_name: hasEe ? row.ee_name : "-",
+          recipient_contact: row.ee_number || "-",
+          recipient_email: row.ee_email || undefined,
+          notification_channel: "SMS & Email" as any,
+          message_text: DLT_TEMPLATES.ESCALATION_EE_CE.render(formatSchemeName(row.scheme_name, row.scheme_id), 1, 1, "तांत्रिक बाबी प्रलंबित आहेत"),
+          delivery_status: hasEe ? (row.sms_delivery_status || "NOT_DISPATCHED") : "NOT_DISPATCHED",
+          sms_sent: Boolean(hasActualSmsLog && hasEe),
+          email_sent: Boolean(hasActualSmsLog && hasEe && row.ee_email && row.ee_email !== "-"),
+        };
+        result.lpcd.escalatedEEItems.push(eeEscalatedItem);
       } else if (isResolvedNextDay) {
         result.lpcd.resolvedItems!.push(item);
       }
@@ -962,22 +970,18 @@ export async function getAlertTrackerMetrics(params: {
         block: row.block || "-",
         alert_type: "Pressure",
         original_alert_date: alertIsoDate,
-        recipient_designation: isEE ? "Executive Engineer" : "Village Operator",
-        recipient_name: isEE
-          ? (hasEe ? row.ee_name : "-")
-          : (row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" ? row.operator_name : "-"),
-        recipient_contact: isEE ? (row.ee_number || "-") : (row.operator_number || "-"),
-        recipient_email: row.ee_email || undefined,
-        notification_channel: isEE ? ("SMS & Email" as any) : "SMS",
+        recipient_designation: "Village Operator",
+        recipient_name: (row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator") ? row.operator_name : "-",
+        recipient_contact: (row.operator_number && row.operator_number !== "-") ? row.operator_number : "-",
+        recipient_email: undefined,
+        notification_channel: "SMS",
         operator_message_text: DLT_TEMPLATES.PRESSURE_LOW.render(formatSchemeName(row.scheme_name, row.scheme_id), formatVillageAndEsr(row.village_name, row.reservoir_name), parseFloat(row.val_today || '0').toFixed(2)),
         ee_message_text: `सूचना: JJM MVS ${formatSchemeName(row.scheme_name, row.scheme_id)} अंतर्गत ${formatVillageAndEsr(row.village_name, row.reservoir_name)} येथील वितरण व्यवस्थेतील Pressure Sensor नुसार पाण्याचा दाब 0.2 bar पेक्षा कमी असून सध्याचा दाब ${parseFloat(row.val_today || '0').toFixed(2)} bar इतका आहे. तसेच, तांत्रिक बाबी प्रलंबित आहेत. कृपया तपासणी करून त्वरित आवश्यक कार्यवाही करावी. – मजीप्रा`,
-        message_text: isEE
-          ? `सूचना: JJM MVS ${formatSchemeName(row.scheme_name, row.scheme_id)} अंतर्गत ${formatVillageAndEsr(row.village_name, row.reservoir_name)} येथील वितरण व्यवस्थेतील Pressure Sensor नुसार पाण्याचा दाब 0.2 bar पेक्षा कमी असून सध्याचा दाब ${parseFloat(row.val_today || '0').toFixed(2)} bar इतका आहे. तसेच, तांत्रिक बाबी प्रलंबित आहेत. कृपया तपासणी करून त्वरित आवश्यक कार्यवाही करावी. – मजीप्रा`
-          : DLT_TEMPLATES.PRESSURE_LOW.render(formatSchemeName(row.scheme_name, row.scheme_id), formatVillageAndEsr(row.village_name, row.reservoir_name), parseFloat(row.val_today || '0').toFixed(2)),
+        message_text: DLT_TEMPLATES.PRESSURE_LOW.render(formatSchemeName(row.scheme_name, row.scheme_id), formatVillageAndEsr(row.village_name, row.reservoir_name), parseFloat(row.val_today || '0').toFixed(2)),
         reading_value: row.val_today !== null ? `${parseFloat(row.val_today).toFixed(2)} Bar` : "No Data",
-        delivery_status: (isEE ? hasEe : hasOperator) ? (row.sms_delivery_status || "NOT_DISPATCHED") : "NOT_DISPATCHED",
-        sms_sent: isEE ? (hasActualSmsLog && hasEe) : (hasActualSmsLog && hasOperator),
-        email_sent: Boolean(isEE && hasActualSmsLog && hasEe && row.ee_email && row.ee_email !== "-"),
+        delivery_status: hasOperator ? (row.sms_delivery_status || "NOT_DISPATCHED") : "NOT_DISPATCHED",
+        sms_sent: Boolean(hasActualSmsLog && hasOperator),
+        email_sent: false,
         resolution_status: isResolvedNextDay ? "RESOLVED" : isUnresolvedNextDay ? "UNRESOLVED" : "ACTIVE",
         escalated_to_ee: isEE,
         unresolved_since: isUnresolvedNextDay ? `Since ${evalDisplayDate}` : "-",
@@ -1008,7 +1012,19 @@ export async function getAlertTrackerMetrics(params: {
 
       if (isUnresolvedNextDay) {
         result.pressure.unresolvedItems.push(item);
-        result.pressure.escalatedEEItems.push(item);
+        const eeEscalatedItem: AlertTrackerItem = {
+          ...item,
+          recipient_designation: "Executive Engineer",
+          recipient_name: hasEe ? row.ee_name : "-",
+          recipient_contact: row.ee_number || "-",
+          recipient_email: row.ee_email || undefined,
+          notification_channel: "SMS & Email" as any,
+          message_text: item.ee_message_text,
+          delivery_status: hasEe ? (row.sms_delivery_status || "NOT_DISPATCHED") : "NOT_DISPATCHED",
+          sms_sent: Boolean(hasActualSmsLog && hasEe),
+          email_sent: Boolean(hasActualSmsLog && hasEe && row.ee_email && row.ee_email !== "-"),
+        };
+        result.pressure.escalatedEEItems.push(eeEscalatedItem);
       } else if (isResolvedNextDay) {
         result.pressure.resolvedItems!.push(item);
       }
@@ -1065,30 +1081,26 @@ export async function getAlertTrackerMetrics(params: {
         block: row.block || "-",
         alert_type: "Chlorine",
         original_alert_date: alertIsoDate,
-        recipient_designation: isEE ? "Executive Engineer" : "Village Operator",
-        recipient_name: isEE
-          ? (hasEe ? row.ee_name : "-")
-          : (row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator" ? row.operator_name : "-"),
-        recipient_contact: isEE ? (row.ee_number || "-") : (row.operator_number || "-"),
-        recipient_email: row.ee_email || undefined,
-        notification_channel: isEE ? ("SMS & Email" as any) : "SMS",
+        recipient_designation: "Village Operator",
+        recipient_name: (row.operator_name && row.operator_name !== "-" && row.operator_name.toLowerCase() !== "village operator") ? row.operator_name : "-",
+        recipient_contact: (row.operator_number && row.operator_number !== "-") ? row.operator_number : "-",
+        recipient_email: undefined,
+        notification_channel: "SMS",
         operator_message_text: (row.val_today !== null && parseFloat(row.val_today) > 0.50 ? DLT_TEMPLATES.CHLORINE_HIGH : DLT_TEMPLATES.CHLORINE_LOW).render(
           formatSchemeName(row.scheme_name, row.scheme_id),
           formatVillageAndEsr(row.village_name, row.reservoir_name),
           parseFloat(row.val_today || '0').toFixed(2)
         ),
         ee_message_text: `सूचना: JJM MVS ${formatSchemeName(row.scheme_name, row.scheme_id)} अंतर्गत ${formatVillageAndEsr(row.village_name, row.reservoir_name)} येथील वितरण व्यवस्थेत Residual Chlorine ची मात्रा विहित मर्यादेबाहेर असून सध्याची मात्रा ${parseFloat(row.val_today || '0').toFixed(2)} mg/l इतकी आहे. तसेच, तांत्रिक बाबी प्रलंबित आहेत. कृपया तपासणी करून त्वरित आवश्यक कार्यवाही करावी. – मजीप्रा`,
-        message_text: isEE
-          ? `सूचना: JJM MVS ${formatSchemeName(row.scheme_name, row.scheme_id)} अंतर्गत ${formatVillageAndEsr(row.village_name, row.reservoir_name)} येथील वितरण व्यवस्थेत Residual Chlorine ची मात्रा विहित मर्यादेबाहेर असून सध्याची मात्रा ${parseFloat(row.val_today || '0').toFixed(2)} mg/l इतकी आहे. तसेच, तांत्रिक बाबी प्रलंबित आहेत. कृपया तपासणी करून त्वरित आवश्यक कार्यवाही करावी. – मजीप्रा`
-          : (row.val_today !== null && parseFloat(row.val_today) > 0.50 ? DLT_TEMPLATES.CHLORINE_HIGH : DLT_TEMPLATES.CHLORINE_LOW).render(
-              formatSchemeName(row.scheme_name, row.scheme_id),
-              formatVillageAndEsr(row.village_name, row.reservoir_name),
-              parseFloat(row.val_today || '0').toFixed(2)
-            ),
+        message_text: (row.val_today !== null && parseFloat(row.val_today) > 0.50 ? DLT_TEMPLATES.CHLORINE_HIGH : DLT_TEMPLATES.CHLORINE_LOW).render(
+          formatSchemeName(row.scheme_name, row.scheme_id),
+          formatVillageAndEsr(row.village_name, row.reservoir_name),
+          parseFloat(row.val_today || '0').toFixed(2)
+        ),
         reading_value: row.val_today !== null ? `${parseFloat(row.val_today).toFixed(2)} mg/L` : "No Data",
-        delivery_status: (isEE ? hasEe : hasOperator) ? (row.sms_delivery_status || "NOT_DISPATCHED") : "NOT_DISPATCHED",
-        sms_sent: isEE ? (hasActualSmsLog && hasEe) : (hasActualSmsLog && hasOperator),
-        email_sent: Boolean(isEE && hasActualSmsLog && hasEe && row.ee_email && row.ee_email !== "-"),
+        delivery_status: hasOperator ? (row.sms_delivery_status || "NOT_DISPATCHED") : "NOT_DISPATCHED",
+        sms_sent: Boolean(hasActualSmsLog && hasOperator),
+        email_sent: false,
         resolution_status: isResolvedNextDay ? "RESOLVED" : isUnresolvedNextDay ? "UNRESOLVED" : "ACTIVE",
         escalated_to_ee: isEE,
         unresolved_since: isUnresolvedNextDay ? `Since ${evalDisplayDate}` : "-",
@@ -1119,7 +1131,19 @@ export async function getAlertTrackerMetrics(params: {
 
       if (isUnresolvedNextDay) {
         result.chlorine.unresolvedItems.push(item);
-        result.chlorine.escalatedEEItems.push(item);
+        const eeEscalatedItem: AlertTrackerItem = {
+          ...item,
+          recipient_designation: "Executive Engineer",
+          recipient_name: hasEe ? row.ee_name : "-",
+          recipient_contact: row.ee_number || "-",
+          recipient_email: row.ee_email || undefined,
+          notification_channel: "SMS & Email" as any,
+          message_text: item.ee_message_text,
+          delivery_status: hasEe ? (row.sms_delivery_status || "NOT_DISPATCHED") : "NOT_DISPATCHED",
+          sms_sent: Boolean(hasActualSmsLog && hasEe),
+          email_sent: Boolean(hasActualSmsLog && hasEe && row.ee_email && row.ee_email !== "-"),
+        };
+        result.chlorine.escalatedEEItems.push(eeEscalatedItem);
       } else if (isResolvedNextDay) {
         result.chlorine.resolvedItems!.push(item);
       }
