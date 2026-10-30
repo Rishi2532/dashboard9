@@ -47,6 +47,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { useToast } from "@/hooks/use-toast";
 
 const REGIONS = [
@@ -393,56 +394,390 @@ export default function AlertTrackerPage() {
         }
     };
 
-    // Export to Excel function
-    const handleExportExcel = () => {
+    // Export to Excel function using ExcelJS with rich styling, exact date metadata, and clean separate sheets
+    const handleExportExcel = async () => {
         try {
-            const wb = XLSX.utils.book_new();
+            const workbook = new ExcelJS.Workbook();
+            workbook.creator = "MJP Water Supply Telemetry System";
+            workbook.created = new Date();
 
-            // Sheet 1: Summary Matrix
-            const summaryAoa = [
-                ["Alert Tracker Matrix", "", "", `Date: ${filterDateInput}`],
-                ["Region", selectedRegion, "Filter Agency", selectedAgency],
-                [],
-                ["Project Scope", `Scheme in Scope - ${projectScope.schemes.toLocaleString()}`, `Village covered - ${projectScope.villages.toLocaleString()}`, `ESR+ GSR+MBR - ${projectScope.esr.toLocaleString()}`],
-                ["Physical progress", `Partial completed schemes - ${(physicalProgress.schemes?.partial ?? 340).toLocaleString()} / Fully Completed Schemes - ${(physicalProgress.schemes?.fully ?? 49).toLocaleString()}`, `Villages covered in Partial schemes - ${(physicalProgress.villages?.partial ?? 5579).toLocaleString()} / Villages covered in fully completed schemes - ${(physicalProgress.villages?.fully ?? 391).toLocaleString()}`, `ESRs covered in Partial schemes - ${(physicalProgress.esr?.partial ?? 9628).toLocaleString()} / ESRs covered in fully completed schemes - ${(physicalProgress.esr?.fully ?? 612).toLocaleString()}`],
-                ["Operational", `Scheme - ${operational.schemes || 39}`, `Villages - ${operational.villages || 255}`, `No. Of ESR - ${operational.esr || 325}`],
-                [],
-                ["Alert Date :", filterDateInput],
-                [],
+            const primaryColor = "FF0B3558";
+            const accentColor = "FF4A6484";
+            const headerFill = "FFEBF3FB";
+            const borderStyle: any = {
+                top: { style: "thin", color: { argb: "FFCBD5E1" } },
+                bottom: { style: "thin", color: { argb: "FFCBD5E1" } },
+                left: { style: "thin", color: { argb: "FFCBD5E1" } },
+                right: { style: "thin", color: { argb: "FFCBD5E1" } },
+            };
+
+            // -------------------------------------------------------------
+            // SHEET 1: ALERT TRACKER SUMMARY MATRIX
+            // -------------------------------------------------------------
+            const wsSummary = workbook.addWorksheet("Summary Matrix");
+            wsSummary.views = [{ showGridLines: true }];
+
+            // 1. Title Banner
+            wsSummary.mergeCells("A1:E1");
+            const titleCell = wsSummary.getCell("A1");
+            titleCell.value = "MAHARASHTRA JEEVAN PRADHIKARAN - SWSM IOT ALERT TRACKER";
+            titleCell.font = { name: "Calibri", size: 14, bold: true, color: { argb: "FFFFFFFF" } };
+            titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: primaryColor } };
+            titleCell.alignment = { vertical: "middle", horizontal: "center" };
+            wsSummary.getRow(1).height = 36;
+
+            // 2. Metadata Subtitle Row
+            wsSummary.mergeCells("A2:E2");
+            const subTitleCell = wsSummary.getCell("A2");
+            const evalDateStr = data?.dateMeta?.evalDisplayDate || filterDateInput;
+            subTitleCell.value = `Region: ${selectedRegion === "All" ? "All Regions (Statewide)" : selectedRegion}   |   Agency: ${selectedAgency}   |   Selected Date: ${filterDateInput}   |   Telemetry Evaluated: ${evalDateStr}`;
+            subTitleCell.font = { name: "Calibri", size: 10, bold: true, color: { argb: "FF0A2540" } };
+            subTitleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: headerFill } };
+            subTitleCell.alignment = { vertical: "middle", horizontal: "center" };
+            wsSummary.getRow(2).height = 24;
+
+            // Blank Row 3
+            wsSummary.getRow(3).height = 10;
+
+            // 3. Project Overview Header
+            wsSummary.mergeCells("A4:E4");
+            const sec1Cell = wsSummary.getCell("A4");
+            sec1Cell.value = "1. PROJECT SCOPE & PROGRESS OVERVIEW";
+            sec1Cell.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
+            sec1Cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: accentColor } };
+            sec1Cell.alignment = { vertical: "middle", indent: 1 };
+            wsSummary.getRow(4).height = 24;
+
+            // Scope Table Columns
+            const scopeHeaders = ["Category / Indicator", "Schemes (MVS)", "Villages Covered", "ESR + GSR + MBR", "Key Remarks / Ratio"];
+            wsSummary.getRow(5).values = scopeHeaders;
+            wsSummary.getRow(5).height = 22;
+            wsSummary.getRow(5).eachCell((cell) => {
+                cell.font = { name: "Calibri", size: 10, bold: true, color: { argb: "FF0A2540" } };
+                cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: headerFill } };
+                cell.border = borderStyle;
+                cell.alignment = { vertical: "middle", horizontal: "center" };
+            });
+            wsSummary.getCell("A5").alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+
+            // Scope Data Rows
+            const scopeRows = [
                 [
-                    `(Display result for ${headerDateInfo.dayWithOrdinal} ${headerDateInfo.month.toLowerCase()} as per date )`,
-                    "Resolution in 24 hrs at operator level",
-                    "Unresolved and escalated to EE",
-                    "Resolution after escalation at EE level",
-                    "Pending resolution at EE level"
+                    "Total Project Scope",
+                    Number(projectScope.schemes || 0),
+                    Number(projectScope.villages || 0),
+                    Number(projectScope.esr || 0),
+                    "Full Approved Project Scope"
                 ],
-                ["Low LPCD In Villages Reported", "Low LPCD In Villages", "Low LPCD In Villages", "Low LPCD In Villages", "Low LPCD In Villages"],
-                [alertMatrix.lpcd.reported, alertMatrix.lpcd.resolved || 0, alertMatrix.lpcd.unresolvedEE, alertMatrix.lpcd.subsequentResolved || 0, alertMatrix.lpcd.unresolvedTillDate || alertMatrix.lpcd.unresolved],
-                ["Low Pressure In ESR", "Low Pressure In ESR", "Low Pressure In ESR", "Low Pressure In ESR", "Low Pressure In ESR"],
-                [alertMatrix.pressure.reported, alertMatrix.pressure.resolved || 0, alertMatrix.pressure.unresolvedEE, alertMatrix.pressure.subsequentResolved || 0, alertMatrix.pressure.unresolvedTillDate || alertMatrix.pressure.unresolved],
-                ["Residual Chlorine Out Of Range", "Residual Chlorine Out Of Range", "Residual Chlorine Out Of Range", "Residual Chlorine Out Of Range", "Residual Chlorine Out Of Range"],
-                [alertMatrix.chlorine.reported, alertMatrix.chlorine.resolved || 0, alertMatrix.chlorine.unresolvedEE, alertMatrix.chlorine.subsequentResolved || 0, alertMatrix.chlorine.unresolvedTillDate || alertMatrix.chlorine.unresolved],
+                [
+                    "Physical Progress - Fully Completed",
+                    Number(physicalProgress.schemes?.fully ?? 49),
+                    Number(physicalProgress.villages?.fully ?? 392),
+                    Number(physicalProgress.esr?.fully ?? 612),
+                    "100% Civil Work Completed"
+                ],
+                [
+                    "Physical Progress - Partially Completed",
+                    Number(physicalProgress.schemes?.partial ?? 340),
+                    Number(physicalProgress.villages?.partial ?? 5603),
+                    Number(physicalProgress.esr?.partial ?? 9711),
+                    "Work In Progress"
+                ],
+                [
+                    "IoT Operational Infrastructure",
+                    Number(operational.schemes || 0),
+                    Number(operational.villages || 0),
+                    Number(operational.esr || 0),
+                    "Connected with Active Flow/Telemetry"
+                ]
             ];
 
-            const wsSummary = XLSX.utils.aoa_to_sheet(summaryAoa);
-            XLSX.utils.book_append_sheet(wb, wsSummary, "Alert Tracker Summary");
+            let currentRow = 6;
+            scopeRows.forEach((rowVals) => {
+                const r = wsSummary.getRow(currentRow);
+                r.values = rowVals;
+                r.height = 20;
+                r.eachCell((cell, colNum) => {
+                    cell.font = { name: "Calibri", size: 10, color: { argb: "FF0F172A" } };
+                    cell.border = borderStyle;
+                    if (colNum === 1) {
+                        cell.font = { name: "Calibri", size: 10, bold: true, color: { argb: "FF0A2540" } };
+                        cell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+                    } else if (colNum === 5) {
+                        cell.alignment = { vertical: "middle", horizontal: "left" };
+                    } else {
+                        cell.alignment = { vertical: "middle", horizontal: "center" };
+                        cell.numFmt = "#,##0";
+                    }
+                });
+                currentRow++;
+            });
 
-            // Sheet 2: Notification Logs
-            const allRecords = [
-                ...(alertMatrix.lpcd.items || []).map((x: any) => ({ Category: "LPCD", ...x })),
-                ...(alertMatrix.pressure.items || []).map((x: any) => ({ Category: "Pressure", ...x })),
-                ...(alertMatrix.chlorine.items || []).map((x: any) => ({ Category: "Chlorine", ...x })),
+            // Blank Row
+            wsSummary.getRow(currentRow).height = 14;
+            currentRow++;
+
+            // 4. Alert Matrix Header
+            wsSummary.mergeCells(`A${currentRow}:E${currentRow}`);
+            const sec2Cell = wsSummary.getCell(`A${currentRow}`);
+            sec2Cell.value = `2. DAILY TELEMETRY ALERTS & 24-HR RESOLUTION LIFECYCLE (Evaluated for: ${evalDateStr})`;
+            sec2Cell.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
+            sec2Cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: accentColor } };
+            sec2Cell.alignment = { vertical: "middle", indent: 1 };
+            wsSummary.getRow(currentRow).height = 24;
+            currentRow++;
+
+            // Matrix Table Column Headers
+            const matrixHeaders = [
+                `Reported Data (${headerDateInfo.dayWithOrdinal} ${headerDateInfo.month.toLowerCase()})`,
+                "Resolution in 24 hrs at operator level",
+                "Unresolved and escalated to EE",
+                "Resolution after escalation at EE level",
+                "Pending resolution at EE level"
+            ];
+            wsSummary.getRow(currentRow).values = matrixHeaders;
+            wsSummary.getRow(currentRow).height = 26;
+            wsSummary.getRow(currentRow).eachCell((cell) => {
+                cell.font = { name: "Calibri", size: 10, bold: true, color: { argb: "FF0A2540" } };
+                cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: headerFill } };
+                cell.border = borderStyle;
+                cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+            });
+            currentRow++;
+
+            // Metric Rows
+            const matrixDataRows = [
+                {
+                    label: "Low LPCD In Villages",
+                    reported: alertMatrix.lpcd.reported,
+                    res24: alertMatrix.lpcd.resolved ?? 0,
+                    escEE: alertMatrix.lpcd.unresolvedEE ?? 0,
+                    resEE: alertMatrix.lpcd.subsequentResolved ?? 0,
+                    pendEE: alertMatrix.lpcd.unresolvedTillDate ?? alertMatrix.lpcd.unresolved ?? 0,
+                },
+                {
+                    label: "Low Pressure In ESR",
+                    reported: alertMatrix.pressure.reported,
+                    res24: alertMatrix.pressure.resolved ?? 0,
+                    escEE: alertMatrix.pressure.unresolvedEE ?? 0,
+                    resEE: alertMatrix.pressure.subsequentResolved ?? 0,
+                    pendEE: alertMatrix.pressure.unresolvedTillDate ?? alertMatrix.pressure.unresolved ?? 0,
+                },
+                {
+                    label: "Residual Chlorine Out Of Range",
+                    reported: alertMatrix.chlorine.reported,
+                    res24: alertMatrix.chlorine.resolved ?? 0,
+                    escEE: alertMatrix.chlorine.unresolvedEE ?? 0,
+                    resEE: alertMatrix.chlorine.subsequentResolved ?? 0,
+                    pendEE: alertMatrix.chlorine.unresolvedTillDate ?? alertMatrix.chlorine.unresolved ?? 0,
+                },
             ];
 
-            if (allRecords.length > 0) {
-                const wsRecords = XLSX.utils.json_to_sheet(allRecords);
-                XLSX.utils.book_append_sheet(wb, wsRecords, "Notification Logs");
-            }
+            matrixDataRows.forEach((mRow) => {
+                // Header sub-row
+                const labelRow = wsSummary.getRow(currentRow);
+                labelRow.values = [mRow.label, mRow.label, mRow.label, mRow.label, mRow.label];
+                labelRow.height = 18;
+                labelRow.eachCell((cell) => {
+                    cell.font = { name: "Calibri", size: 9, bold: true, color: { argb: "FF475569" } };
+                    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } };
+                    cell.border = borderStyle;
+                    cell.alignment = { vertical: "middle", horizontal: "center" };
+                });
+                currentRow++;
 
-            XLSX.writeFile(wb, `Alert_Tracker_${selectedRegion}_${dataDate}.xlsx`);
+                // Value row
+                const valRow = wsSummary.getRow(currentRow);
+                valRow.values = [mRow.reported, mRow.res24, mRow.escEE, mRow.resEE, mRow.pendEE];
+                valRow.height = 24;
+                valRow.eachCell((cell, colNum) => {
+                    cell.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FF0A2540" } };
+                    cell.border = borderStyle;
+                    cell.alignment = { vertical: "middle", horizontal: "center" };
+                    if (typeof cell.value === "number") {
+                        cell.numFmt = "#,##0";
+                        if (colNum === 2 || colNum === 4) {
+                            cell.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FF047857" } };
+                        } else if (colNum === 3 || colNum === 5) {
+                            cell.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FFB45309" } };
+                        }
+                    } else {
+                        cell.font = { name: "Calibri", size: 9, italic: true, color: { argb: "FF64748B" } };
+                    }
+                });
+                currentRow++;
+            });
+
+            // Auto fit column widths for summary matrix
+            wsSummary.columns = [
+                { width: 34 },
+                { width: 30 },
+                { width: 30 },
+                { width: 32 },
+                { width: 32 },
+            ];
+
+            // -------------------------------------------------------------
+            // HELPER TO POPULATE NOTIFICATION LOG SHEETS
+            // -------------------------------------------------------------
+            const populateAlertSheet = (sheetName: string, items: any[], alertType: string) => {
+                const ws = workbook.addWorksheet(sheetName);
+                ws.views = [{ showGridLines: true }];
+
+                const cols = [
+                    { header: "Sr. No.", key: "sr_no", width: 8 },
+                    { header: "Scheme ID", key: "scheme_id", width: 14 },
+                    { header: "Scheme Name", key: "scheme_name", width: 32 },
+                    { header: "Region", key: "region", width: 16 },
+                    { header: "Circle", key: "circle", width: 16 },
+                    { header: "Division", key: "division", width: 16 },
+                    { header: "Sub-Division", key: "sub_division", width: 16 },
+                    { header: "Block", key: "block", width: 16 },
+                    { header: "Village Name", key: "village_name", width: 22 },
+                    { header: "ESR / Reservoir Name", key: "esr_name", width: 22 },
+                    { header: "Alert Reading", key: "reading", width: 16 },
+                    { header: "Date of Value", key: "value_date", width: 14 },
+                    { header: "Lifecycle Status", key: "resolution_status", width: 18 },
+                    { header: "Assigned Operator", key: "operator_name", width: 24 },
+                    { header: "Operator Mobile", key: "operator_number", width: 16 },
+                    { header: "Executive Engineer", key: "ee_name", width: 24 },
+                    { header: "EE Mobile", key: "ee_number", width: 16 },
+                    { header: "EE Email", key: "ee_email", width: 28 },
+                    { header: "SMS Sent Status", key: "sms_status", width: 18 },
+                    { header: "Remarks / History", key: "remarks", width: 30 },
+                ];
+
+                // Sheet Title Banner
+                ws.mergeCells(1, 1, 1, cols.length);
+                const banner = ws.getCell(1, 1);
+                banner.value = `MJP JJM - ${alertType.toUpperCase()} ALERT NOTIFICATIONS (${selectedRegion} - ${filterDateInput})`;
+                banner.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FFFFFFFF" } };
+                banner.fill = { type: "pattern", pattern: "solid", fgColor: { argb: primaryColor } };
+                banner.alignment = { vertical: "middle", horizontal: "center" };
+                ws.getRow(1).height = 30;
+
+                // Table Headers
+                ws.getRow(2).values = cols.map((c) => c.header);
+                ws.getRow(2).height = 24;
+                ws.getRow(2).eachCell((cell) => {
+                    cell.font = { name: "Calibri", size: 10, bold: true, color: { argb: "FFFFFFFF" } };
+                    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: accentColor } };
+                    cell.border = borderStyle;
+                    cell.alignment = { vertical: "middle", horizontal: "center" };
+                });
+
+                if (items.length === 0) {
+                    ws.mergeCells(3, 1, 3, cols.length);
+                    const emptyCell = ws.getCell(3, 1);
+                    emptyCell.value = "No alert records reported for this category on the selected date.";
+                    emptyCell.font = { name: "Calibri", size: 10, italic: true, color: { argb: "FF64748B" } };
+                    emptyCell.alignment = { vertical: "middle", horizontal: "center" };
+                    ws.getRow(3).height = 24;
+                } else {
+                    items.forEach((item, idx) => {
+                        const actualEeName = item.ee_name && item.ee_name !== "-" && item.ee_name.toLowerCase() !== "executive engineer"
+                            ? item.ee_name
+                            : (item.recipient_designation === "Executive Engineer" && item.recipient_name && item.recipient_name !== "-" && item.recipient_name.toLowerCase() !== "executive engineer"
+                                ? item.recipient_name
+                                : null);
+                        const actualEeMobile = item.ee_number && item.ee_number !== "-"
+                            ? item.ee_number
+                            : (item.recipient_designation === "Executive Engineer" && item.recipient_contact && item.recipient_contact !== "-"
+                                ? item.recipient_contact
+                                : null);
+
+                        const actualOperatorName = item.operator_name && item.operator_name !== "-" && item.operator_name.toLowerCase() !== "village operator"
+                            ? item.operator_name
+                            : (item.recipient_designation !== "Executive Engineer" && item.recipient_name && item.recipient_name !== "-" && item.recipient_name.toLowerCase() !== "village operator" && item.recipient_name.toLowerCase() !== "executive engineer" && item.recipient_name !== actualEeName
+                                ? item.recipient_name
+                                : null);
+                        const actualOperatorMobile = item.operator_number && item.operator_number !== "-"
+                            ? item.operator_number
+                            : (item.recipient_designation !== "Executive Engineer" && item.recipient_contact && item.recipient_contact !== "-" && item.recipient_contact !== actualEeMobile
+                                ? item.recipient_contact
+                                : null);
+
+                        const rowValues = [
+                            idx + 1,
+                            item.scheme_id || "-",
+                            item.scheme_name || "-",
+                            item.region || "-",
+                            item.circle || "-",
+                            item.division || "-",
+                            item.sub_division || "-",
+                            item.block || "-",
+                            item.village_name || "-",
+                            item.reservoir_name || item.esr_name || "-",
+                            item.reading_value || item.telemetry_value || (item.val_today !== undefined ? String(item.val_today) : "-"),
+                            evalDateStr,
+                            item.resolution_status || (item.escalated_to_ee ? "ESCALATED TO EE" : "REPORTED"),
+                            actualOperatorName || "Operator Information Not Available",
+                            actualOperatorMobile || "-",
+                            actualEeName || "Executive Engineer Information Not Available",
+                            actualEeMobile || "-",
+                            item.ee_email || "-",
+                            item.delivery_status || (item.sms_sent ? "SENT" : "NOT_DISPATCHED"),
+                            Array.isArray(item.remarks_list) && item.remarks_list.length > 0
+                                ? item.remarks_list.map((r: any) => r.reason || r.resolution_remark || "").filter(Boolean).join("; ")
+                                : "-"
+                        ];
+
+                        const row = ws.getRow(idx + 3);
+                        row.values = rowValues;
+                        row.height = 20;
+                        const isEven = idx % 2 === 0;
+                        const rowBg = isEven ? "FFFFFFFF" : "FFF8FAFC";
+
+                        row.eachCell((cell, colNum) => {
+                            cell.font = { name: "Calibri", size: 10, color: { argb: "FF0F172A" } };
+                            cell.border = borderStyle;
+                            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } };
+                            cell.alignment = { vertical: "middle" };
+
+                            if ([1, 2, 11, 12, 13, 15, 17, 19].includes(colNum)) {
+                                cell.alignment = { vertical: "middle", horizontal: "center" };
+                            }
+                        });
+                    });
+                }
+
+                // Assign column widths
+                cols.forEach((col, i) => {
+                    ws.getColumn(i + 1).width = col.width;
+                });
+            };
+
+            // Sheet 2: LPCD Alerts
+            populateAlertSheet("LPCD Alerts", alertMatrix.lpcd?.items || [], "Low LPCD");
+
+            // Sheet 3: Pressure Alerts
+            populateAlertSheet("Pressure Alerts", alertMatrix.pressure?.items || [], "Low Pressure");
+
+            // Sheet 4: Chlorine Alerts
+            populateAlertSheet("Chlorine Alerts", alertMatrix.chlorine?.items || [], "Residual Chlorine");
+
+            // Generate buffer and trigger clean download
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], {
+                type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            });
+
+            const cleanRegion = (selectedRegion || "All").replace(/[^a-zA-Z0-9_-]/g, "_");
+            const cleanDate = (dataDate || filterDateInput || "date").replace(/[^a-zA-Z0-9_-]/g, "_");
+            const filename = `MJP_Alert_Tracker_${cleanRegion}_${cleanDate}.xlsx`;
+
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
             toast({
                 title: "Excel Exported Successfully",
-                description: `Alert Tracker for ${selectedRegion} on ${filterDateInput} has been downloaded.`,
+                description: `Full Alert Tracker report for ${selectedRegion} on ${filterDateInput} has been downloaded.`,
             });
         } catch (err) {
             console.error("Export error:", err);
@@ -613,43 +948,93 @@ export default function AlertTrackerPage() {
             });
         }
 
-        if (!modalSearch.trim()) return items;
-        const q = modalSearch.toLowerCase().trim();
-        return items.filter((item: any) => {
-            return (
-                String(item.scheme_id || "").toLowerCase().includes(q) ||
-                String(item.scheme_name || "").toLowerCase().includes(q) ||
-                String(item.village_name || "").toLowerCase().includes(q) ||
-                String(item.reservoir_name || item.esr_name || "").toLowerCase().includes(q) ||
-                String(item.recipient_name || item.operator_name || item.ee_name || "").toLowerCase().includes(q) ||
-                String(item.recipient_contact || item.operator_number || item.ee_number || "").toLowerCase().includes(q) ||
-                String(item.ee_email || item.recipient_email || "").toLowerCase().includes(q) ||
-                String(item.region || "").toLowerCase().includes(q) ||
-                String(item.division || "").toLowerCase().includes(q) ||
-                String(item.block || "").toLowerCase().includes(q) ||
-                String(item.total_villages || "").toLowerCase().includes(q) ||
-                String(item.connected_villages || "").toLowerCase().includes(q) ||
-                String(item.total_esrs || "").toLowerCase().includes(q) ||
-                String(item.completed_esrs || "").toLowerCase().includes(q) ||
-                String(item.population || "").toLowerCase().includes(q) ||
-                String(item.is_connected || "").toLowerCase().includes(q) ||
-                String(item.flow_meter_connected || "").toLowerCase().includes(q) ||
-                String(item.pressure_connected || "").toLowerCase().includes(q) ||
-                String(item.chlorine_connected || "").toLowerCase().includes(q) ||
-                String(item.reading_value || item.telemetry_value || "").toLowerCase().includes(q) ||
-                String(item.latest_lpcd || "").toLowerCase().includes(q) ||
-                String(item.latest_water || "").toLowerCase().includes(q) ||
-                String(item.agency_type || item.operated_by || "").toLowerCase().includes(q)
-            );
-        });
+        let resultItems = items;
+        if (modalSearch.trim()) {
+            const q = modalSearch.toLowerCase().trim();
+            resultItems = items.filter((item: any) => {
+                return (
+                    String(item.scheme_id || "").toLowerCase().includes(q) ||
+                    String(item.scheme_name || "").toLowerCase().includes(q) ||
+                    String(item.village_name || "").toLowerCase().includes(q) ||
+                    String(item.reservoir_name || item.esr_name || "").toLowerCase().includes(q) ||
+                    String(item.recipient_name || item.operator_name || item.ee_name || "").toLowerCase().includes(q) ||
+                    String(item.recipient_contact || item.operator_number || item.ee_number || "").toLowerCase().includes(q) ||
+                    String(item.ee_email || item.recipient_email || "").toLowerCase().includes(q) ||
+                    String(item.region || "").toLowerCase().includes(q) ||
+                    String(item.division || "").toLowerCase().includes(q) ||
+                    String(item.block || "").toLowerCase().includes(q) ||
+                    String(item.total_villages || "").toLowerCase().includes(q) ||
+                    String(item.connected_villages || "").toLowerCase().includes(q) ||
+                    String(item.total_esrs || "").toLowerCase().includes(q) ||
+                    String(item.completed_esrs || "").toLowerCase().includes(q) ||
+                    String(item.population || "").toLowerCase().includes(q) ||
+                    String(item.is_connected || "").toLowerCase().includes(q) ||
+                    String(item.flow_meter_connected || "").toLowerCase().includes(q) ||
+                    String(item.pressure_connected || "").toLowerCase().includes(q) ||
+                    String(item.chlorine_connected || "").toLowerCase().includes(q) ||
+                    String(item.reading_value || item.telemetry_value || "").toLowerCase().includes(q) ||
+                    String(item.latest_lpcd || "").toLowerCase().includes(q) ||
+                    String(item.latest_water || "").toLowerCase().includes(q) ||
+                    String(item.agency_type || item.operated_by || "").toLowerCase().includes(q)
+                );
+            });
+        }
 
-        // Ensure 'No Data Received' / 'Data Not Available' records always appear at the end of the list
-        return [...items].sort((a: any, b: any) => {
-            const aName = String(a.village_name || a.esr_name || "").toLowerCase();
-            const bName = String(b.village_name || b.esr_name || "").toLowerCase();
-            const aNoData = aName.includes("no data") || aName.includes("data not available") ? 1 : 0;
-            const bNoData = bName.includes("no data") || bName.includes("data not available") ? 1 : 0;
-            return aNoData - bNoData;
+        const isScopeList = selectedCellDetails?.category === "scope";
+        const isEscalationList = selectedCellDetails?.colType === "escalation";
+
+        // Sort items:
+        // For alerts: prioritize records where SMS/Email were dispatched (even if success or failure),
+        // and put records where notifications were not sent (or information not available) at the end.
+        // For scope: keep placeholders ("no data received") at the very end.
+        return [...resultItems].sort((a: any, b: any) => {
+            if (isScopeList) {
+                const aName = String(a.village_name || a.esr_name || "").toLowerCase();
+                const bName = String(b.village_name || b.esr_name || "").toLowerCase();
+                const aNoData = aName.includes("no data") || aName.includes("data not available") ? 1 : 0;
+                const bNoData = bName.includes("no data") || bName.includes("data not available") ? 1 : 0;
+                return aNoData - bNoData;
+            }
+
+            // Function to assess whether contact & dispatch info is present and dispatched
+            const getDispatchScore = (item: any) => {
+                const rawStatus = String(item.sms_delivery_status || item.delivery_status || "").toUpperCase();
+                const isDispatched = rawStatus && rawStatus !== "NOT_DISPATCHED" && rawStatus !== "NONE" && rawStatus !== "-";
+                const isEmailSent = Boolean(item.email_sent);
+                const hasSmsSent = Boolean(item.sms_sent);
+
+                const hasEeName = Boolean(item.ee_name && item.ee_name !== "-" && item.ee_name.toLowerCase() !== "executive engineer");
+                const hasEeMobile = Boolean(item.ee_number && item.ee_number !== "-");
+                const hasOpName = Boolean(item.operator_name && item.operator_name !== "-" && item.operator_name.toLowerCase() !== "village operator");
+                const hasOpMobile = Boolean(item.operator_number && item.operator_number !== "-");
+
+                if (isEscalationList) {
+                    // For Executive Engineer: priority 1 if dispatched via SMS or Email (success or fail)
+                    if (isDispatched || isEmailSent || hasSmsSent) return 1;
+                    // Next priority if contact info exists
+                    if (hasEeName && hasEeMobile) return 2;
+                    if (hasEeName) return 3;
+                    // Lowest priority if EE information not available / not sent
+                    return 4;
+                } else {
+                    // For Operator: priority 1 if SMS dispatched (delivered or failed)
+                    if (isDispatched || hasSmsSent) return 1;
+                    // Next priority if operator info exists
+                    if (hasOpName && hasOpMobile) return 2;
+                    if (hasOpName) return 3;
+                    // Lowest priority if operator information not available / not sent
+                    return 4;
+                }
+            };
+
+            const aScore = getDispatchScore(a);
+            const bScore = getDispatchScore(b);
+            if (aScore !== bScore) {
+                return aScore - bScore;
+            }
+
+            // Secondary sort: preserve order or sort by scheme_id
+            return 0;
         });
     }, [selectedCellDetails, modalSearch, modalRegionFilter, modalConnectionFilter]);
 
@@ -722,10 +1107,11 @@ export default function AlertTrackerPage() {
                         <Button
                             size="sm"
                             onClick={handleExportExcel}
-                            className="text-xs h-8 bg-[#0B3558] hover:bg-[#07243d] text-white shadow-sm flex items-center gap-1.5 font-semibold transition-colors"
+                            className="text-xs h-8.5 bg-[#0B3558] hover:bg-[#07243d] text-white shadow-sm flex items-center gap-1.5 font-semibold transition-all px-3 rounded-md cursor-pointer border border-[#0B3558]"
+                            title={`Download complete Alert Tracker workbook for ${selectedRegion} on ${filterDateInput}`}
                         >
-                            <Download className="w-3.5 h-3.5" />
-                            Download Excel
+                            <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                            <span>Download Excel</span>
                         </Button>
                     </div>
                 </div>
