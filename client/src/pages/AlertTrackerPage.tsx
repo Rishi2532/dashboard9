@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import Header from "@/components/dashboard/header";
 import { Button } from "@/components/ui/button";
 import {
@@ -165,15 +165,36 @@ export default function AlertTrackerPage() {
         }
     }, [selectedCellDetails]);
 
+    const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+
     // Query Alert Tracker backend summary for selected date & region
     const {
         data,
         isLoading,
         isRefetching,
+        isFetching,
         refetch,
     } = useQuery({
         queryKey: ["/api/alert-tracker/summary", selectedRegion, dataDate, selectedAgency],
-        queryFn: async () => {
+        queryFn: async ({ signal }) => {
+            const params = new URLSearchParams();
+            if (selectedRegion && selectedRegion !== "All") {
+                params.append("region", selectedRegion);
+            }
+            params.append("date", dataDate);
+            params.append("agency", selectedAgency === "ALL Agency" ? "ALL" : selectedAgency);
+            const res = await fetch(`/api/alert-tracker/summary?${params.toString()}`, { signal });
+            if (!res.ok) throw new Error("Failed to load alert tracker summary");
+            return res.json();
+        },
+        placeholderData: keepPreviousData,
+        staleTime: 60 * 1000,
+    });
+
+    // Manual refresh action that forces fresh database calculation and updates UI
+    const handleManualRefresh = async () => {
+        setIsManualRefreshing(true);
+        try {
             const params = new URLSearchParams();
             if (selectedRegion && selectedRegion !== "All") {
                 params.append("region", selectedRegion);
@@ -181,12 +202,15 @@ export default function AlertTrackerPage() {
             params.append("date", dataDate);
             params.append("agency", selectedAgency === "ALL Agency" ? "ALL" : selectedAgency);
             params.append("refresh", "true");
-            const res = await fetch(`/api/alert-tracker/summary?${params.toString()}`);
-            if (!res.ok) throw new Error("Failed to load alert tracker summary");
-            return res.json();
-        },
-        staleTime: 15 * 1000,
-    });
+            await fetch(`/api/alert-tracker/summary?${params.toString()}`);
+            await refetch();
+        } catch (err) {
+            console.error("Refresh failed:", err);
+            await refetch();
+        } finally {
+            setIsManualRefreshing(false);
+        }
+    };
 
     // Query Alert Tracker Cron / Schedule Status
     const { data: cronStatus } = useQuery({
@@ -265,15 +289,15 @@ export default function AlertTrackerPage() {
     };
 
     const physicalProgress = data?.physicalProgress || {
-        schemes: { partial: 340, fully: 49 },
-        villages: { partial: 5579, fully: 391 },
-        esr: { partial: 9628, fully: 612 },
+        schemes: { partial: 0, fully: 0 },
+        villages: { partial: 0, fully: 0 },
+        esr: { partial: 0, fully: 0 },
     };
 
     const operational = data?.operational || {
-        schemes: 47,
-        villages: 346,
-        esr: 407,
+        schemes: 0,
+        villages: 0,
+        esr: 0,
     };
 
     const diffCounts = data?.diffCounts || {
@@ -471,16 +495,16 @@ export default function AlertTrackerPage() {
                 ],
                 [
                     "Physical Progress - Fully Completed",
-                    Number(physicalProgress.schemes?.fully ?? 49),
-                    Number(physicalProgress.villages?.fully ?? 392),
-                    Number(physicalProgress.esr?.fully ?? 612),
+                    Number(physicalProgress.schemes?.fully || 0),
+                    Number(physicalProgress.villages?.fully || 0),
+                    Number(physicalProgress.esr?.fully || 0),
                     "100% Civil Work Completed"
                 ],
                 [
                     "Physical Progress - Partially Completed",
-                    Number(physicalProgress.schemes?.partial ?? 340),
-                    Number(physicalProgress.villages?.partial ?? 5603),
-                    Number(physicalProgress.esr?.partial ?? 9711),
+                    Number(physicalProgress.schemes?.partial || 0),
+                    Number(physicalProgress.villages?.partial || 0),
+                    Number(physicalProgress.esr?.partial || 0),
                     "Work In Progress"
                 ],
                 [
@@ -1085,12 +1109,12 @@ export default function AlertTrackerPage() {
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => refetch()}
-                            disabled={isRefetching || isLoading}
-                            className="text-xs h-8 border-[#4A6484]/50 text-[#0A2540] hover:bg-[#EBF3FB] hover:text-[#0B3558] flex items-center gap-1.5"
+                            onClick={handleManualRefresh}
+                            disabled={isManualRefreshing || isRefetching || isLoading}
+                            className="text-xs h-8 border-[#4A6484]/50 text-[#0A2540] hover:bg-[#EBF3FB] hover:text-[#0B3558] flex items-center gap-1.5 cursor-pointer"
                         >
-                            <RefreshCw className={`w-3.5 h-3.5 text-[#0B3558] ${isRefetching ? "animate-spin" : ""}`} />
-                            Refresh
+                            <RefreshCw className={`w-3.5 h-3.5 text-[#0B3558] ${(isManualRefreshing || isRefetching) ? "animate-spin" : ""}`} />
+                            {isManualRefreshing ? "Refreshing..." : "Refresh"}
                         </Button>
 
                         {/* <Button
@@ -1170,13 +1194,13 @@ export default function AlertTrackerPage() {
                                     </td>
                                     <td className="p-2 sm:p-2.5 border-r border-[#4A6484] bg-white w-1/4 text-xs sm:text-sm leading-snug text-[#1E293B]">
                                         <div
-                                            onClick={() => handleScopeClick("Partial Completed Schemes", "iotSchemesTotal", physicalProgress.schemes?.partial ?? 340)}
+                                            onClick={() => handleScopeClick("Partial Completed Schemes", "iotSchemesTotal", physicalProgress.schemes?.partial || 0)}
                                             className="cursor-pointer hover:text-[#0B3558] hover:underline"
                                         >
                                             Partial completed schemes - {renderScopeCount(physicalProgress.schemes?.partial)}
                                         </div>
                                         <div
-                                            onClick={() => handleScopeClick("Fully Completed Schemes", "iotSchemesFully", physicalProgress.schemes?.fully ?? 49)}
+                                            onClick={() => handleScopeClick("Fully Completed Schemes", "iotSchemesFully", physicalProgress.schemes?.fully || 0)}
                                             className="cursor-pointer hover:text-[#0B3558] hover:underline"
                                         >
                                             Fully Completed Schemes - {renderScopeCount(physicalProgress.schemes?.fully)}
@@ -1187,7 +1211,7 @@ export default function AlertTrackerPage() {
                                             Villages covered in Partial schemes - {renderScopeCount(physicalProgress.villages?.partial)}
                                         </div>
                                         <div
-                                            onClick={() => handleScopeClick("Villages covered in fully completed schemes", "iotVillagesFully", physicalProgress.villages?.fully ?? 391)}
+                                            onClick={() => handleScopeClick("Villages covered in fully completed schemes", "iotVillagesFully", physicalProgress.villages?.fully || 0)}
                                             className="cursor-pointer hover:text-[#0B3558] hover:underline"
                                         >
                                             Villages covered in fully completed schemes - {renderScopeCount(physicalProgress.villages?.fully)}
@@ -1198,7 +1222,7 @@ export default function AlertTrackerPage() {
                                             ESRs covered in Partial schemes - {renderScopeCount(physicalProgress.esr?.partial)}
                                         </div>
                                         <div
-                                            onClick={() => handleScopeClick("ESRs covered in fully completed schemes", "iotEsrFully", physicalProgress.esr?.fully ?? 612)}
+                                            onClick={() => handleScopeClick("ESRs covered in fully completed schemes", "iotEsrFully", physicalProgress.esr?.fully || 0)}
                                             className="cursor-pointer hover:text-[#0B3558] hover:underline"
                                         >
                                             ESRs covered in fully completed schemes - {renderScopeCount(physicalProgress.esr?.fully)}
@@ -1212,25 +1236,25 @@ export default function AlertTrackerPage() {
                                         IoT Operational
                                     </td>
                                     <td
-                                        onClick={() => handleScopeClick("Operational Connected Schemes", "operationalSchemes", operational.schemes || 39)}
+                                        onClick={() => handleScopeClick("Operational Connected Schemes", "operationalSchemes", operational.schemes || 0)}
                                         className="p-2 sm:p-2.5 font-semibold text-[#1E293B] bg-white border-r border-[#4A6484] w-1/4 cursor-pointer hover:text-[#0B3558] hover:underline"
                                         title="Click to view IoT operational schemes"
                                     >
-                                        Scheme - {operational.schemes || 39}
+                                        Scheme - {renderScopeCount(operational.schemes)}
                                     </td>
                                     <td
-                                        onClick={() => handleScopeClick("Operational Connected Villages", "operationalVillages", operational.villages || 255)}
+                                        onClick={() => handleScopeClick("Operational Connected Villages", "operationalVillages", operational.villages || 0)}
                                         className="p-2 sm:p-2.5 font-semibold text-[#1E293B] bg-white border-r border-[#4A6484] w-1/4 cursor-pointer hover:text-[#0B3558] hover:underline"
                                         title="Click to view IoT operational villages"
                                     >
-                                        Villages - {operational.villages || 255}
+                                        Villages - {renderScopeCount(operational.villages)}
                                     </td>
                                     <td
-                                        onClick={() => handleScopeClick("Operational Connected ESRs", "operationalEsr", operational.esr || 325)}
+                                        onClick={() => handleScopeClick("Operational Connected ESRs", "operationalEsr", operational.esr || 0)}
                                         className="p-2 sm:p-2.5 font-semibold text-[#1E293B] bg-white w-1/4 cursor-pointer hover:text-[#0B3558] hover:underline"
                                         title="Click to view IoT operational ESRs"
                                     >
-                                        No. Of ESR - {operational.esr || 325}
+                                        No. Of ESR - {renderScopeCount(operational.esr)}
                                     </td>
                                 </tr>
                             </tbody>
@@ -1238,29 +1262,36 @@ export default function AlertTrackerPage() {
                     </div>
 
                     {/* FILTER SELECTION BAR */}
-                    <div className="w-full border border-[#4A6484] rounded-sm p-2 sm:p-2.5 mb-3 bg-white text-xs sm:text-sm font-bold flex flex-wrap items-center gap-2">
-                        <span className="text-[#0A2540] select-none">Filter Selection :</span>
-                        <div className="flex flex-wrap items-center gap-1.5 font-semibold text-[#334155]">
-                            {AGENCIES.map((agency, index) => {
-                                const isSelected = selectedAgency === agency;
-                                return (
-                                    <React.Fragment key={agency}>
-                                        <button
-                                            type="button"
-                                            onClick={() => { setSelectedAgency(agency); setSelectedCellDetails(null); }}
-                                            className={`cursor-pointer px-2.5 py-1 rounded transition-all text-xs sm:text-sm ${isSelected
-                                                ? "bg-[#0B3558] text-white font-bold shadow-xs"
-                                                : "hover:text-[#0B3558] text-[#334155]"
-                                                }`}
-                                        >
-                                            {agency}
-                                        </button>
-                                        {index < AGENCIES.length - 1 && <span className="text-[#94A3B8] font-light">|</span>}
-                                    </React.Fragment>
-                                );
-                            })}
-                            <span className="text-[#94A3B8] font-light">|</span>
+                    <div className="w-full border border-[#4A6484] rounded-sm p-2 sm:p-2.5 mb-3 bg-white text-xs sm:text-sm font-bold flex flex-wrap items-center justify-between gap-2 shadow-xs">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-[#0A2540] select-none">Filter Selection :</span>
+                            <div className="flex flex-wrap items-center gap-1.5 font-semibold text-[#334155]">
+                                {AGENCIES.map((agency, index) => {
+                                    const isSelected = selectedAgency === agency;
+                                    return (
+                                        <React.Fragment key={agency}>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setSelectedAgency(agency); setSelectedCellDetails(null); }}
+                                                className={`cursor-pointer px-2.5 py-1 rounded transition-all text-xs sm:text-sm ${isSelected
+                                                    ? "bg-[#0B3558] text-white font-bold shadow-xs"
+                                                    : "hover:text-[#0B3558] text-[#334155]"
+                                                    }`}
+                                            >
+                                                {agency}
+                                            </button>
+                                            {index < AGENCIES.length - 1 && <span className="text-[#94A3B8] font-light">|</span>}
+                                        </React.Fragment>
+                                    );
+                                })}
+                            </div>
                         </div>
+                        {isFetching && !isLoading && (
+                            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#0B3558] bg-blue-50 px-2 py-0.5 rounded border border-blue-200 animate-pulse">
+                                <RefreshCw className="w-3 h-3 animate-spin text-[#0B3558]" />
+                                Updating...
+                            </span>
+                        )}
                     </div>
 
                     {/* DATA DATE FILTER ROW (Defaults to today, allows yesterday & historical selection) */}

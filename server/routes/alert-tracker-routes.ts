@@ -10,9 +10,9 @@ import {
 
 const router = Router();
 
-// Cache for alert tracker summary to provide sub-second responses
+// Cache for alert tracker summary to provide instant filter switching and prevent UI freezes
 const trackerCache = new Map<string, { timestamp: number; payload: any }>();
-const CACHE_TTL_MS = 0; // Always fetch live database updates
+const CACHE_TTL_MS = 60 * 1000; // 60 seconds memory cache for snappy filter toggling
 
 router.get("/summary", async (req: Request, res: Response) => {
   try {
