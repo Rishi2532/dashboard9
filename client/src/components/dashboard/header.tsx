@@ -302,7 +302,7 @@ export default function Header() {
               </Button>
             </Link>
 
-            <Link href="/regions">
+            {/* <Link href="/regions">
               <Button
                 variant="ghost"
                 size="sm"
@@ -316,7 +316,7 @@ export default function Header() {
                 <MapPin className="h-3.5 w-3.5 mr-1.5" />
                 Regions
               </Button>
-            </Link>
+            </Link> */}
             <Link href="/reports">
               <Button
                 variant="ghost"
@@ -571,7 +571,7 @@ export default function Header() {
               </Button>
             </Link>
 
-            <Link href="/regions" onClick={() => setIsMobileMenuOpen(false)}>
+            {/* <Link href="/regions" onClick={() => setIsMobileMenuOpen(false)}>
               <Button
                 variant="ghost"
                 size="sm"
@@ -585,7 +585,7 @@ export default function Header() {
                 <MapPin className="h-4 w-4 mr-2" />
                 Regions
               </Button>
-            </Link>
+            </Link> */}
             <Link href="/reports" onClick={() => setIsMobileMenuOpen(false)}>
               <Button
                 variant="ghost"

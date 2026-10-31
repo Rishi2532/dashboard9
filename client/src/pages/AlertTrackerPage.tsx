@@ -1013,11 +1013,51 @@ export default function AlertTrackerPage() {
         // For scope: keep placeholders ("no data received") at the very end.
         return [...resultItems].sort((a: any, b: any) => {
             if (isScopeList) {
+                // 1. Keep placeholder rows ("no data received" / "data not available") at the absolute bottom
                 const aName = String(a.village_name || a.esr_name || "").toLowerCase();
                 const bName = String(b.village_name || b.esr_name || "").toLowerCase();
                 const aNoData = aName.includes("no data") || aName.includes("data not available") ? 1 : 0;
                 const bNoData = bName.includes("no data") || bName.includes("data not available") ? 1 : 0;
-                return aNoData - bNoData;
+                if (aNoData !== bNoData) {
+                    return aNoData - bNoData;
+                }
+
+                // Check presence of Operator Name/Contact
+                const checkHasOperator = (item: any) => {
+                    const rawOpName = item.operator_name && item.operator_name !== "-" ? String(item.operator_name).trim() : "";
+                    const isGenericName = !rawOpName || rawOpName.toLowerCase() === "village operator" || rawOpName.toLowerCase().includes("not available");
+                    const opNumber = item.operator_number && item.operator_number !== "-" ? String(item.operator_number).trim() : "";
+                    return !isGenericName || Boolean(opNumber);
+                };
+
+                // Check presence of Executive Engineer Name/Contact
+                const checkHasExecutive = (item: any) => {
+                    const rawEeName = item.ee_name && item.ee_name !== "-" ? String(item.ee_name).trim() : "";
+                    const isGenericEe = !rawEeName || rawEeName.toLowerCase() === "executive engineer" || rawEeName.toLowerCase().includes("not available");
+                    const eeNumber = item.ee_number && item.ee_number !== "-" ? String(item.ee_number).trim() : "";
+                    const eeEmail = item.ee_email && item.ee_email !== "-" ? String(item.ee_email).trim() : "";
+                    return !isGenericEe || Boolean(eeNumber || eeEmail);
+                };
+
+                const getScopeRank = (item: any) => {
+                    const hasOp = checkHasOperator(item);
+                    const hasEe = checkHasExecutive(item);
+                    // Rank 1: Both operator and executive engineer present
+                    if (hasOp && hasEe) return 1;
+                    // Rank 2: Only one present (either operator only or executive only)
+                    if (hasOp || hasEe) return 2;
+                    // Rank 3: Neither present
+                    return 3;
+                };
+
+                const aRank = getScopeRank(a);
+                const bRank = getScopeRank(b);
+                if (aRank !== bRank) {
+                    return aRank - bRank;
+                }
+
+                // Preserve deterministic order by scheme_id
+                return String(a.scheme_id || "").localeCompare(String(b.scheme_id || ""), undefined, { numeric: true });
             }
 
             // Function to assess whether contact & dispatch info is present and dispatched
