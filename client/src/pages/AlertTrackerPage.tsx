@@ -366,7 +366,11 @@ export default function AlertTrackerPage() {
     // Clickable Upper Scope helper
     const handleScopeClick = (title: string, itemsKey: string, countVal: number | string) => {
         const details = data?.details || {};
-        const items = details[itemsKey] || [];
+        let items = [...(details[itemsKey] || [])];
+        const numericCount = Number(countVal);
+        if (!isNaN(numericCount) && numericCount > 0 && items.length > numericCount) {
+            items = items.slice(0, numericCount);
+        }
         const isScheme = itemsKey.toLowerCase().includes("scheme");
         const isVillage = itemsKey.toLowerCase().includes("village");
         const isEsr = itemsKey.toLowerCase().includes("esr");
@@ -1022,6 +1026,25 @@ export default function AlertTrackerPage() {
                     return aNoData - bNoData;
                 }
 
+                // 2. CONNECTED FIRST! Show connected schemes/villages/ESRs before not-connected
+                const getIsConnected = (item: any) => {
+                    const status = String(item.fully_completion_scheme_status || item.status || "").trim().toLowerCase();
+                    const isNotConn = status === "not-connected" || status === "not connected" || status === "integration pending";
+                    return !isNotConn && (
+                        item.is_connected === "Connected" ||
+                        String(item.is_connected).toLowerCase() === "yes" ||
+                        Number(item.connected_villages || 0) > 0 ||
+                        Number(item.connected_esrs || 0) > 0
+                    );
+                };
+
+                const aConnected = getIsConnected(a) ? 1 : 0;
+                const bConnected = getIsConnected(b) ? 1 : 0;
+                if (aConnected !== bConnected) {
+                    return bConnected - aConnected; // 1 (Connected) before 0 (Not Connected)
+                }
+
+                // 3. WITHIN SAME CONNECTION STATUS: SHOW BOTH OPERATOR AND EE FIRST!
                 // Check presence of Operator Name/Contact
                 const checkHasOperator = (item: any) => {
                     const rawOpName = item.operator_name && item.operator_name !== "-" ? String(item.operator_name).trim() : "";

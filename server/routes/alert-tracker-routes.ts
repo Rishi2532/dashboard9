@@ -1025,6 +1025,9 @@ router.get("/summary", async (req: Request, res: Response) => {
         }
       }
     }
+    if (iotVillagesFullyList.length > totalVillagesFully) {
+      iotVillagesFullyList.length = totalVillagesFully;
+    }
 
     // If iotEsrFullyList has fewer records than totalEsrFully (e.g. 556 real records vs 612 target),
     // add placeholder rows with 'No Data Received' and 'Not Connected' for schemes missing physical records
@@ -1069,6 +1072,9 @@ router.get("/summary", async (req: Request, res: Response) => {
           }
         }
       }
+    }
+    if (iotEsrFullyList.length > totalEsrFully) {
+      iotEsrFullyList.length = totalEsrFully;
     }
 
     // Sort to place all genuine named records first, and all "No Data Received" / "Data Not Available" at the end of the list
